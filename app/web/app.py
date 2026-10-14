@@ -1,0 +1,39 @@
+"""Фабрика веб-приложения."""
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+from starlette.middleware.sessions import SessionMiddleware
+
+from app.config import Settings
+from app.domain.access import AccessDenied
+from app.services.seed import seed_reference
+from app.storage.db import init_db, make_engine
+from app.web.deps import NotLoggedIn, redirect
+from app.web.routes import auth, orders, plan, positions, reference
+from app.web.templating import render
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or Settings()
+    settings.upload_dir.mkdir(parents=True, exist_ok=True)
+    session_factory = init_db(make_engine(settings.db_url))
+    with session_factory() as session:
+        seed_reference(session, settings.seed_dir, demo_journal=settings.demo_journal)
+
+    app = FastAPI(title="Планирование загрузки и расчёт стоимости", docs_url=None, redoc_url=None)
+    app.state.settings = settings
+    app.state.session_factory = session_factory
+    app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site="lax")
+    app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
+
+    @app.exception_handler(NotLoggedIn)
+    async def _not_logged_in(request: Request, exc: NotLoggedIn):
+        return redirect("/login")
+
+    @app.exception_handler(AccessDenied)
+    async def _denied(request: Request, exc: AccessDenied):
+        return render(request, "error.html", status_code=403, title="Нет доступа", message=str(exc))
+
+    for module in (auth, orders, positions, plan, reference):
+        app.include_router(module.router)
+    return app

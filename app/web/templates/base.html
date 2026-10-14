@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Планирование загрузки{% endblock %} — АС</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">АС «Планирование загрузки и расчёт стоимости»</div>
+  {% if user %}
+  <nav>
+    {% if can('view_orders') %}<a href="/orders">Заказы</a>{% endif %}
+    {% if can('upload_order') %}<a href="/orders/new">Новый заказ</a>{% endif %}
+    {% if can('view_plan') %}<a href="/plan">Загрузка станков</a>{% endif %}
+    {% if can('fact_machine') %}<a href="/facts">Факт</a>{% endif %}
+    {% if can('receive_notifications') %}<a href="/notifications">Уведомления</a>{% endif %}
+    {% if can('view_journal') %}<a href="/journal">Журнал калибровки</a>{% endif %}
+    {% if can('view_reference') %}<a href="/reference">Справочники</a>{% endif %}
+    {% if can('view_history') %}<a href="/history">История</a>{% endif %}
+  </nav>
+  <div class="me">{{ user.name }} ({{ role.label }})
+    <form method="post" action="/logout" class="inline"><button class="secondary">Выйти</button></form>
+  </div>
+  {% endif %}
+</header>
+<main>
+  {% for kind, message in flashes %}<div class="flash {{ kind }}">{{ message }}</div>{% endfor %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

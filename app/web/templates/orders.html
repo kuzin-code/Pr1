@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Заказы{% endblock %}
+{% block content %}
+<h1>Заказы</h1>
+<div class="card scroll">
+<table>
+  <tr><th>Номер</th><th>Дата начала</th><th class="num">Позиций</th><th>Статус</th><th>Срок</th><th>Создан</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td><a href="/orders/{{ r.order.id }}">{{ r.order.number }}</a></td>
+    <td>{{ r.order.start_date|dt }}</td>
+    <td class="num">{{ r.order.positions|length }}</td>
+    <td>{% if r.done %}<span class="badge ok">Завершён</span>{% else %}<span class="badge">В работе</span>{% endif %}</td>
+    <td>{{ r.deadline|dt }} {% if r.deadline %}<span class="badge warn">ориентировочно</span>{% if r.preliminary %}<span class="badge">есть предварительные</span>{% endif %}{% endif %}</td>
+    <td class="muted">{{ r.order.created_at|dt }}, {{ r.order.created_by }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">Заказов нет</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

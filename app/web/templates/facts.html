@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Отметка факта{% endblock %}
+{% block content %}
+<h1>Отметка факта</h1>
+<p class="muted">Оператор отмечает окончание станочной группы; мастер — также окончание слесарно-финишной обработки и внутреннего контроля.</p>
+<div class="card scroll">
+<table>
+  <tr><th>Станок</th><th>Позиция</th><th>Заказ</th><th class="num">Кол-во</th><th>Статус</th><th>Плановое окончание этапа</th><th>Отметка</th></tr>
+  {% for p in positions %}{% set pp = plan.positions.get(p.id) %}
+  {% set kind = 'machine' if p.status in ('approved', 'machining') else ('bench' if p.status == 'bench' else 'inspection') %}
+  <tr><td>{{ p.machine_code }}</td><td>{{ p.designation }}</td><td>{{ p.order.number }}</td><td class="num">{{ p.quantity }}</td>
+    <td>{{ status_label(p.status) }}</td>
+    <td>{% if pp %}{% if kind == 'machine' %}{{ pp.machine_end|dt }}{% elif kind == 'bench' %}{{ pp.bench_end|dt }}{% else %}{{ pp.finish|dt }}{% endif %}{% endif %}</td>
+    <td>
+      {% if kind == 'machine' or can('fact_bench') %}
+      <form method="post" action="/positions/{{ p.id }}/fact" class="inline">
+        <input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="back" value="/facts">
+        <input type="datetime-local" name="ended_at" value="{{ now }}">
+        <button>{{ FactKind(kind).label }}</button>
+      </form>
+      {% else %}<span class="muted">отмечает мастер</span>{% endif %}
+    </td></tr>
+  {% else %}
+  <tr><td colspan="7" class="muted">Нет утверждённых позиций в работе</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

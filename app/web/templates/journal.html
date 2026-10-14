@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Журнал калибровки{% endblock %}
+{% block content %}
+<h1>Журнал калибровки <span class="badge">версия {{ version }}</span></h1>
+<div class="row">
+  <a class="btn secondary" href="/journal/export">Экспорт в Excel (шаблон)</a>
+  {% if can('import_journal') %}
+  <form method="post" action="/journal/import" enctype="multipart/form-data" class="inline">
+    <input type="file" name="file" accept=".xlsx" required>
+    <label><input type="checkbox" name="replace"> заменить весь журнал</label>
+    <button>Импорт из Excel</button>
+  </form>{% endif %}
+</div>
+<div class="card scroll">
+<table>
+  <tr><th>Деталь</th><th>Станок</th><th>Материал</th><th>Габариты, мм</th><th class="num">IT</th><th class="num">Сложн.</th>
+    <th>Этапы (расчётное время)</th><th>k станочная</th><th>k слес.-финишная</th></tr>
+  {% for e in entries %}{% set k = ks[e.part_code] %}
+  <tr><td><b>{{ e.part_code }}</b><br><span class="muted">{{ e.name }} · {{ e.technology }}</span></td>
+    <td>{{ e.machine_code }}</td><td>{{ e.material }}</td><td>{{ e.dims.as_list()|join(' × ') }}</td>
+    <td class="num">{{ e.tolerance_grade }}</td><td class="num">{{ e.complexity }}</td>
+    <td>{% for s in e.stages %}<span class="badge">{{ s.stage.label }}: {{ s.hours }} ч / {{ s.count_mode.label }}</span>{% endfor %}</td>
+    {% for g in (machine_group, bench_group) %}
+    <td>{{ '%.3f'|format(k[g].value) }} <span class="muted">({{ k[g].count }} зам.)</span>
+      {% if k[g].approximate %}<span class="badge warn">ориентировочно</span>{% endif %}</td>
+    {% endfor %}</tr>
+  {% endfor %}
+</table>
+</div>
+<p class="muted">k = факт ÷ расчёт, среднее по замерам; пока замеров меньше 5 — «ориентировочно». Замеры добавляются автоматически по введённому факту.</p>
+{% endblock %}

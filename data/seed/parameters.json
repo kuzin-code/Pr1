@@ -1,0 +1,12 @@
+{
+  "rates": {"machine": 2000, "bench": 1000},
+  "schedule": {"machine_hours_per_day": 6, "bench_hours_per_day": 8, "workdays_per_week": 5},
+  "complexity_scale": [
+    {"score": 1, "description": "Простая: 2D-контур, грубые допуски (IT12–IT14)"},
+    {"score": 2, "description": "Несложная: несколько установов, IT10–IT11"},
+    {"score": 3, "description": "Средняя: 3D-поверхности или IT8–IT9, резьбы"},
+    {"score": 4, "description": "Сложная: точные посадки IT7, много установов"},
+    {"score": 5, "description": "Особо сложная: IT6 и точнее, 4–5 осей, тонкие стенки"}
+  ],
+  "_note": "Шкала сложности — заглушка: заменить листом «Шкала сложности» справочника v0.4"
+}

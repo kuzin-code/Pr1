@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Новый заказ{% endblock %}
+{% block content %}
+<h1>Новый заказ</h1>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+<div class="card">
+  <form method="post" action="/orders" enctype="multipart/form-data">
+    <div class="row">
+      <div><label>Номер заказа (необязательно)</label><input name="number"></div>
+      <div><label>Дата начала изготовления</label><input type="date" name="start_date" value="{{ today }}" required></div>
+    </div>
+    <p><label>Файлы STEP и PDF (на каждую деталь пара с одинаковым именем, до 50 позиций)</label>
+      <input type="file" name="files" multiple required accept=".step,.stp,.pdf"></p>
+    <button>Принять заказ</button>
+  </form>
+  <p class="muted">Количество по позициям вводится в карточке заказа после загрузки. Файлы других форматов отклоняются.</p>
+</div>
+{% endblock %}

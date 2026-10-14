@@ -1,0 +1,23 @@
+{
+  "_note": "ДЕМОНСТРАЦИОННЫЙ журнал из 9 условных деталей. Реальный журнал (Excel, 9 деталей) загружает IT через «Журнал → Импорт из Excel»; шаблон — «Журнал → Экспорт».",
+  "entries": [
+    {"part_code": "DEMO-01", "name": "Пластина", "machine_code": "VF2", "material": "Д16Т", "dims": [120, 80, 10], "tolerance_grade": 11, "complexity": 1, "technology": "milling",
+     "stages": [["cutting", 0.1, "piece"], ["programming", 1.0, "once"], ["setup", 0.5, "batch"], ["machining", 0.3, "piece"], ["locksmith", 0.1, "piece"], ["finishing", 0.05, "piece"], ["inspection", 0.3, "batch"]]},
+    {"part_code": "DEMO-02", "name": "Кронштейн", "machine_code": "VF2", "material": "Д16Т", "dims": [150, 60, 40], "tolerance_grade": 9, "complexity": 2, "technology": "milling",
+     "stages": [["cutting", 0.15, "piece"], ["programming", 2.0, "once"], ["setup", 1.0, "batch"], ["machining", 0.6, "piece"], ["locksmith", 0.2, "piece"], ["finishing", 0.1, "piece"], ["inspection", 0.5, "batch"]]},
+    {"part_code": "DEMO-03", "name": "Корпус", "machine_code": "VF2", "material": "Д16Т", "dims": [200, 120, 60], "tolerance_grade": 7, "complexity": 4, "technology": "milling",
+     "stages": [["cutting", 0.2, "piece"], ["programming", 4.0, "once"], ["setup", 2.0, "batch"], ["machining", 2.5, "piece"], ["locksmith", 0.5, "piece"], ["finishing", 0.2, "piece"], ["inspection", 1.0, "batch"]]},
+    {"part_code": "DEMO-04", "name": "Крышка", "machine_code": "SMM", "material": "АМг6", "dims": [100, 100, 15], "tolerance_grade": 8, "complexity": 3, "technology": "milling",
+     "stages": [["cutting", 0.1, "piece"], ["programming", 2.0, "once"], ["setup", 1.0, "batch"], ["machining", 0.8, "piece"], ["locksmith", 0.2, "piece"], ["finishing", 0.1, "piece"], ["inspection", 0.5, "batch"]]},
+    {"part_code": "DEMO-05", "name": "Фланец", "machine_code": "MV6", "material": "Сталь 45", "dims": [160, 160, 25], "tolerance_grade": 8, "complexity": 3, "technology": "milling",
+     "stages": [["cutting", 0.3, "piece"], ["programming", 2.5, "once"], ["setup", 1.5, "batch"], ["machining", 1.2, "piece"], ["locksmith", 0.3, "piece"], ["finishing", 0.15, "piece"], ["inspection", 0.5, "batch"]]},
+    {"part_code": "DEMO-06", "name": "Плита основания", "machine_code": "VOLZH1", "material": "Сталь 45", "dims": [400, 250, 40], "tolerance_grade": 9, "complexity": 2, "technology": "milling",
+     "stages": [["cutting", 0.5, "piece"], ["programming", 2.0, "once"], ["setup", 1.5, "batch"], ["machining", 3.0, "piece"], ["locksmith", 0.5, "piece"], ["finishing", 0.3, "piece"], ["inspection", 0.5, "batch"]]},
+    {"part_code": "DEMO-07", "name": "Вал", "machine_code": "ST20Y", "material": "40Х", "dims": [180, 40, 40], "tolerance_grade": 7, "complexity": 3, "technology": "turning",
+     "stages": [["cutting", 0.1, "piece"], ["programming", 1.5, "once"], ["setup", 1.0, "batch"], ["machining", 0.7, "piece"], ["locksmith", 0.1, "piece"], ["finishing", 0.05, "piece"], ["inspection", 0.5, "batch"]]},
+    {"part_code": "DEMO-08", "name": "Втулка", "machine_code": "ST20Y", "material": "12Х18Н10Т", "dims": [60, 50, 50], "tolerance_grade": 7, "complexity": 3, "technology": "turning",
+     "stages": [["cutting", 0.1, "piece"], ["programming", 1.0, "once"], ["setup", 0.8, "batch"], ["machining", 0.5, "piece"], ["locksmith", 0.1, "piece"], ["finishing", 0.05, "piece"], ["inspection", 0.3, "batch"]]},
+    {"part_code": "DEMO-09", "name": "Корпус точный", "machine_code": "SMM", "material": "12Х18Н10Т", "dims": [90, 70, 50], "tolerance_grade": 6, "complexity": 5, "technology": "milling",
+     "stages": [["cutting", 0.2, "piece"], ["programming", 5.0, "once"], ["setup", 2.5, "batch"], ["machining", 3.5, "piece"], ["locksmith", 0.7, "piece"], ["finishing", 0.3, "piece"], ["inspection", 1.0, "batch"]]}
+  ]
+}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Заказ {{ order.number }}{% endblock %}
+{% block content %}
+<h1>Заказ {{ order.number }}</h1>
+{% if done %}<div class="flash ok">Заказ завершён: все позиции прошли внутренний контроль.</div>{% endif %}
+<div class="card row">
+  <div><label>Дата начала</label>{{ order.start_date|dt }}</div>
+  <div style="margin-left:24px"><label>Срок заказа (макс. по позициям)</label>{{ deadline|dt }}
+    <span class="badge warn">ориентировочно</span></div>
+  {% if can('view_cost') %}
+  <div style="margin-left:24px"><label>Себестоимость обработки, итого</label>{{ total_cost|money }}
+    <span class="badge warn">ориентировочно</span></div>
+  {% endif %}
+  <div style="margin-left:24px"><label>Принят</label>{{ order.created_at|dt }}, {{ order.created_by }}</div>
+</div>
+
+<div class="card scroll">
+<h2>Позиции</h2>
+<table>
+  <tr><th>Позиция</th><th>Файлы</th><th class="num">Кол-во</th><th>Статус</th>
+    {% if can('view_machine_assignment') %}<th>Станок</th>{% endif %}<th>Аналог</th><th>Срок позиции</th><th>Отклонение</th>
+    {% if can('view_cost') %}<th class="num">Себестоимость партии</th><th class="num">Факт</th>{% endif %}</tr>
+  {% for p in order.positions %}
+  {% set planned = plan.positions.get(p.id) %}
+  {% set calc = p.approved_calc or p.current_calc %}
+  <tr>
+    <td><a href="/positions/{{ p.id }}">{{ p.designation }}</a>
+      {% if p.needs_link %}<span class="badge err">требует проверки: нет пары</span>{% endif %}</td>
+    <td class="muted">{{ p.step_name or "— STEP" }}<br>{{ p.pdf_name or "— PDF" }}</td>
+    <td class="num">
+      {% if can('upload_order') and p.status in ('calculation', 'tech_review') %}
+      <form method="post" action="/positions/{{ p.id }}/quantity" class="inline">
+        <input type="number" name="quantity" min="1" value="{{ p.quantity }}"><button class="secondary">OK</button></form>
+      {% else %}{{ p.quantity }}{% endif %}
+    </td>
+    <td>{{ status_label(p.status) }}</td>
+    {% if can('view_machine_assignment') %}<td>{{ p.machine_code or "—" }}</td>{% endif %}
+    <td>{{ p.analog_code or ("нет (вручную)" if p.no_analog else "—") }}</td>
+    <td>{% if planned %}{{ planned.finish|dt }}
+      {% if planned.preliminary %}<span class="badge">предварительный</span>{% endif %}
+      <span class="badge warn">ориентировочно</span>{% else %}—{% endif %}</td>
+    <td>{% set d = deviations.get(p.id) %}{% if d %}<span class="badge {{ 'err' if d.shift_hours > 0 else 'ok' }}">{{ '%+.1f'|format(d.shift_hours) }} раб. ч</span>{% else %}—{% endif %}</td>
+    {% if can('view_cost') %}
+    <td class="num">{{ calc.cost.batch_cost|money if calc else "—" }}</td>
+    <td class="num">{% set a = actual_costs.get(p.id) %}{% if a %}{{ a.actual|money }}<br><span class="muted">откл. {{ '%.1f'|format(a.deviation * 100) }}%</span>{% else %}—{% endif %}</td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>
+</div>
+
+{% if unpaired and can('edit_tech_data') %}
+<div class="card">
+  <h2>Ручное связывание STEP и PDF</h2>
+  <p class="muted">Имена файлов не совпали: расчёт таких позиций не запускается, пока файлы не связаны.</p>
+  <form method="post" action="/orders/{{ order.id }}/link" class="inline">
+    <select name="position_id">{% for p in unpaired %}<option value="{{ p.id }}">{{ p.step_name or p.pdf_name }}</option>{% endfor %}</select>
+    связать с
+    <select name="other_id">{% for p in unpaired %}<option value="{{ p.id }}">{{ p.step_name or p.pdf_name }}</option>{% endfor %}</select>
+    <button>Связать</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

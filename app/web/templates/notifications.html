@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Уведомления{% endblock %}
+{% block content %}
+<h1>Уведомления о плановом окончании этапов</h1>
+<div class="card">
+<table>
+  <tr><th>Плановое окончание</th><th>Событие</th><th></th></tr>
+  {% for n in rows %}
+  <tr><td>{{ n.planned_at|dt }}</td><td>{{ n.text }}</td><td>{% if not n.read %}<span class="badge warn">новое</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="3" class="muted">Уведомлений нет</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}
