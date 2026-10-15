@@ -57,3 +57,9 @@ def test_read_step_missing_or_binary_file(tmp_path):
     path.write_bytes(b"\x00\xff\x00garbage")
     assert read_step(path).needs_manual
     assert read_step(tmp_path / "absent.step").needs_manual
+
+
+def test_arc_counts_only_its_angle():
+    from tests.fixtures.samples import make_arc_step
+    assert parse_step_text(make_arc_step(35, 10)).dims.sorted() == pytest.approx((70, 35, 10))
+    assert parse_step_text(make_arc_step(35, 10, ".F.")).dims.sorted() == pytest.approx((70, 35, 10))

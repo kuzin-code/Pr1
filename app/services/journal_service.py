@@ -1,6 +1,5 @@
 """Ведение журнала калибровки технологом: добавление детали (из позиции или по STEP+PDF),
 правка характеристик и времени операций, ручные замеры, файлы, удаление (ФТ-25)."""
-import re
 import shutil
 from pathlib import Path
 
@@ -18,6 +17,7 @@ from app.domain.route import route_from_list
 from app.services.actor import Actor, ServiceError
 from app.services.auto_service import MANUAL_ROUTE
 from app.services.calc_service import DEFAULT_GRADE, position_features
+from app.services.file_check import check_entry_files, journal_code, name_warning, unreadable_reason
 from app.services.history_service import record
 from app.services.order_service import UploadedFile, get_position, read_documents
 from app.services.reference_service import (
@@ -30,11 +30,6 @@ from app.storage.convert import entry_from_row, entry_to_row
 from app.storage.orm import JournalRow
 
 TECHNOLOGIES = {"milling", "turning"}
-
-
-def journal_code(designation_: str) -> str:
-    """Обозначение без суффикса копии файла «(1)», который добавляет браузер."""
-    return re.sub(r"\s*\(\d+\)$", "", designation_).strip()
 
 
 def journal_rows(session: Session) -> list[JournalRow]:
@@ -90,16 +85,30 @@ def add_to_journal(session: Session, actor: Actor, position_id: int) -> Calibrat
     return entry
 
 
-def _store_files(row: JournalRow, files: list[UploadedFile], storage_dir: Path | str) -> None:
+def _store_files(row: JournalRow, files: list[UploadedFile], storage_dir: Path | str) -> list[str]:
+    """Сохраняет файлы детали; нечитаемые отклоняются, файлы другой детали — с предупреждением."""
     folder = Path(storage_dir) / f"entry_{row.id}"
     folder.mkdir(parents=True, exist_ok=True)
+    checked = []
     for f in files:
-        kind = file_kind(f.filename)
+        try:
+            kind = file_kind(f.filename)
+        except ValueError as err:
+            raise ServiceError(str(err)) from None
         name = Path(f.filename.replace("\\", "/")).name
+        tmp = folder / f"_check_{name}"
+        tmp.write_bytes(f.content)
+        reason = unreadable_reason(kind, str(tmp))
+        tmp.unlink(missing_ok=True)
+        if reason:
+            raise ServiceError(f"Файл «{name}» отклонён: {reason}")
+        checked.append((kind, name, f.content))
+    for kind, name, content in checked:
         path = folder / name
-        path.write_bytes(f.content)
+        path.write_bytes(content)
         setattr(row, f"{kind}_name", name)
         setattr(row, f"{kind}_path", str(path))
+    return [s.warning for s in check_entry_files(row) if s.warning]
 
 
 def create_entry_from_files(session: Session, actor: Actor, files: list[UploadedFile],
@@ -222,17 +231,20 @@ def add_manual_measurement(session: Session, actor: Actor, entry_id: int, group:
 
 
 def attach_files(session: Session, actor: Actor, entry_id: int, files: list[UploadedFile],
-                 storage_dir: Path | str) -> JournalRow:
+                 storage_dir: Path | str) -> list[str]:
+    """Прикрепить или заменить STEP и PDF; возвращает предупреждения о несовпадении обозначения."""
     require(actor.role, Action.EDIT_JOURNAL)
     row = entry_row(session, entry_id)
-    try:
-        for f in files:
-            file_kind(f.filename)
-    except ValueError as err:
-        raise ServiceError(str(err)) from None
-    _store_files(row, files, storage_dir)
+    if not files:
+        raise ServiceError("Выберите файлы STEP и/или PDF")
+    warnings = _store_files(row, files, storage_dir)
     _save(session, actor, row, "files", None, {"step": row.step_name, "pdf": row.pdf_name})
-    return row
+    return warnings
+
+
+def entries_without_files(session: Session) -> int:
+    """Сколько деталей журнала без исправных STEP и PDF."""
+    return sum(1 for row in journal_rows(session) if not all(s.ok for s in check_entry_files(row)))
 
 
 def delete_entry(session: Session, actor: Actor, entry_id: int, reason: str = "") -> None:

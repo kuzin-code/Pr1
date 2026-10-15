@@ -60,6 +60,16 @@ def position_file(request: Request, position_id: int, kind: str, db: Session = D
     return FileResponse(path, media_type=media, filename=name, content_disposition_type=disposition)
 
 
+@router.get("/positions/{position_id}/model")
+def position_model(request: Request, position_id: int, db: Session = Depends(get_db)):
+    """3D-просмотр модели STEP позиции заказа (ФТ-03: технолог смотрит нюансы детали)."""
+    require(current_actor(request).role, Action.VIEW_ORDERS)
+    pos = order_service.get_position(db, position_id)
+    return render(request, "model.html", title=pos.designation, step_url=f"/positions/{position_id}/file/step",
+                  pdf_url=f"/positions/{position_id}/file/pdf" if pos.pdf_path else None,
+                  back_url=f"/positions/{position_id}", back_label="Карточка позиции")
+
+
 @router.post("/positions/{position_id}/data")
 def update_data(request: Request, position_id: int, dim_a: str = Form(""), dim_b: str = Form(""),
                 dim_c: str = Form(""), volume: str = Form(""), material: str = Form(""),

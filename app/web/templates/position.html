@@ -10,9 +10,11 @@
 <div class="card row">
   <div><label>Количество (партия)</label>{{ pos.quantity }} шт.</div>
   <div style="margin-left:24px"><label>Чертёж PDF — главный документ</label>
-    {% if pos.pdf_path %}<a href="/positions/{{ pos.id }}/file/pdf" target="_blank">{{ pos.pdf_name }}</a>{% else %}<span class="err">нет файла</span>{% endif %}</div>
+    {% if pos.pdf_path %}<a class="btn secondary" href="/positions/{{ pos.id }}/file/pdf" target="_blank">Открыть чертёж</a>
+      <span class="muted">{{ pos.pdf_name }}</span>{% else %}<span class="err">нет файла</span>{% endif %}</div>
   <div style="margin-left:24px"><label>Модель STEP</label>
-    {% if pos.step_path %}<a href="/positions/{{ pos.id }}/file/step">{{ pos.step_name }}</a> <span class="muted">(открыть в CAD-просмотрщике)</span>{% else %}<span class="err">нет файла</span>{% endif %}</div>
+    {% if pos.step_path %}<a class="btn secondary" href="/positions/{{ pos.id }}/model">Открыть 3D-модель</a>
+      <a href="/positions/{{ pos.id }}/file/step">скачать {{ pos.step_name }}</a>{% else %}<span class="err">нет файла</span>{% endif %}</div>
   {% if pos.needs_link %}<span class="badge err">Нет пары STEP+PDF: свяжите файлы в карточке заказа</span>{% endif %}
 </div>
 

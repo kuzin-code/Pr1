@@ -1,4 +1,6 @@
 """Фабрика веб-приложения."""
+import mimetypes
+
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -11,6 +13,9 @@ from app.storage.db import init_db, make_engine
 from app.web.deps import NotLoggedIn, redirect
 from app.web.routes import auth, journal, machines, orders, plan, positions, reference
 from app.web.templating import render
+
+
+mimetypes.add_type("application/wasm", ".wasm")  # 3D-просмотр STEP (occt-import-js)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

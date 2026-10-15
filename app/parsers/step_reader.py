@@ -50,20 +50,64 @@ def _unit_scale(text: str) -> float:
     return 1.0
 
 
+_EDGE = re.compile(r"=\s*EDGE_CURVE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*\.([TF])\.\s*\)")
+_TWO_PI = 2 * math.pi
+
+
+def _unit(v):
+    length = math.sqrt(sum(c * c for c in v)) or 1.0
+    return [c / length for c in v]
+
+
+def _cross(a, b):
+    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+
+
+def _frame(axis, points, directions):
+    """Центр и базис окружности: n — ось, x — опорное направление, y = n × x."""
+    center = points[axis.group(2)]
+    n = _unit(directions.get(axis.group(3).lstrip("#"), (0.0, 0.0, 1.0)))
+    ref = directions.get(axis.group(4).lstrip("#"))
+    if ref is None or abs(sum(a * b for a, b in zip(_unit(ref), n))) > 0.999:
+        ref = (1.0, 0.0, 0.0) if abs(n[0]) < 0.9 else (0.0, 1.0, 0.0)
+    r = _unit(ref)
+    dot = sum(a * b for a, b in zip(r, n))
+    x = _unit([a - dot * b for a, b in zip(r, n)])
+    return center, x, _unit(_cross(n, x))
+
+
 def _circle_extents(text, points, directions):
+    """Крайние точки окружностей; для дуг (EDGE_CURVE) — только в пределах угла дуги."""
     axes = {m.group(1): m for m in _AXIS.finditer(text)}
-    for m in _CIRCLE.finditer(text):
-        axis = axes.get(m.group(1))
-        radius = float(m.group(2).rstrip("."))
-        if axis is None or axis.group(2) not in points:
-            continue
-        center = points[axis.group(2)]
-        normal = directions.get(axis.group(3).lstrip("#"), (0.0, 0.0, 1.0))
-        length = math.sqrt(sum(c * c for c in normal)) or 1.0
-        n = [c / length for c in normal]
-        ext = [radius * math.sqrt(max(0.0, 1 - ni * ni)) for ni in n]
-        yield tuple(c - e for c, e in zip(center, ext))
-        yield tuple(c + e for c, e in zip(center, ext))
+    circles = {}
+    for m in re.finditer(rf"#(\d+)\s*=\s*CIRCLE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*({_NUM})\s*\)", text):
+        axis = axes.get(m.group(2))
+        if axis is not None and axis.group(2) in points:
+            circles[m.group(1)] = (*_frame(axis, points, directions), float(m.group(3).rstrip(".")))
+    vertices = {m.group(1): points.get(m.group(2)) for m in
+                re.finditer(r"#(\d+)\s*=\s*VERTEX_POINT\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*\)", text)}
+    arcs = {}
+    for m in _EDGE.finditer(text):
+        if m.group(3) in circles:
+            arcs.setdefault(m.group(3), []).append((vertices.get(m.group(1)), vertices.get(m.group(2)), m.group(4) == "T"))
+    for cid, (center, x, y, radius) in circles.items():
+        def angle(p):
+            d = [a - b for a, b in zip(p, center)]
+            return math.atan2(sum(a * b for a, b in zip(d, y)), sum(a * b for a, b in zip(d, x)))
+
+        spans = []
+        for v1, v2, same_sense in arcs.get(cid, [(None, None, True)]):
+            if v1 is None or v2 is None or max(abs(a - b) for a, b in zip(v1, v2)) < 1e-6:
+                spans.append((0.0, _TWO_PI))  # полная окружность
+                continue
+            a1, a2 = (angle(v1), angle(v2)) if same_sense else (angle(v2), angle(v1))
+            spans.append((a1, (a2 - a1) % _TWO_PI))
+        for i in range(3):
+            base = math.atan2(y[i], x[i])
+            for phi in (base, base + math.pi):
+                if any((phi - start) % _TWO_PI <= span + 1e-9 for start, span in spans):
+                    yield tuple(c + radius * (math.cos(phi) * xi + math.sin(phi) * yi)
+                                for c, xi, yi in zip(center, x, y))
 
 
 def parse_step_text(text: str) -> StepData:

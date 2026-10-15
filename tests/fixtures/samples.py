@@ -80,3 +80,21 @@ def make_cylinder_step(radius=25.0, length=80.0) -> str:
 #40=( LENGTH_UNIT() NAMED_UNIT(*) SI_UNIT(.MILLI.,.METRE.) );
 """
     return _HEADER + body + _FOOTER
+
+
+def make_arc_step(radius=35.0, height=10.0, same_sense=".T.") -> str:
+    """Полукруглая пластина: дуга R от (R,0) до (-R,0) — габарит 2R × R × h, а не 2R × 2R × h."""
+    lines = ["#1=MANIFOLD_SOLID_BREP('plate',#2);",
+             "#20=DIRECTION('',(0.,0.,1.));", "#21=DIRECTION('',(1.,0.,0.));",
+             "#40=( LENGTH_UNIT() NAMED_UNIT(*) SI_UNIT(.MILLI.,.METRE.) );"]
+    n = 100
+    for z in (0.0, height):
+        a, b = n, n + 2
+        lines += [f"#{a}=CARTESIAN_POINT('',({radius},0.,{z}));", f"#{a + 1}=VERTEX_POINT('',#{a});",
+                  f"#{b}=CARTESIAN_POINT('',({-radius},0.,{z}));", f"#{b + 1}=VERTEX_POINT('',#{b});",
+                  f"#{n + 4}=CARTESIAN_POINT('',(0.,0.,{z}));",
+                  f"#{n + 5}=AXIS2_PLACEMENT_3D('',#{n + 4},#20,#21);",
+                  f"#{n + 6}=CIRCLE('',#{n + 5},{radius});",
+                  f"#{n + 7}=EDGE_CURVE('',#{a + 1},#{b + 1},#{n + 6},{same_sense});"]
+        n += 10
+    return _HEADER + "\n".join(lines) + "\n" + _FOOTER

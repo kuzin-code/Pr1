@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}3D: {{ title }}{% endblock %}
+{% block content %}
+<p class="muted"><a href="{{ back_url }}">← {{ back_label }}</a></p>
+<h1>{{ title }} <span class="badge">3D-модель STEP</span></h1>
+<div class="row">
+  <button class="secondary" id="view-iso">Изометрия</button>
+  <button class="secondary" id="view-top">Сверху</button>
+  <button class="secondary" id="view-front">Спереди</button>
+  <button class="secondary" id="view-side">Сбоку</button>
+  <a class="btn secondary" href="{{ step_url }}">Скачать STEP</a>
+  {% if pdf_url %}<a class="btn secondary" href="{{ pdf_url }}" target="_blank">Открыть чертёж (PDF)</a>{% endif %}
+  <span class="muted" id="status">Загрузка модели…</span>
+</div>
+<div id="viewer" class="card" style="height:70vh;min-height:360px;padding:0;overflow:hidden;position:relative"></div>
+<p class="muted">Вращение — левая кнопка мыши, сдвиг — правая, масштаб — колесо. Модель открывается на сервере предприятия, во внешние сервисы не передаётся.</p>
+
+<script type="importmap">{"imports": {"three": "/static/vendor/three.module.min.js"}}</script>
+<script src="/static/vendor/occt-import-js.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '/static/vendor/OrbitControls.js';
+
+const STEP_URL = {{ step_url|tojson }};
+const box = document.getElementById('viewer');
+const status = document.getElementById('status');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0xf2f4f7);
+box.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100000);
+const controls = new OrbitControls(camera, renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f99, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+scene.add(sun);
+
+function resize() {
+  const w = box.clientWidth, h = box.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+renderer.setAnimationLoop(() => { controls.update(); sun.position.copy(camera.position); renderer.render(scene, camera); });
+
+let center = new THREE.Vector3(), radius = 100;
+function setView(dir) {
+  camera.position.copy(center).add(dir.clone().normalize().multiplyScalar(radius * 2.8));
+  camera.near = radius / 100; camera.far = radius * 100; camera.updateProjectionMatrix();
+  controls.target.copy(center); controls.update();
+}
+const VIEWS = { 'view-iso': [1, 0.8, 1], 'view-top': [0, 1, 0.0001], 'view-front': [0, 0, 1], 'view-side': [1, 0, 0] };
+for (const [id, v] of Object.entries(VIEWS)) document.getElementById(id).onclick = () => setView(new THREE.Vector3(...v));
+
+async function main() {
+  const occt = await occtimportjs({ locateFile: (name) => '/static/vendor/' + name });
+  const response = await fetch(STEP_URL);
+  if (!response.ok) { status.textContent = 'Файл модели не найден'; return; }
+  const result = occt.ReadStepFile(new Uint8Array(await response.arrayBuffer()), null);
+  if (!result.success || !result.meshes.length) { status.textContent = 'Модель STEP не читается'; return; }
+  const group = new THREE.Group();
+  let triangles = 0;
+  for (const mesh of result.meshes) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(mesh.attributes.position.array, 3));
+    if (mesh.attributes.normal) geometry.setAttribute('normal', new THREE.Float32BufferAttribute(mesh.attributes.normal.array, 3));
+    else geometry.computeVertexNormals();
+    geometry.setIndex(new THREE.Uint32BufferAttribute(mesh.index.array, 1));
+    triangles += mesh.index.array.length / 3;
+    const color = mesh.color ? new THREE.Color(...mesh.color) : new THREE.Color(0xb8c2cf);
+    const material = new THREE.MeshStandardMaterial({ color, metalness: 0.15, roughness: 0.55,
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+    group.add(new THREE.Mesh(geometry, material));
+    group.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry, 25),
+      new THREE.LineBasicMaterial({ color: 0x2c3340 })));
+  }
+  scene.add(group);
+  const bbox = new THREE.Box3().setFromObject(group);
+  const size = bbox.getSize(new THREE.Vector3());
+  bbox.getCenter(center);
+  radius = Math.max(size.x, size.y, size.z) / 2 || 50;
+  setView(new THREE.Vector3(...VIEWS['view-iso']));
+  const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('ru-RU');
+  status.textContent = `Габариты: ${fmt(size.x)} × ${fmt(size.y)} × ${fmt(size.z)} мм · тел: ${result.meshes.length} · треугольников: ${triangles.toLocaleString('ru-RU')}`;
+}
+main().catch((e) => { status.textContent = 'Ошибка просмотра модели: ' + e.message; });
+</script>
+{% endblock %}

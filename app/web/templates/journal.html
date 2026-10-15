@@ -2,6 +2,7 @@
 {% block title %}Журнал калибровки{% endblock %}
 {% block content %}
 <h1>Журнал калибровки <span class="badge">версия {{ version }}</span></h1>
+{% if missing %}<div class="flash error">В журнале без исправных файлов: {{ missing }} дет. — откройте деталь и прикрепите её STEP и PDF.</div>{% endif %}
 <div class="grid">
 {% if can('edit_journal') %}
 <div class="card">
@@ -39,7 +40,10 @@
     <td>{{ '%.3f'|format(k[g].value) }} <span class="muted">({{ k[g].count }} зам.)</span>
       {% if k[g].approximate %}<span class="badge warn">ориентировочно</span>{% endif %}</td>
     {% endfor %}
-    <td>{% if row.pdf_path %}<span class="badge ok">PDF</span>{% endif %}{% if row.step_path %}<span class="badge ok">STEP</span>{% endif %}</td></tr>
+    <td style="min-width:190px">{% set pdf, step = files[e.part_code] %}
+      {% if pdf.ok %}<a class="btn secondary" href="/journal/{{ row.id }}/file/pdf" target="_blank">Открыть чертёж</a>{% else %}<span class="badge err">{{ pdf.message }}</span>{% endif %}
+      {% if step.ok %}<a class="btn secondary" href="/journal/{{ row.id }}/model">3D-модель</a>{% else %}<span class="badge err">{{ step.message }}</span>{% endif %}
+      {% for s in (pdf, step) %}{% if s.warning %}<br><span class="badge warn">{{ s.warning }}</span>{% endif %}{% endfor %}</td></tr>
   {% endfor %}
 </table>
 </div>

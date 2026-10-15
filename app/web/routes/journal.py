@@ -13,6 +13,7 @@ from app.domain.enums import CountMode, Stage, StageGroup
 from app.services import journal_service as js
 from app.services import reference_service as ref
 from app.services.actor import ServiceError
+from app.services.file_check import check_entry_files
 from app.services.history_service import list_history
 from app.services.order_service import UploadedFile
 from app.storage.convert import entry_from_row
@@ -32,7 +33,10 @@ def journal_page(request: Request, db: Session = Depends(get_db)):
     rows = {r.part_code: r for r in js.journal_rows(db)}
     entries = ref.journal_entries(db)
     ks = {e.part_code: {g: k_for(e, g) for g in (StageGroup.MACHINE, StageGroup.BENCH)} for e in entries}
+    files = {code: check_entry_files(row) for code, row in rows.items()}
+    missing = sum(1 for status in files.values() if not all(s.ok for s in status))
     return render(request, "journal.html", entries=entries, rows=rows, ks=ks, version=ref.journal_version(db),
+                  files=files, missing=missing,
                   machine_group=StageGroup.MACHINE, bench_group=StageGroup.BENCH)
 
 
@@ -84,7 +88,7 @@ def entry_page(request: Request, entry_id: int, db: Session = Depends(get_db)):
     require(current_actor(request).role, Action.VIEW_JOURNAL)
     row = js.entry_row(db, entry_id)
     entry = entry_from_row(row)
-    return render(request, "journal_entry.html", row=row, entry=entry,
+    return render(request, "journal_entry.html", row=row, entry=entry, files=check_entry_files(row),
                   stages={s.stage: s for s in entry.stages}, all_stages=list(Stage), modes=list(CountMode),
                   ks={g: k_for(entry, g) for g in (StageGroup.MACHINE, StageGroup.BENCH)},
                   machines=ref.list_machines(db), machine_group=StageGroup.MACHINE, bench_group=StageGroup.BENCH,
@@ -149,8 +153,22 @@ async def entry_files(request: Request, entry_id: int, files: list[UploadFile] =
     actor = current_actor(request)
     require(actor.role, Action.EDIT_JOURNAL)
     uploaded = [UploadedFile(f.filename or "", await f.read()) for f in files if f.filename]
-    return act(request, db, f"/journal/{entry_id}",
-               lambda: js.attach_files(db, actor, entry_id, uploaded, _storage(request)), "Файлы прикреплены")
+
+    def run():
+        for warning in js.attach_files(db, actor, entry_id, uploaded, _storage(request)):
+            flash(request, f"Проверьте файл: {warning}", "error")
+
+    return act(request, db, f"/journal/{entry_id}", run, "Файлы прикреплены")
+
+
+@router.get("/journal/{entry_id:int}/model")
+def entry_model(request: Request, entry_id: int, db: Session = Depends(get_db)):
+    """3D-просмотр модели STEP детали журнала в браузере."""
+    require(current_actor(request).role, Action.VIEW_JOURNAL)
+    row = js.entry_row(db, entry_id)
+    return render(request, "model.html", title=row.part_code, step_url=f"/journal/{entry_id}/file/step",
+                  pdf_url=f"/journal/{entry_id}/file/pdf" if row.pdf_path else None,
+                  back_url=f"/journal/{entry_id}", back_label="Карточка детали")
 
 
 @router.get("/journal/{entry_id:int}/file/{kind}")

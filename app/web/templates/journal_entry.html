@@ -35,11 +35,18 @@
 
 <div class="card">
   <h2>Файлы</h2>
-  <p>Чертёж PDF: {% if row.pdf_path %}<a href="/journal/{{ row.id }}/file/pdf" target="_blank">{{ row.pdf_name }}</a>{% else %}<span class="muted">нет</span>{% endif %}<br>
-     Модель STEP: {% if row.step_path %}<a href="/journal/{{ row.id }}/file/step">{{ row.step_name }}</a>{% else %}<span class="muted">нет</span>{% endif %}</p>
+  {% set pdf, step = files %}
+  <div class="row">
+    {% if pdf.ok %}<a class="btn" href="/journal/{{ row.id }}/file/pdf" target="_blank">Открыть чертёж (PDF)</a>{% endif %}
+    {% if step.ok %}<a class="btn" href="/journal/{{ row.id }}/model">Открыть 3D-модель (STEP)</a>
+      <a class="btn secondary" href="/journal/{{ row.id }}/file/step">Скачать STEP</a>{% endif %}
+  </div>
+  <p>Чертёж: {% if pdf.ok %}<span class="badge ok">{{ row.pdf_name }}</span>{% else %}<span class="badge err">{{ pdf.message }}</span>{% endif %}<br>
+     Модель: {% if step.ok %}<span class="badge ok">{{ row.step_name }}</span>{% else %}<span class="badge err">{{ step.message }}</span>{% endif %}</p>
+  {% for s in files %}{% if s.warning %}<div class="flash error">Проверьте: {{ s.warning }}</div>{% endif %}{% endfor %}
   {% if edit %}
   <form method="post" action="/journal/{{ row.id }}/files" enctype="multipart/form-data" class="inline">
-    <input type="file" name="files" multiple required accept=".step,.stp,.pdf"><button class="secondary">Прикрепить</button>
+    <input type="file" name="files" multiple required accept=".step,.stp,.pdf"><button class="secondary">Прикрепить / заменить</button>
   </form>{% endif %}
   <h2 style="margin-top:16px">Коэффициент k</h2>
   {% for g, label in ((machine_group, 'станочная'), (bench_group, 'слесарно-финишная')) %}

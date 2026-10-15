@@ -117,6 +117,16 @@ def parse_drawing_text(text: str, known_materials: list[str] | tuple = ()) -> Dr
     return data
 
 
+def pdf_text(path: Path | str) -> str:
+    """Текстовый слой PDF; пустая строка, если файл не читается или это скан."""
+    try:
+        from pypdf import PdfReader
+
+        return "\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def read_pdf(path: Path | str, known_materials: list[str] | tuple = ()) -> DrawingData:
     try:
         from pypdf import PdfReader
