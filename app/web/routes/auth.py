@@ -9,7 +9,8 @@ from app.web.templating import render
 
 router = APIRouter()
 
-HOME = {Role.OPERATOR: "/facts", Role.IT: "/reference", Role.MANAGEMENT: "/plan"}
+HOME = {Role.OPERATOR: "/work", Role.CUTTER: "/work", Role.LOCKSMITH: "/work", Role.INSPECTOR: "/work",
+        Role.IT: "/reference", Role.MANAGEMENT: "/plan"}
 
 
 @router.get("/")

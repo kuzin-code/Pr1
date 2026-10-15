@@ -1,12 +1,146 @@
 {
   "_note": "Габариты рабочих зон Mintech V6 и Волжанин-1, точность и мощность — предварительные: сверить со справочником v0.4 (Excel) заказчика. Габариты в мм.",
   "machines": [
-    {"code": "VF2", "model": "Haas VF-2", "kind": "Вертикально-фрезерный с ЧПУ", "is_cnc": true, "work_zone": [762, 406, 508], "technologies": ["milling"], "controller": "Haas NGC", "accuracy": "", "power": "22,4 кВт", "hours_per_day": 6},
-    {"code": "SMM", "model": "Haas Super Mini Mill", "kind": "Вертикально-фрезерный с ЧПУ", "is_cnc": true, "work_zone": [406, 305, 254], "technologies": ["milling"], "controller": "Haas NGC", "accuracy": "", "power": "11,2 кВт", "hours_per_day": 6},
-    {"code": "MV6", "model": "Mintech V6", "kind": "Вертикально-фрезерный с ЧПУ", "is_cnc": true, "work_zone": [600, 400, 450], "technologies": ["milling"], "controller": "", "accuracy": "", "power": "", "hours_per_day": 6, "note": "Рабочая зона — уточнить по справочнику"},
-    {"code": "VOLZH1", "model": "Волжанин-1", "kind": "Фрезерный с ЧПУ", "is_cnc": true, "work_zone": [500, 400, 400], "technologies": ["milling"], "controller": "", "accuracy": "", "power": "", "hours_per_day": 6, "note": "Модель принята по таблице справочника (допущение ТЗ №2); рабочая зона — уточнить"},
-    {"code": "ST20Y", "model": "Haas ST-20Y", "kind": "Токарно-фрезерный с ЧПУ", "is_cnc": true, "work_zone": [262, 262, 533], "technologies": ["turning"], "controller": "Haas NGC", "accuracy": "", "power": "14,9 кВт", "hours_per_day": 6},
-    {"code": "BS275", "model": "Holzmann BS275TOP", "kind": "Ленточнопильный (резка заготовки)", "is_cnc": false, "work_zone": null, "technologies": ["cutting"], "hours_per_day": 8},
-    {"code": "AKB1000", "model": "AKB 1000 PRO", "kind": "Слесарно-финишная группа", "is_cnc": false, "work_zone": null, "technologies": ["finishing"], "hours_per_day": 8}
+    {
+      "code": "VF2",
+      "model": "Haas VF-2",
+      "kind": "Вертикально-фрезерный с ЧПУ",
+      "is_cnc": true,
+      "work_zone": [
+        762,
+        406,
+        508
+      ],
+      "technologies": [
+        "milling"
+      ],
+      "controller": "Haas NGC",
+      "accuracy": "",
+      "power": "22,4 кВт",
+      "hours_per_day": 6,
+      "operations": [
+        "setup",
+        "milling"
+      ]
+    },
+    {
+      "code": "SMM",
+      "model": "Haas Super Mini Mill",
+      "kind": "Вертикально-фрезерный с ЧПУ",
+      "is_cnc": true,
+      "work_zone": [
+        406,
+        305,
+        254
+      ],
+      "technologies": [
+        "milling"
+      ],
+      "controller": "Haas NGC",
+      "accuracy": "",
+      "power": "11,2 кВт",
+      "hours_per_day": 6,
+      "operations": [
+        "setup",
+        "milling"
+      ]
+    },
+    {
+      "code": "MV6",
+      "model": "Mintech V6",
+      "kind": "Вертикально-фрезерный с ЧПУ",
+      "is_cnc": true,
+      "work_zone": [
+        600,
+        400,
+        450
+      ],
+      "technologies": [
+        "milling"
+      ],
+      "controller": "",
+      "accuracy": "",
+      "power": "",
+      "hours_per_day": 6,
+      "note": "Рабочая зона — уточнить по справочнику",
+      "operations": [
+        "setup",
+        "milling"
+      ]
+    },
+    {
+      "code": "VOLZH1",
+      "model": "Волжанин-1",
+      "kind": "Фрезерный с ЧПУ",
+      "is_cnc": true,
+      "work_zone": [
+        500,
+        400,
+        400
+      ],
+      "technologies": [
+        "milling"
+      ],
+      "controller": "",
+      "accuracy": "",
+      "power": "",
+      "hours_per_day": 6,
+      "note": "Модель принята по таблице справочника (допущение ТЗ №2); рабочая зона — уточнить",
+      "operations": [
+        "setup",
+        "milling"
+      ]
+    },
+    {
+      "code": "ST20Y",
+      "model": "Haas ST-20Y",
+      "kind": "Токарно-фрезерный с ЧПУ",
+      "is_cnc": true,
+      "work_zone": [
+        262,
+        262,
+        533
+      ],
+      "technologies": [
+        "turning"
+      ],
+      "controller": "Haas NGC",
+      "accuracy": "",
+      "power": "14,9 кВт",
+      "hours_per_day": 6,
+      "operations": [
+        "setup",
+        "turning"
+      ]
+    },
+    {
+      "code": "BS275",
+      "model": "Holzmann BS275TOP",
+      "kind": "Ленточнопильный (резка заготовки)",
+      "is_cnc": false,
+      "work_zone": null,
+      "technologies": [
+        "cutting"
+      ],
+      "hours_per_day": 8,
+      "operations": [
+        "cutting"
+      ]
+    },
+    {
+      "code": "AKB1000",
+      "model": "AKB 1000 PRO",
+      "kind": "Слесарно-финишная группа",
+      "is_cnc": false,
+      "work_zone": null,
+      "technologies": [
+        "finishing"
+      ],
+      "hours_per_day": 8,
+      "operations": [
+        "locksmith",
+        "finishing"
+      ]
+    }
   ]
 }

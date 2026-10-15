@@ -68,7 +68,7 @@ def test_technologist_and_it_edit_equipment_others_cannot(session):
 
 def test_operations_performed_by_machine(session):
     ref.update_machine(session, TECH, "VF2", {"operations": ["setup", "machining"]}, "паспорт")
-    assert ref.get_machine(session, "VF2").operations == ["setup", "machining"]
+    assert ref.get_machine(session, "VF2").operations == ["setup", "milling"]  # обработка — по технологии
     ref.update_machine(session, TECH, "BS275", {"operations": "cutting"}, "")
     assert ref.get_machine(session, "BS275").operations == ["cutting"]
     with pytest.raises(ServiceError, match="операци"):
@@ -76,8 +76,9 @@ def test_operations_performed_by_machine(session):
 
 
 def test_empty_operations_is_a_gap_for_any_equipment(session):
-    assert "Выполняемые операции" in ref.machine_gaps(ref.get_machine(session, "VF2"))
-    assert "Выполняемые операции" in ref.machine_gaps(ref.get_machine(session, "AKB1000"))
+    for code in ("VF2", "AKB1000"):
+        ref.update_machine(session, TECH, code, {"operations": []}, "")
+        assert "Выполняемые операции" in ref.machine_gaps(ref.get_machine(session, code))
     ref.update_machine(session, TECH, "AKB1000", {"operations": ["locksmith", "finishing"]}, "")
     assert "Выполняемые операции" not in ref.machine_gaps(ref.get_machine(session, "AKB1000"))
 

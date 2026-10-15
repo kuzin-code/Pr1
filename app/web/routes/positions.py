@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, can, require
 from app.domain.enums import FactKind, PositionStatus, Stage
 from app.domain.status import is_editable
-from app.services import approval_service, fact_service, journal_service, order_service, plan_service, tech_service
+from app.services import (approval_service, fact_service, journal_service, operation_service, order_service,
+                          plan_service, tech_service)
 from app.services.actor import ServiceError
 from app.services.history_service import list_history
 from app.services.reference_service import complexity_scale, journal_entries
@@ -43,7 +44,7 @@ def position_page(request: Request, position_id: int, db: Session = Depends(get_
         journal=[e for e in journal_entries(db) if e.technology == ((pos.data or {}).get("technology") or "milling")], editable=is_editable(PositionStatus(pos.status)),
         calc=plan_service.plan_calc(pos), planned=plan.positions.get(pos.id), deviation=deviation,
         actual=actual, history=list_history(db, entity="position", entity_id=pos.id, limit=50),
-        facts=plan_service.fact_ends(db, pos.id), now=datetime.now().strftime("%Y-%m-%dT%H:%M"),
+        facts=plan_service.fact_ends(db, pos.id), operations=operation_service.position_operations(db, pos.id),
     )
 
 
@@ -176,25 +177,3 @@ def return_position(request: Request, position_id: int, reason: str = Form(""), 
     return act(request, db, _back(position_id),
                lambda: approval_service.return_position(db, actor, position_id, reason),
                "Позиция возвращена на пересчёт")
-
-
-@router.post("/positions/{position_id}/start")
-def start(request: Request, position_id: int, back: str = Form("/facts"), db: Session = Depends(get_db)):
-    actor = current_actor(request)
-    return act(request, db, back, lambda: fact_service.start_machining(db, actor, position_id))
-
-
-@router.post("/positions/{position_id}/fact")
-def record_fact(request: Request, position_id: int, kind: str = Form(...), ended_at: str = Form(""),
-                back: str = Form(""), db: Session = Depends(get_db)):
-    """Отметка факта: станочная группа — оператор или мастер; остальное — мастер (ФТ-20)."""
-    actor = current_actor(request)
-    fact_kind = FactKind(kind)
-    action = Action.FACT_MACHINE if fact_kind is FactKind.MACHINE else Action.FACT_BENCH
-    require(actor.role, action)
-    moment = datetime.fromisoformat(ended_at) if ended_at else datetime.now().replace(second=0, microsecond=0)
-    target = back or ("/facts" if not can(actor.role, Action.VIEW_ORDERS) else _back(position_id))
-    if not target.startswith("/"):
-        return redirect("/facts")
-    return act(request, db, target, lambda: fact_service.record_fact(db, actor, position_id, fact_kind, moment),
-               f"Отмечено: {fact_kind.label}")

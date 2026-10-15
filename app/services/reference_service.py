@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
 from app.domain.calibration import add_measurement
-from app.domain.enums import Stage, StageGroup
+from app.domain.enums import Operation, StageGroup
+from app.domain.operations import normalize_operations
 from app.domain.history import require_reason
 from app.domain.models import CalibrationEntry, Machine, Rates
 from app.parsers.journal_excel import export_journal, import_journal
@@ -159,7 +160,7 @@ MACHINE_FIELDS = [
     ("kind", "Вид оборудования", "str", False, False),
     ("work_zone", "Рабочая зона, мм", "dims", True, False),
     ("technologies", "Технологии", "list", True, False),
-    ("operations", "Выполняемые операции", "stages", True, True),
+    ("operations", "Выполняемые операции", "operations", True, True),
     ("controller", "Стойка ЧПУ", "str", True, False),
     ("accuracy", "Точность", "str", True, False),
     ("power", "Мощность", "str", True, True),
@@ -186,7 +187,7 @@ def machine_gaps(row: MachineRow) -> list[str]:
 
 def _parse_machine_value(name: str, kind: str, value):
     if value is None or (isinstance(value, str) and not value.strip()):
-        return {"list": [], "stages": [], "str": ""}.get(kind)
+        return {"list": [], "operations": [], "str": ""}.get(kind)
     if kind == "dims":
         if isinstance(value, list):
             parts = value
@@ -199,13 +200,13 @@ def _parse_machine_value(name: str, kind: str, value):
         if len(dims) != 3 or min(dims) <= 0:
             raise ServiceError("Рабочая зона: три положительных размера, мм")
         return dims
-    if kind == "stages":
+    if kind == "operations":
         items = value if isinstance(value, list) else [v.strip() for v in str(value).split(",") if v.strip()]
-        valid = {s.value for s in Stage}
+        valid = {op.value for op in Operation} | {"machining"}
         unknown = [v for v in items if v not in valid]
         if unknown:
             raise ServiceError(f"Неизвестные операции: {', '.join(unknown)}")
-        return [s.value for s in Stage if s.value in items]  # в порядке маршрута
+        return items
     if kind == "list":
         items = value if isinstance(value, list) else [v.strip() for v in str(value).split(",") if v.strip()]
         unknown = set(items) - MACHINE_TECHNOLOGIES
@@ -232,6 +233,13 @@ def update_machine(session: Session, actor: Actor, code: str, fields: dict, reas
         if name not in kinds:
             raise ServiceError(f"Недопустимое поле «{name}»")
         new = bool(value) if kinds[name] == "bool" else _parse_machine_value(name, kinds[name], value)
+        if name == "operations":
+            new = normalize_operations(new, row.technologies)
+            # Технология станка (подбор по детали) следует из его операций обработки.
+            derived = [t for t in ("milling", "turning") if t in new]
+            if derived and derived != row.technologies:
+                record(session, actor, "machine", code, "technologies", row.technologies, derived, reason)
+                row.technologies = derived
         if name in ("model", "kind", "hours_per_day") and new in (None, ""):
             raise ServiceError("Модель, вид оборудования и часы в смену обязательны")
         if getattr(row, name) != new:
@@ -241,9 +249,13 @@ def update_machine(session: Session, actor: Actor, code: str, fields: dict, reas
     return row
 
 
-def machines_for_operation(session: Session, stage: Stage) -> list[MachineRow]:
-    """Оборудование, на котором выполняется операция маршрута."""
-    return [m for m in list_machines(session) if stage.value in (m.operations or [])]
+def machines_for_operation(session: Session, operation) -> list[MachineRow]:
+    """Оборудование, на котором выполняется операция (Operation или этап маршрута)."""
+    return [m for m in list_machines(session) if operation.value in (m.operations or [])]
+
+
+def machine_operations(session: Session) -> dict[str, list[str]]:
+    return {m.code: list(m.operations or []) for m in list_machines(session)}
 
 
 def create_machine(session: Session, actor: Actor, fields: dict) -> MachineRow:

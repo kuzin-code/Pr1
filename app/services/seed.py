@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.enums import CountMode, Stage
+from app.domain.operations import normalize_operations
 from app.domain.models import CalibrationEntry, Dimensions, StageNorm
 from app.services.security import hash_password
 from app.storage.convert import entry_to_row
@@ -17,10 +18,15 @@ def _load(path: Path) -> dict:
 
 
 def _seed_machines(session: Session, data: dict) -> None:
-    existing = set(session.scalars(select(MachineRow.code)))
+    existing = {m.code: m for m in session.scalars(select(MachineRow))}
     for m in data["machines"]:
         if m["code"] not in existing:
             session.add(MachineRow(**{k: v for k, v in m.items() if not k.startswith("_")}))
+    # Операции, внесённые до разделения обработки на фрезерную и токарную, приводятся к новому перечню.
+    for row in existing.values():
+        normalized = normalize_operations(row.operations, row.technologies)
+        if row.operations is not None and normalized != row.operations:
+            row.operations = normalized
 
 
 def _seed_parameters(session: Session, data: dict) -> None:

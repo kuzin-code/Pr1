@@ -13,6 +13,7 @@ from app.services.actor import Actor, ServiceError
 from app.services.calc_service import build_calculation
 from app.services.history_service import record
 from app.services.order_service import get_position
+from app.services.operation_service import create_operations
 from app.services.plan_service import current_plan
 from app.storage.orm import PositionRow
 
@@ -37,6 +38,7 @@ def approve(session: Session, actor: Actor, position_id: int, now: datetime | No
     session.flush()
     planned = current_plan(session).positions.get(pos.id)
     pos.baseline_finish = planned.finish if planned else None
+    create_operations(session, pos)  # операции по оборудованию для учёта «Начал» / «Закончил»
     record(session, actor, "position", pos.id, "status", PositionStatus.AWAITING_APPROVAL.value,
            pos.status, "утверждена")
     session.commit()

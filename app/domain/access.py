@@ -27,6 +27,7 @@ class Action(str, Enum):
     EDIT_REFERENCE = "edit_reference"
     RECEIVE_NOTIFICATIONS = "receive_notifications"
     VIEW_HISTORY = "view_history"
+    DO_OPERATIONS = "do_operations"  # окно специалиста: очередь операций, «Начал» / «Закончил»
 
 
 PERMISSIONS: dict[Action, frozenset[Role]] = {
@@ -49,7 +50,8 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.VIEW_REFERENCE: frozenset({T, H, IT}),
     # Оборудование вносят IT и технолог (решение пользователя 15.10.2026; в ТЗ 1.0 — только IT).
     Action.EDIT_REFERENCE: frozenset({IT, T}),
-    Action.RECEIVE_NOTIFICATIONS: frozenset({M}),
+    Action.RECEIVE_NOTIFICATIONS: frozenset({M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
+    Action.DO_OPERATIONS: frozenset({M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),
 }
 

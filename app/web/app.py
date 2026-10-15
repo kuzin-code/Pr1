@@ -8,10 +8,11 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import Settings
 from app.domain.access import AccessDenied
+from app.services.operation_service import ensure_all_operations
 from app.services.seed import seed_reference
 from app.storage.db import init_db, make_engine
 from app.web.deps import NotLoggedIn, redirect
-from app.web.routes import auth, journal, machines, orders, plan, positions, reference
+from app.web.routes import auth, journal, machines, orders, plan, positions, reference, work
 from app.web.templating import render
 
 
@@ -24,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     session_factory = init_db(make_engine(settings.db_url))
     with session_factory() as session:
         seed_reference(session, settings.seed_dir, demo_journal=settings.demo_journal)
+        ensure_all_operations(session)  # операции для позиций, утверждённых до учёта операций
 
     app = FastAPI(title="Планирование загрузки и расчёт стоимости", docs_url=None, redoc_url=None)
     app.state.settings = settings
@@ -39,6 +41,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def _denied(request: Request, exc: AccessDenied):
         return render(request, "error.html", status_code=403, title="Нет доступа", message=str(exc))
 
-    for module in (auth, orders, positions, plan, reference, journal, machines):
+    for module in (auth, orders, positions, plan, reference, journal, machines, work):
         app.include_router(module.router)
     return app

@@ -14,7 +14,7 @@
     {% if can('view_orders') %}<a href="/orders">Заказы</a>{% endif %}
     {% if can('upload_order') %}<a href="/orders/new">Новый заказ</a>{% endif %}
     {% if can('view_plan') %}<a href="/plan">Загрузка станков</a>{% endif %}
-    {% if can('fact_machine') %}<a href="/facts">Факт</a>{% endif %}
+    {% if can('do_operations') %}<a href="/work">Мои операции</a>{% endif %}
     {% if can('receive_notifications') %}<a href="/notifications">Уведомления</a>{% endif %}
     {% if can('view_journal') %}<a href="/journal">Журнал калибровки</a>{% endif %}
     {% if can('view_reference') %}<a href="/reference">Справочники</a>{% endif %}

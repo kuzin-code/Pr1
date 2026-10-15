@@ -15,9 +15,9 @@
   {% for name, label, kind, for_cnc, for_other in fields %}
     {% set value = machine[name] if machine else None %}
     {% if kind == 'dims' and value %}{% set value = value|dims|replace(' × ', ' x ') %}{% elif kind == 'list' and value %}{% set value = value|join(', ') %}{% endif %}
-    {% if kind == 'stages' %}
+    {% if kind == 'operations' %}
     <div style="grid-column:1 / -1"><label>{{ label }}{% if label in gaps %} <span class="badge err">не заполнено</span>{% endif %}</label>
-      <div class="row">{% for st in Stage %}
+      <div class="row">{% for st in Operation %}
         <label style="font-size:14px;color:var(--text)"><input type="checkbox" name="operations" value="{{ st.value }}"
           {{ 'checked' if machine and st.value in (machine.operations or []) }}> {{ st.label }}</label>{% endfor %}</div></div>
     {% else %}

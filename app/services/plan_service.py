@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
-from app.domain.enums import FactKind, PositionStatus, Stage, StageGroup
+from app.domain.enums import FactKind, PositionStatus, Role, Stage, StageGroup
 from app.domain.load import LoadCell, daily_load, weekly_load
 from app.domain.notifications import due_events
 from app.domain.scheduling import Plan, PlanInput, build_plan
@@ -121,9 +121,20 @@ def sync_notifications(session: Session, now: datetime | None = None) -> list[No
     return created
 
 
+def notify(session: Session, role: Role, key: str, position_id: int, kind: str, at: datetime, text: str) -> None:
+    """Адресное уведомление роли (мастеру, следующему специалисту); повторно не создаётся."""
+    if session.scalar(select(NotificationRow.id).where(NotificationRow.key == key)) is None:
+        session.add(NotificationRow(key=key, role=role.value, position_id=position_id, kind=kind,
+                                    planned_at=at, text=text))
+
+
 def list_notifications(session: Session, actor: Actor, unread_only: bool = False) -> list[NotificationRow]:
     require(actor.role, Action.RECEIVE_NOTIFICATIONS)
-    query = select(NotificationRow).order_by(NotificationRow.planned_at.desc())
+    query = select(NotificationRow).order_by(NotificationRow.planned_at.desc(), NotificationRow.id.desc())
+    if actor.role is Role.MASTER:
+        query = query.where((NotificationRow.role == Role.MASTER.value) | NotificationRow.role.is_(None))
+    else:
+        query = query.where(NotificationRow.role == actor.role.value)
     if unread_only:
         query = query.where(NotificationRow.read.is_(False))
     return list(session.scalars(query))

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Мои операции{% endblock %}
+{% block content %}
+<h1>Мои операции <span class="badge">{{ role.label }}</span></h1>
+{% if show_machine_filter %}
+<form method="get" action="/work" class="inline" style="margin-bottom:12px">
+  <label>Мой станок</label>
+  <select name="machine" onchange="this.form.submit()">
+    <option value="">все станки</option>
+    {% for m in machines %}<option value="{{ m.code }}" {{ 'selected' if m.code == selected }}>{{ m.model }}</option>{% endfor %}
+  </select>
+</form>
+{% endif %}
+<div class="card scroll">
+<table>
+  <tr><th>Позиция</th><th>Заказ</th><th class="num">Кол-во</th><th>Операция</th><th>Оборудование</th>
+    <th class="num">План, ч</th><th>Статус</th><th>Отметка</th></tr>
+  {% for r in rows %}{% set p = positions[r.position_id] %}
+  <tr>
+    <td><b>{{ p.designation }}</b>
+      {% if p.pdf_path %}<br><a href="/positions/{{ p.id }}/file/pdf" target="_blank">чертёж</a>{% endif %}
+      {% if p.step_path %} · <a href="/positions/{{ p.id }}/model">3D</a>{% endif %}</td>
+    <td>{{ p.order.number }}</td><td class="num">{{ p.quantity }}</td>
+    <td>{{ operation_label(r.operation) }}</td><td>{{ r.resource or 'рабочее место' }}</td>
+    <td class="num">{{ r.planned_hours|hours }}</td>
+    <td>{% if r.status == 'in_progress' %}<span class="badge warn">в работе с {{ r.started_at|dt }}</span>
+        {% elif r.status == 'ready' %}<span class="badge ok">можно начинать</span>
+        {% else %}<span class="badge">ожидает предыдущую операцию</span>{% endif %}</td>
+    <td>
+      {% if r.status == 'ready' %}
+      <form method="post" action="/operations/{{ r.id }}/start" class="inline">
+        <input type="datetime-local" name="at" value="{{ now }}"><button>Начал</button></form>
+      {% elif r.status == 'in_progress' %}
+      <form method="post" action="/operations/{{ r.id }}/finish" class="inline">
+        <input type="datetime-local" name="at" value="{{ now }}"><button>Закончил</button></form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="8" class="muted">Операций в очереди нет</td></tr>
+  {% endfor %}
+</table>
+</div>
+<p class="muted">Время по умолчанию — текущее; при необходимости его можно поправить перед нажатием.
+  Операции идут по маршруту: следующая открывается, когда закончена предыдущая.</p>
+{% endblock %}

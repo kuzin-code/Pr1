@@ -11,8 +11,8 @@ PAGES = {
     "/reference": {"technolog", "head", "it"},
     "/journal": {"technolog", "master", "head", "it"},
     "/history": {"technolog", "master", "head"},
-    "/notifications": {"master"},
-    "/facts": {"master", "operator"},
+    "/notifications": {"master", "operator"},
+    "/work": {"master", "operator"},
 }
 
 
@@ -38,7 +38,7 @@ def test_page_access_by_role(login, user, page):
 
 
 @pytest.mark.parametrize("user,target", [
-    ("operator", "/facts"), ("it", "/reference"), ("management", "/plan"), ("master", "/orders"),
+    ("operator", "/work"), ("it", "/reference"), ("management", "/plan"), ("master", "/orders"),
 ])
 def test_home_redirect_by_role(login, user, target):
     resp = login(user).get("/")

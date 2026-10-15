@@ -137,9 +137,28 @@ class HistoryRow(Base):  # Д-8
     reason: Mapped[str] = mapped_column(Text, default="")
 
 
+class OperationRow(Base):
+    """Операция утверждённой позиции на оборудовании: учёт «Начал» / «Закончил»."""
+    __tablename__ = "operations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    position_id: Mapped[int] = mapped_column(ForeignKey("positions.id"))
+    seq: Mapped[int] = mapped_column(Integer)
+    stage: Mapped[str] = mapped_column(String(32))
+    operation: Mapped[str] = mapped_column(String(32))
+    resource: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    planned_hours: Mapped[float] = mapped_column(Float, default=0)
+    status: Mapped[str] = mapped_column(String(32))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    started_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    duration_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
 class NotificationRow(Base):
     __tablename__ = "notifications"
     id: Mapped[int] = mapped_column(primary_key=True)
+    role: Mapped[str | None] = mapped_column(String(32), nullable=True)  # кому; None — мастеру
     key: Mapped[str] = mapped_column(String(64), unique=True)
     position_id: Mapped[int] = mapped_column(Integer)
     kind: Mapped[str] = mapped_column(String(32))

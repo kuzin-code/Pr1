@@ -50,8 +50,11 @@ def _duration(session: Session, pos: PositionRow, kind: FactKind, ended_at: date
 
 
 def record_fact(session: Session, actor: Actor, position_id: int, kind: FactKind,
-                ended_at: datetime, now: datetime | None = None) -> FactRow:
-    require(actor.role, _ACTION[kind])
+                ended_at: datetime, now: datetime | None = None, duration: float | None = None,
+                authorized: bool = False) -> FactRow:
+    """Окончание группы этапов. duration — точная длительность по кнопкам «Начал»/«Закончил»."""
+    if not authorized:
+        require(actor.role, _ACTION[kind])
     pos = get_position(session, position_id)
     status = S(pos.status)
     expected, after = _STATUS_AFTER[kind]
@@ -61,8 +64,9 @@ def record_fact(session: Session, actor: Actor, position_id: int, kind: FactKind
         raise StatusError(f"Отметка «{kind.label}» недоступна в статусе «{status.label}»: "
                           "ситуацию разбирает технолог")
 
-    duration = _duration(session, pos, kind, ended_at)
-    if duration <= 0:
+    explicit = duration is not None
+    duration = duration if explicit else _duration(session, pos, kind, ended_at)
+    if duration <= 0 and not explicit:
         raise ServiceError(f"Отметка «{kind.label}» ({ended_at:%d.%m.%Y %H:%M}) раньше возможного начала работ "
                            "(даты начала заказа или окончания предыдущего этапа): проверьте дату и время")
     group = _GROUP.get(kind)
@@ -71,7 +75,7 @@ def record_fact(session: Session, actor: Actor, position_id: int, kind: FactKind
                    entered_at=now or datetime.now(), duration_hours=duration, calc_hours=calc_hours)
     session.add(fact)
     # Замер пополняет журнал по аналогу; k для контроля не определяется (ФТ-12, ФТ-21).
-    if group and pos.analog_code and calc_hours:
+    if group and pos.analog_code and calc_hours and duration > 0:
         add_journal_measurement(session, pos.analog_code, group, calc_hours, duration, pos.id, ended_at)
     pos.status = transition(status, after).value
     record(session, actor, "position", pos.id, f"fact_{kind.value}", None,

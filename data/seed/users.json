@@ -1,11 +1,59 @@
 {
   "_note": "Демонстрационные учётные записи (по одной на роль, п. 4.5). Пароли сменить перед вводом в эксплуатацию.",
   "users": [
-    {"username": "technolog", "full_name": "Технолог", "role": "technologist", "password": "demo"},
-    {"username": "master", "full_name": "Мастер", "role": "master", "password": "demo"},
-    {"username": "operator", "full_name": "Оператор", "role": "operator", "password": "demo"},
-    {"username": "head", "full_name": "Начальник участка", "role": "head", "password": "demo"},
-    {"username": "it", "full_name": "IT", "role": "it", "password": "demo"},
-    {"username": "management", "full_name": "Руководство", "role": "management", "password": "demo"}
+    {
+      "username": "technolog",
+      "full_name": "Технолог",
+      "role": "technologist",
+      "password": "demo"
+    },
+    {
+      "username": "master",
+      "full_name": "Мастер",
+      "role": "master",
+      "password": "demo"
+    },
+    {
+      "username": "operator",
+      "full_name": "Оператор",
+      "role": "operator",
+      "password": "demo"
+    },
+    {
+      "username": "head",
+      "full_name": "Начальник участка",
+      "role": "head",
+      "password": "demo"
+    },
+    {
+      "username": "it",
+      "full_name": "IT",
+      "role": "it",
+      "password": "demo"
+    },
+    {
+      "username": "management",
+      "full_name": "Руководство",
+      "role": "management",
+      "password": "demo"
+    },
+    {
+      "username": "zagotovitel",
+      "full_name": "Заготовитель",
+      "role": "cutter",
+      "password": "demo"
+    },
+    {
+      "username": "slesar",
+      "full_name": "Слесарь",
+      "role": "locksmith",
+      "password": "demo"
+    },
+    {
+      "username": "kontroler",
+      "full_name": "Контролёр",
+      "role": "inspector",
+      "password": "demo"
+    }
   ]
 }

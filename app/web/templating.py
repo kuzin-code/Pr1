@@ -9,6 +9,7 @@ from app.domain.access import Action, can
 from app.domain.enums import (
     CountMode,
     FactKind,
+    Operation,
     PositionStatus,
     Role,
     Stage,
@@ -60,6 +61,7 @@ templates.env.globals.update(
     STAGE_LABELS=STAGE_LABELS, STATUS_LABELS=STATUS_LABELS,
     stage_label=lambda v: Stage(v).label, status_label=lambda v: PositionStatus(v).label,
     count_label=lambda v: CountMode(v).label,
+    Operation=Operation, operation_label=lambda v: Operation(v).label,
     static_version=STATIC_VERSION,
 )
 

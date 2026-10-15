@@ -9,6 +9,10 @@ class Role(str, Enum):
     HEAD = "head"
     IT = "it"
     MANAGEMENT = "management"
+    # Специалисты участка: одна общая учётная запись на специальность.
+    CUTTER = "cutter"
+    LOCKSMITH = "locksmith"
+    INSPECTOR = "inspector"
 
     @property
     def label(self) -> str:
@@ -22,6 +26,9 @@ ROLE_LABELS = {
     Role.HEAD: "Начальник участка",
     Role.IT: "IT",
     Role.MANAGEMENT: "Руководство",
+    Role.CUTTER: "Заготовитель",
+    Role.LOCKSMITH: "Слесарь",
+    Role.INSPECTOR: "Контролёр",
 }
 
 
@@ -136,3 +143,30 @@ class Mark(str, Enum):
     PRELIMINARY = "срок предварительный"
     APPROX_ANALOG = "аналог подобран по технологии, время пересчитано"
     MATERIAL_UNKNOWN = "материал не прочитан"
+
+
+class Operation(str, Enum):
+    """Операции, которые выполняет оборудование / специалист (программирование вне учёта)."""
+
+    CUTTING = "cutting"
+    SETUP = "setup"
+    MILLING = "milling"
+    TURNING = "turning"
+    LOCKSMITH = "locksmith"
+    FINISHING = "finishing"
+    INSPECTION = "inspection"
+
+    @property
+    def label(self) -> str:
+        return OPERATION_LABELS[self]
+
+
+OPERATION_LABELS = {
+    Operation.CUTTING: "Резка заготовки (заготовительная)",
+    Operation.SETUP: "Наладка",
+    Operation.MILLING: "Фрезерная обработка",
+    Operation.TURNING: "Токарная обработка",
+    Operation.LOCKSMITH: "Слесарная",
+    Operation.FINISHING: "Финишная",
+    Operation.INSPECTION: "Внутренний контроль",
+}

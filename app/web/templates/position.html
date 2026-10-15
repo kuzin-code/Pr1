@@ -190,15 +190,22 @@
       <td>{% if deviation %}{{ '%+.1f'|format(deviation.shift_hours) }} раб. ч (было {{ deviation.baseline|dt }}){% else %}—{% endif %}</td></tr>
   </table>
   {% if facts %}<p>Факт: {% for k, v in facts.items() %}<span class="badge ok">{{ k.label }}: {{ v|dt }}</span>{% endfor %}</p>{% endif %}
-  {% if can('fact_machine') and pos.status in ('approved', 'machining', 'bench', 'inspection') %}
-  <form method="post" action="/positions/{{ pos.id }}/fact" class="inline">
-    <select name="kind">
-      {% if pos.status in ('approved', 'machining') %}<option value="machine">Изготовлено на станке</option>{% endif %}
-      {% if can('fact_bench') and pos.status == 'bench' %}<option value="bench">Пройдена слесарно-финишная обработка</option>{% endif %}
-      {% if can('fact_bench') and pos.status == 'inspection' %}<option value="inspection">Пройден внутренний контроль</option>{% endif %}
-    </select>
-    <input type="datetime-local" name="ended_at" value="{{ now }}"><button>Отметить окончание</button>
-  </form>{% endif %}
+  {% if operations %}
+  <h2 style="margin-top:12px">Операции</h2>
+  <table>
+    <tr><th>№</th><th>Операция</th><th>Оборудование</th><th class="num">План, ч</th><th>Статус</th>
+      <th>Начал</th><th>Закончил</th><th class="num">Факт, ч</th></tr>
+    {% for o in operations %}
+    <tr><td>{{ o.seq }}</td><td>{{ operation_label(o.operation) }}</td><td>{{ o.resource or 'рабочее место' }}</td>
+      <td class="num">{{ o.planned_hours|hours }}</td>
+      <td><span class="badge {{ {'done': 'ok', 'in_progress': 'warn', 'ready': 'ok'}.get(o.status, '') }}">{{ {'waiting': 'ожидает', 'ready': 'можно начинать', 'in_progress': 'в работе', 'done': 'выполнена'}[o.status] }}</span></td>
+      <td>{{ o.started_at|dt if o.started_at else '—' }}{% if o.started_by %}<br><span class="muted">{{ o.started_by }}</span>{% endif %}</td>
+      <td>{{ o.finished_at|dt if o.finished_at else '—' }}{% if o.finished_by %}<br><span class="muted">{{ o.finished_by }}</span>{% endif %}</td>
+      <td class="num">{{ o.duration_hours|hours if o.duration_hours is not none else '—' }}</td></tr>
+    {% endfor %}
+  </table>
+  {% if can('do_operations') %}<p><a class="btn secondary" href="/work">Отметить в окне операций</a></p>{% endif %}
+  {% endif %}
 </div>
 {% endif %}
 

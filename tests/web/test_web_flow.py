@@ -57,12 +57,14 @@ def test_full_flow(login):
     plan = login("management").get("/plan").text
     assert "Haas VF-2" in plan and "%" in plan
 
-    facts = login("operator")
-    assert facts.post(f"/positions/{pid}/fact", data={"kind": "machine", "ended_at": "2026-10-13T10:00"}).status_code == 303
-    assert facts.post(f"/positions/{pid}/fact", data={"kind": "bench", "ended_at": "2026-10-13T15:00"}).status_code == 403
+    # Все операции позиции по порядку: мастер может отметить за любого специалиста.
     master = login("master")
-    assert master.post(f"/positions/{pid}/fact", data={"kind": "bench", "ended_at": "2026-10-13T15:00"}).status_code == 303
-    assert master.post(f"/positions/{pid}/fact", data={"kind": "inspection", "ended_at": "2026-10-14T09:00"}).status_code == 303
+    times = ["2026-10-12T08:00", "2026-10-12T09:00", "2026-10-12T10:00", "2026-10-13T10:00",
+             "2026-10-13T12:00", "2026-10-13T13:00", "2026-10-14T09:00"]
+    for i in range(6):
+        ready = re.findall(r'action="/operations/(\d+)/start"', master.get("/work").text)
+        assert master.post(f"/operations/{ready[0]}/start", data={"at": times[i]}).status_code == 303
+        assert master.post(f"/operations/{ready[0]}/finish", data={"at": times[i + 1]}).status_code == 303
     order_page = master.get(order_url).text
     assert "Заказ завершён" in order_page
 
