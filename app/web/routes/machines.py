@@ -1,4 +1,4 @@
-"""Справочник оборудования: добавление и правка станков (вносит IT, п. 4.5)."""
+"""Справочник оборудования: добавление и правка станков (вносят IT и технолог)."""
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 

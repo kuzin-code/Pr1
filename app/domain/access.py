@@ -47,7 +47,8 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.EDIT_JOURNAL: frozenset({T}),
     Action.IMPORT_JOURNAL: frozenset({T, IT}),  # IT — первичная загрузка
     Action.VIEW_REFERENCE: frozenset({T, H, IT}),
-    Action.EDIT_REFERENCE: frozenset({IT}),
+    # Оборудование вносят IT и технолог (решение пользователя 15.10.2026; в ТЗ 1.0 — только IT).
+    Action.EDIT_REFERENCE: frozenset({IT, T}),
     Action.RECEIVE_NOTIFICATIONS: frozenset({M}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),
 }

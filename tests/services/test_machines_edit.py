@@ -54,8 +54,12 @@ def test_validation(session):
         ref.update_machine(session, IT, "VF2", {"technologies": "welding"}, "")
 
 
-def test_only_it_edits_equipment(session):
-    with pytest.raises(AccessDenied):
-        ref.update_machine(session, TECH, "VF2", {"power": "1"}, "")
-    with pytest.raises(AccessDenied):
-        ref.create_machine(session, TECH, {"code": "X", "model": "X", "kind": "X"})
+def test_technologist_and_it_edit_equipment_others_cannot(session):
+    from tests.services.conftest import HEAD, MASTER
+    ref.update_machine(session, TECH, "VF2", {"power": "22,4 кВт", "axes": "3"}, "паспорт")
+    assert ref.get_machine(session, "VF2").axes == 3
+    ref.create_machine(session, TECH, {"code": "X1", "model": "Новый", "kind": "фрезерный", "is_cnc": True,
+                                       "technologies": "milling", "work_zone": "500x400x300"})
+    for actor in (HEAD, MASTER):
+        with pytest.raises(AccessDenied):
+            ref.update_machine(session, actor, "VF2", {"power": "1"}, "")
