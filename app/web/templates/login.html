@@ -1,13 +1,27 @@
-{% extends "base.html" %}
-{% block title %}Вход{% endblock %}
-{% block content %}
-<div class="card login">
-  <h1>Вход</h1>
-  {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
-  <form method="post" action="/login">
-    <p><label>Учётная запись</label><input name="username" required autofocus style="width:100%"></p>
-    <p><label>Пароль</label><input name="password" type="password" required style="width:100%"></p>
-    <button>Войти</button>
-  </form>
-</div>
-{% endblock %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вход — АС</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ static_version }}">
+</head>
+<body class="login-page">
+  <section class="login-panel">
+    <div class="login-brand">
+      <div class="login-kicker">Участок механической обработки</div>
+      <h1>Планирование загрузки и расчёт стоимости</h1>
+      <p>Маршрут, время этапов, себестоимость, срок и загрузка станков с ЧПУ по модели STEP и чертежу PDF.</p>
+    </div>
+    <form method="post" action="/login" class="login-card">
+      <h2>Вход</h2>
+      {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+      <label for="username">Учётная запись</label>
+      <input id="username" name="username" required autofocus autocomplete="username">
+      <label for="password">Пароль</label>
+      <input id="password" name="password" type="password" required autocomplete="current-password">
+      <button>Войти</button>
+    </form>
+  </section>
+</body>
+</html>

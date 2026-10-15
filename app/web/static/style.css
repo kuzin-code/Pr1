@@ -28,4 +28,24 @@ label { color:var(--muted); font-size:12px; display:block; }
 .flash { padding:8px 12px; border-radius:6px; margin-bottom:10px; } .flash.ok { background:#e8f5ee; color:var(--ok); } .flash.error { background:#fdecea; color:var(--err); }
 .muted { color:var(--muted); } .err { color:var(--err); }
 .load { min-width:56px; text-align:center; } .load.l0 { background:#fff; } .load.l1 { background:#e6f0ff; } .load.l2 { background:#c4dbff; } .load.l3 { background:#ffd8b0; } .load.l4 { background:#ffb4a8; }
-.login { max-width:360px; margin:60px auto; }
+
+/* Страница входа: фото участка на весь экран, слева затемнённая панель с формой */
+body.login-page { min-height:100vh; display:flex; align-items:stretch;
+  background:#1d2330 url("img/login-bg.jpg") center / cover no-repeat; }
+.login-panel { width:min(520px, 100%); padding:48px 48px; display:flex; flex-direction:column; justify-content:center; gap:28px;
+  background:linear-gradient(90deg, rgba(20,24,34,.92) 0%, rgba(20,24,34,.82) 70%, rgba(20,24,34,0) 100%); color:#fff; }
+.login-kicker { color:#e8a3b8; font-size:13px; letter-spacing:.04em; text-transform:uppercase; }
+.login-brand h1 { font-size:30px; line-height:1.2; margin:8px 0 10px; }
+.login-brand p { color:#cfd6e4; margin:0; max-width:380px; }
+.login-card { background:#fff; color:var(--text); border-radius:10px; padding:22px 24px; max-width:360px;
+  border-top:4px solid #993556; box-shadow:0 12px 32px rgba(0,0,0,.35); }
+.login-card h2 { margin:0 0 12px; }
+.login-card label { margin:10px 0 4px; }
+.login-card input { width:100%; padding:8px 10px; }
+.login-card button { width:100%; margin-top:16px; padding:9px; background:#993556; border-color:#993556; font-size:15px; }
+.login-card button:hover { background:#7a2945; }
+@media (max-width: 700px) {
+  .login-panel { padding:32px 16px; background:rgba(20,24,34,.78); justify-content:flex-end; }
+  .login-brand h1 { font-size:24px; }
+  .login-card { max-width:none; }
+}
