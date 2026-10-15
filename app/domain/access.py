@@ -42,7 +42,9 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.FACT_MACHINE: frozenset({M, O}),
     Action.FACT_BENCH: frozenset({M}),
     Action.VIEW_PLAN: frozenset({T, M, H, MG}),
-    Action.VIEW_COST: frozenset({H, IT}),
+    # Себестоимость и ставки видят начальник участка, технолог, мастер и IT
+    # (решение пользователя 15.10.2026; в ТЗ 1.0 — только начальник участка и IT). Ставки меняет только IT.
+    Action.VIEW_COST: frozenset({H, IT, T, M}),
     Action.EDIT_RATES: frozenset({IT}),
     Action.VIEW_JOURNAL: frozenset({T, M, H, IT}),
     Action.EDIT_JOURNAL: frozenset({T}),

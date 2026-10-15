@@ -68,7 +68,7 @@ def test_reference_shows_gaps_and_it_edits_machine(login):
     assert "650 × 420 × 450" in it.get("/reference").text
     assert login("technolog").get("/machines/MV6/edit").status_code == 200
     assert login("head").get("/machines/MV6/edit").status_code == 403
-    assert "Ставка машинного времени" not in login("technolog").get("/reference").text  # ставки — только IT
+    assert 'action="/rates"' not in login("technolog").get("/reference").text  # ставки меняет только IT
 
 
 def test_it_adds_machine(login):

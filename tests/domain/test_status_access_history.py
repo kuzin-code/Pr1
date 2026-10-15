@@ -50,7 +50,7 @@ MATRIX = {
     Action.FACT_MACHINE: {Role.MASTER, Role.OPERATOR},
     Action.FACT_BENCH: {Role.MASTER},
     Action.VIEW_PLAN: {Role.TECHNOLOGIST, Role.MASTER, Role.HEAD, Role.MANAGEMENT},
-    Action.VIEW_COST: {Role.HEAD, Role.IT},
+    Action.VIEW_COST: {Role.HEAD, Role.IT, Role.TECHNOLOGIST, Role.MASTER},
     Action.EDIT_RATES: {Role.IT},
     Action.EDIT_JOURNAL: {Role.TECHNOLOGIST},
     Action.IMPORT_JOURNAL: {Role.TECHNOLOGIST, Role.IT},

@@ -25,8 +25,11 @@ def test_role_tasks_and_cost_visibility(login):
     login("technolog").post(f"/positions/{pid}/submit")
     head = login("head").get("/dashboard").text
     assert "Позиции к утверждению" in head and f'href="/positions/{pid}"' in head and "₽" in head
+    _, other = create_order(login)
+    prepare(login, other)  # остаётся на проверке технолога
     tech = login("technolog").get("/dashboard").text
-    assert "Расчёты на проверку" in tech and "₽" not in tech
+    assert "Расчёты на проверку" in tech and "₽" in tech
+    assert "₽" not in login("management").get("/dashboard").text
 
 
 def test_week_machines_and_deadlines(login):

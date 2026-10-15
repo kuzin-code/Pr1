@@ -53,9 +53,11 @@ def test_rates_change_only_by_it(login):
     assert "2 100 ₽" in page
 
 
-def test_rates_hidden_from_technologist(login):
-    assert "Ставка машинного времени" not in login("technolog").get("/reference").text
-    assert "Ставка машинного времени" in login("head").get("/reference").text
+def test_rates_visible_with_cost_but_edited_only_by_it(login):
+    for user in ("technolog", "head", "it"):
+        assert "Ставка машинного времени" in login(user).get("/reference").text
+    assert 'action="/rates"' not in login("technolog").get("/reference").text
+    assert login("technolog").post("/rates", data={"machine": "1", "bench": "1", "reason": "x"}).status_code == 403
 
 
 def test_logout(login):

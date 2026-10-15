@@ -46,7 +46,8 @@ def test_full_flow(login):
 
     tech_page = login("technolog").get(f"/positions/{pid}").text
     assert "DEMO-02" in tech_page and "ориентировочно" in tech_page
-    assert "17 000" not in tech_page  # себестоимость технологу не показывается
+    assert "17 000" in tech_page  # себестоимость видят технолог, мастер, начальник участка, IT
+    assert "17 000" in login("master").get(f"/positions/{pid}").text
     head_page = login("head").get(f"/positions/{pid}").text
     assert "17 000" in head_page
 

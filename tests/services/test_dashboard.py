@@ -41,7 +41,9 @@ def test_tasks_per_role(session, make_order):
     unlinked = make_order([part_files("Без пары")[0]]).positions[0]
     master_tasks = build_dashboard(session, MASTER, NOW).tasks
     assert any(t.position_id == unlinked.id and "файл" in t.action for t in master_tasks)
-    assert all(t.cost is None for t in build_dashboard(session, TECH, NOW).tasks)  # технолог — без денег
+    prepared(session, make_order)  # ещё одна позиция на проверке технолога
+    assert any(t.cost is not None for t in build_dashboard(session, TECH, NOW).tasks)  # технолог видит
+    assert all(t.cost is None for t in build_dashboard(session, MGMT, NOW).tasks)  # руководство — нет
 
 
 def test_week_load_and_deadlines(session, make_order):
