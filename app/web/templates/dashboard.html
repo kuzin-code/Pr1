@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Главная{% endblock %}
+{% block content %}
+<section class="dash-hero">
+  <div>
+    <div class="dash-date">{{ board.date_label }}</div>
+    <h1>{{ board.greeting }}, {{ user.name }}</h1>
+    <p>Участок механической обработки · {{ role.label }}</p>
+  </div>
+  <nav class="dash-actions">
+    {% for url, label in actions %}<a href="{{ url }}">{{ label }}</a>{% endfor %}
+  </nav>
+</section>
+
+<section class="dash-kpis">
+  {% for k in board.kpis %}
+  {% set tag = 'a' if k.link else 'div' %}
+  <{{ tag }} class="dash-kpi {{ k.tone }}"{% if k.link %} href="{{ k.link }}"{% endif %}>
+    <span class="dash-kpi-label">{{ k.label }}</span>
+    <span class="dash-kpi-value">{{ '%g'|format(k.value) }}<small>{{ k.unit }}</small></span>
+    {% if k.hint %}<span class="dash-kpi-hint">{{ k.hint }}</span>{% endif %}
+  </{{ tag }}>
+  {% endfor %}
+</section>
+
+<div class="dash-grid">
+  <section class="card dash-tasks">
+    <h2>{{ board.tasks_title }} <span class="badge">{{ board.tasks|length }}</span></h2>
+    {% for t in board.tasks %}
+    <div class="dash-task">
+      <div>
+        <div class="dash-task-title">{% if t.link and (t.position_id is none or can('view_orders')) %}<a href="{{ t.link }}">{{ t.title }}</a>{% else %}{{ t.title }}{% endif %}</div>
+        <div class="muted">{{ t.detail }}{% if t.cost is not none %} · {{ t.cost|money }}{% endif %}</div>
+      </div>
+      {% if t.link and (t.position_id is none or can('view_orders')) %}<a class="btn secondary" href="{{ t.link }}">{{ t.action }}</a>{% endif %}
+    </div>
+    {% else %}
+    <p class="dash-empty">Всё сделано — новых задач нет.</p>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2>Загрузка станков с ЧПУ на этой неделе</h2>
+    {% for m in board.machines %}
+    <div class="dash-load">
+      <div class="dash-load-name"><span>{{ m.name }}</span><span class="muted">{{ m.hours|hours }} · {{ '%.0f'|format(m.percent) }}%</span></div>
+      <div class="dash-load-track"><div class="dash-load-bar {{ 'over' if m.percent > 100 else ('high' if m.percent >= 80 else '') }}"
+        style="width:{{ [m.percent, 100]|min }}%"></div></div>
+    </div>
+    {% endfor %}
+    <p class="muted" style="margin-top:10px">Фонд — 6 ч в смену, 5 дней. <a href="/plan">Диаграмма Ганта →</a></p>
+  </section>
+</div>
+
+<div class="dash-grid">
+  <section class="card">
+    <h2>Ближайшие сроки заказов</h2>
+    <table>
+      {% for d in board.deadlines %}
+      <tr><td>{% if can('view_orders') %}<a href="/orders/{{ d.order_id }}"><b>{{ d.order_number }}</b></a>{% else %}<b>{{ d.order_number }}</b>{% endif %}
+          {% if d.customer %}<br><span class="muted">{{ d.customer }}</span>{% endif %}</td>
+        <td class="num">{{ d.deadline|dt }}<br>{% if d.preliminary %}<span class="badge">есть предварительные</span>{% endif %}<span class="badge warn">ориентировочно</span></td></tr>
+      {% else %}<tr><td class="muted">Заказов в работе нет</td></tr>{% endfor %}
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Последние события</h2>
+    <ul class="dash-events">
+      {% for e in board.events %}
+      <li><span class="muted">{{ e.ts|dt }}</span>{% if e.link %}<a href="{{ e.link }}">{{ e.text }}</a>{% else %}{{ e.text }}{% endif %}</li>
+      {% else %}<li class="muted">Событий пока нет</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

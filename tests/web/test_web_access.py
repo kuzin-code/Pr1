@@ -38,7 +38,7 @@ def test_page_access_by_role(login, user, page):
 
 
 @pytest.mark.parametrize("user,target", [
-    ("operator", "/work"), ("it", "/reference"), ("management", "/plan"), ("master", "/orders"),
+    ("operator", "/work"), ("it", "/reference"), ("management", "/dashboard"), ("master", "/dashboard"),
 ])
 def test_home_redirect_by_role(login, user, target):
     resp = login(user).get("/")

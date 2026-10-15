@@ -10,13 +10,13 @@ from app.web.templating import render
 router = APIRouter()
 
 HOME = {Role.OPERATOR: "/work", Role.CUTTER: "/work", Role.LOCKSMITH: "/work", Role.INSPECTOR: "/work",
-        Role.IT: "/reference", Role.MANAGEMENT: "/plan"}
+        Role.IT: "/reference"}
 
 
 @router.get("/")
 def home(request: Request):
     actor = current_actor(request)
-    return redirect(HOME.get(actor.role, "/orders"))
+    return redirect(HOME.get(actor.role, "/dashboard"))
 
 
 @router.get("/login")
