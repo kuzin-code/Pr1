@@ -37,15 +37,16 @@ def order_new(request: Request):
 
 
 @router.post("/orders")
-async def order_create(request: Request, start_date: str = Form(""), number: str = Form(""),
+async def order_create(request: Request, start_date: str = Form(""), number: str = Form(""), quantity: str = Form("1"),
                        files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
     actor = current_actor(request)
     require(actor.role, Action.UPLOAD_ORDER)
     uploaded = [order_service.UploadedFile(f.filename or "", await f.read()) for f in files if f.filename]
     try:
         start = date.fromisoformat(start_date) if start_date else None
+        qty = int(quantity or 1)
         order = order_service.create_order(db, actor, start, uploaded, request.app.state.settings.upload_dir,
-                                           number.strip() or None)
+                                           number.strip() or None, quantity=qty)
     except (IntakeError, ServiceError, ValueError) as err:
         db.rollback()
         return render(request, "order_new.html", status_code=400, error=str(err),

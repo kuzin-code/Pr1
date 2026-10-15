@@ -24,7 +24,7 @@ def _seed_machines(session: Session, data: dict) -> None:
 
 
 def _seed_parameters(session: Session, data: dict) -> None:
-    for key in ("rates", "schedule", "complexity_scale"):
+    for key in ("rates", "schedule", "complexity_scale", "preferred_machines"):
         if session.get(Parameter, key) is None:
             session.add(Parameter(key=key, value=data[key]))
     if session.get(Parameter, "journal_version") is None:

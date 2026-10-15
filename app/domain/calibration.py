@@ -30,7 +30,8 @@ def k_for(entry: CalibrationEntry | None, group: StageGroup) -> KValue:
     """k аналога для группы — среднее отношений факт ÷ расчёт по всем замерам."""
     if entry is None:
         return NO_ANALOG_K
-    ratios = [m.ratio for m in entry.measurements if m.group is group]
+    # Нулевой факт — ошибочная отметка, а не замер: в k не учитывается.
+    ratios = [m.ratio for m in entry.measurements if m.group is group and m.actual_hours > 0]
     if not ratios:
         return NO_ANALOG_K
     return KValue(fmean(ratios), len(ratios))
@@ -42,7 +43,7 @@ def add_measurement(entry: CalibrationEntry, group: StageGroup, calc_hours: floa
     """Новая версия записи журнала с добавленным замером."""
     if group not in K_GROUPS:
         raise ValueError("k определяется только для станочной и слесарно-финишной групп")
-    if calc_hours <= 0 or actual_hours < 0:
-        raise ValueError("Расчётное время должно быть > 0, фактическое — ≥ 0")
+    if calc_hours <= 0 or actual_hours <= 0:
+        raise ValueError("Расчётное и фактическое время замера должны быть больше нуля")
     measurement = Measurement(group, calc_hours, actual_hours, position_id, at)
     return replace(entry, measurements=[*entry.measurements, measurement])

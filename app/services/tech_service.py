@@ -3,16 +3,17 @@ from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
 from app.domain.analog import AnalogMatch, find_analogs
-from app.domain.enums import CountMode, PositionStatus, Stage
+from app.domain.enums import CountMode, PositionStatus, Stage  # noqa: F401
 from app.domain.history import diff_fields, require_reason
 from app.domain.machines import allowed_machines, suggest_machine
 from app.domain.models import Machine, StageNorm
-from app.domain.route import remove_stage, route_from_entry, route_from_list, route_to_list, set_stage
+from app.domain.route import remove_stage, route_from_list, route_to_list, set_stage
 from app.domain.status import transition
 from app.services.actor import Actor, ServiceError
 from app.services.calc_service import build_calculation, position_features
 from app.services.history_service import record
-from app.services.order_service import ensure_editable, get_position
+from app.services.auto_service import MANUAL_ROUTE, auto_prepare, mark_manual
+from app.services.order_service import _apply_reading, ensure_editable, get_position
 from app.services.reference_service import (
     complexity_scale,
     domain_machines,
@@ -23,18 +24,6 @@ from app.storage.orm import PositionRow
 
 EDITABLE_FIELDS = {"dims", "volume", "material", "tolerance_grade", "threads", "technology"}
 TECHNOLOGIES = {"milling", "turning"}
-
-# Маршрут для ручного ввода, если аналога нет (ФТ-08).
-MANUAL_ROUTE = [
-    StageNorm(Stage.CUTTING, 0, CountMode.PER_PIECE),
-    StageNorm(Stage.PROGRAMMING, 0, CountMode.ONCE),
-    StageNorm(Stage.SETUP, 0, CountMode.PER_BATCH),
-    StageNorm(Stage.MACHINING, 0, CountMode.PER_PIECE),
-    StageNorm(Stage.LOCKSMITH, 0, CountMode.PER_PIECE),
-    StageNorm(Stage.FINISHING, 0, CountMode.PER_PIECE),
-    StageNorm(Stage.INSPECTION, 0, CountMode.PER_BATCH),
-]
-
 
 def _editable(session: Session, actor: Actor, position_id: int, action=Action.EDIT_TECH_DATA) -> PositionRow:
     require(actor.role, action)
@@ -79,8 +68,9 @@ def update_data(session: Session, actor: Actor, position_id: int, changes: dict,
     reason = require_reason(reason)
     for field, old, value in diff:
         record(session, actor, "position", pos.id, field, old, value, reason)
-    pos.data = {**(pos.data or {}), **new}
-    pos.current_calc = None
+    edited = sorted(set((pos.data or {}).get("edited") or []) | {f for f, _, _ in diff})
+    pos.data = {**(pos.data or {}), **new, "edited": edited}
+    auto_prepare(session, pos)
     session.commit()
     return pos
 
@@ -93,7 +83,8 @@ def set_complexity(session: Session, actor: Actor, position_id: int, score: int,
     if pos.complexity != score:
         record(session, actor, "position", pos.id, "complexity", pos.complexity, score, reason)
         pos.complexity = score
-        pos.current_calc = None
+        mark_manual(pos, "complexity")
+        auto_prepare(session, pos)
     session.commit()
     return pos
 
@@ -103,7 +94,7 @@ def set_cooperation(session: Session, actor: Actor, position_id: int, flag: bool
     if pos.cooperation != flag:
         record(session, actor, "position", pos.id, "cooperation", pos.cooperation, flag)
         pos.cooperation = flag
-        pos.current_calc = None
+        auto_prepare(session, pos)
     session.commit()
     return pos
 
@@ -114,15 +105,16 @@ def analog_candidates(session: Session, position_id: int) -> list[AnalogMatch]:
 
 
 def choose_analog(session: Session, actor: Actor, position_id: int, code: str) -> PositionRow:
-    """Технолог подтверждает аналог; маршрут формируется по журналу (ФТ-07, ФТ-09)."""
+    """Технолог меняет аналог, выбранный системой; маршрут формируется по нему заново (ФТ-07, ФТ-09)."""
     pos = _editable(session, actor, position_id)
-    entry = journal_entry(session, code)
-    record(session, actor, "position", pos.id, "analog", pos.analog_code, code, "подтверждён технологом")
+    journal_entry(session, code)
+    record(session, actor, "position", pos.id, "analog", pos.analog_code, code, "выбран технологом")
     pos.analog_code, pos.no_analog = code, False
-    route = route_to_list(route_from_entry(entry))
-    record(session, actor, "position", pos.id, "route", pos.route, route, f"сформирован по аналогу {code}")
-    pos.route = route
-    pos.current_calc = None
+    mark_manual(pos, "analog")
+    pos.data = {**pos.data, "auto": {**pos.data["auto"], "route": True}}
+    old_route = pos.route
+    auto_prepare(session, pos)
+    record(session, actor, "position", pos.id, "route", old_route, pos.route, f"сформирован по аналогу {code}")
     session.commit()
     return pos
 
@@ -132,7 +124,8 @@ def choose_no_analog(session: Session, actor: Actor, position_id: int) -> Positi
     record(session, actor, "position", pos.id, "analog", pos.analog_code, None, "аналога нет: ручной ввод")
     pos.analog_code, pos.no_analog = None, True
     pos.route = route_to_list(MANUAL_ROUTE)
-    pos.current_calc = None
+    mark_manual(pos, "analog", "route")
+    auto_prepare(session, pos)
     session.commit()
     return pos
 
@@ -149,7 +142,8 @@ def edit_route_stage(session: Session, actor: Actor, position_id: int, stage: St
     old = pos.route
     pos.route = route_to_list(set_stage(route_from_list(pos.route), norm))
     record(session, actor, "position", pos.id, "route", old, pos.route, reason)
-    pos.current_calc = None
+    mark_manual(pos, "route")
+    auto_prepare(session, pos)
     session.commit()
     return pos
 
@@ -160,7 +154,8 @@ def remove_route_stage(session: Session, actor: Actor, position_id: int, stage: 
     old = pos.route
     pos.route = route_to_list(remove_stage(route_from_list(pos.route), Stage(stage)))
     record(session, actor, "position", pos.id, "route", old, pos.route, reason)
-    pos.current_calc = None
+    mark_manual(pos, "route")
+    auto_prepare(session, pos)
     session.commit()
     return pos
 
@@ -181,7 +176,8 @@ def assign_machine(session: Session, actor: Actor, position_id: int, code: str) 
     if pos.machine_code != code:
         record(session, actor, "position", pos.id, "machine", pos.machine_code, code)
         pos.machine_code = code
-        pos.current_calc = None
+        mark_manual(pos, "machine")
+        auto_prepare(session, pos)
     session.commit()
     return pos
 
@@ -194,6 +190,19 @@ def calculate(session: Session, actor: Actor, position_id: int) -> dict:
         pos.status = transition(PositionStatus.CALCULATION, PositionStatus.TECH_REVIEW).value
     session.commit()
     return pos.current_calc
+
+
+def auto_recalculate(session: Session, actor: Actor, position_id: int) -> list[str]:
+    """Перечитать файлы и пересчитать; поля, исправленные технологом, и его решения сохраняются."""
+    pos = _editable(session, actor, position_id)
+    current = dict(pos.data or {})
+    edited = set(current.get("edited") or [])
+    _apply_reading(pos, [e.material for e in journal_entries(session)])
+    service = {k: v for k, v in current.items() if k not in pos.data}  # auto, edited, замечания
+    pos.data = {**pos.data, **service, **{k: current[k] for k in edited if k in current}}
+    issues = auto_prepare(session, pos)
+    session.commit()
+    return issues
 
 
 def submit(session: Session, actor: Actor, position_id: int) -> PositionRow:

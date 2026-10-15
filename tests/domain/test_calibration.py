@@ -47,3 +47,15 @@ def test_invalid_measurement_rejected():
         add_measurement(make_entry(), StageGroup.MACHINE, 0, 3)
     with pytest.raises(ValueError):
         add_measurement(make_entry(), StageGroup.OTHER, 1, 3)
+
+
+def test_zero_actual_time_is_not_a_measurement():
+    with pytest.raises(ValueError):
+        add_measurement(make_entry(), StageGroup.MACHINE, 7, 0)
+
+
+def test_k_ignores_invalid_zero_measurements_in_existing_data():
+    from app.domain.models import Measurement
+    entry = make_entry(measurements=[Measurement(StageGroup.MACHINE, 7, 0), *machine_measurements(1.2)])
+    k = k_for(entry, StageGroup.MACHINE)
+    assert k.value == pytest.approx(1.2) and k.count == 1

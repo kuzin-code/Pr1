@@ -13,6 +13,8 @@ from app.services.actor import Actor, ServiceError
 from app.services.reference_service import get_rates, journal_entry, journal_version
 from app.storage.orm import PositionRow
 
+DEFAULT_GRADE = 12
+
 
 def position_features(pos: PositionRow) -> PartFeatures:
     """Признаки детали для аналога и станка; без балла сложности расчёт не идёт (ФТ-06)."""
@@ -21,12 +23,11 @@ def position_features(pos: PositionRow) -> PartFeatures:
         raise ServiceError("Назначьте балл сложности по шкале сложности")
     if not data.get("dims"):
         raise ServiceError("Не заданы габариты детали: введите их вручную")
-    if not data.get("material"):
-        raise ServiceError("Не задан материал: введите его вручную")
-    if data.get("tolerance_grade") is None:
-        raise ServiceError("Не задан квалитет точности: введите его вручную")
-    return PartFeatures(Dimensions.from_list(data["dims"]), data["material"], int(data["tolerance_grade"]),
-                        pos.complexity, data.get("technology") or "milling")
+    grade = data.get("tolerance_grade")
+    # Квалитет не прочитан — принимаются неуказанные допуски IT12 (H12, h12, ±IT12/2).
+    return PartFeatures(Dimensions.from_list(data["dims"]), data.get("material") or "",
+                        int(grade) if grade is not None else DEFAULT_GRADE, pos.complexity,
+                        data.get("technology") or "milling")
 
 
 def build_calculation(session: Session, actor: Actor, pos: PositionRow,
@@ -52,6 +53,10 @@ def build_calculation(session: Session, actor: Actor, pos: PositionRow,
         marks.append(Mark.NO_ANALOG.value)
     elif k_machine.approximate or k_bench.approximate:
         marks.append(Mark.FEW_MEASUREMENTS.value)
+    if analog is not None and (pos.data or {}).get("analog_approximate"):
+        marks.append(Mark.APPROX_ANALOG.value)
+    if not (pos.data or {}).get("material"):
+        marks.append(Mark.MATERIAL_UNKNOWN.value)
     if pos.cooperation:
         marks.append(Mark.NO_COOPERATION.value)
 

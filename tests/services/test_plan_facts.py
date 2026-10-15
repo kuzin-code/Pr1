@@ -6,6 +6,7 @@ import pytest
 from app.domain.access import AccessDenied
 from app.domain.enums import FactKind, PositionStatus, StageGroup
 from app.domain.status import StatusError
+from app.services.actor import ServiceError
 from app.services import approval_service as approval
 from app.services import fact_service as facts
 from app.services import plan_service as plans
@@ -120,3 +121,11 @@ def test_snapshot_survives_k_and_rate_changes(session, make_order):
     assert pos.approved_calc == snap
     assert snap["k"]["machine"]["count"] == 0
     assert part_files  # фикстура импортирована для prepared()
+
+
+def test_fact_before_possible_start_rejected_and_k_untouched(session, make_order):
+    pos = approved(session, make_order)  # заказ начинается 12.10 08:00
+    with pytest.raises(ServiceError, match="раньше"):
+        facts.record_fact(session, OPERATOR, pos.id, FactKind.MACHINE, datetime(2026, 10, 11, 15, 54))
+    assert ref.journal_entry(session, "DEMO-02").measurements == []
+    assert pos.status == PositionStatus.APPROVED.value

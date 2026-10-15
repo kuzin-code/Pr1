@@ -2,6 +2,7 @@
 {% block title %}{{ pos.designation }}{% endblock %}
 {% set tech = can('edit_tech_data') and editable %}
 {% set d = pos.data or {} %}
+{% set auto = d.get('auto') or {} %}
 {% block content %}
 <p class="muted"><a href="/orders/{{ pos.order_id }}">← Заказ {{ pos.order.number }}</a></p>
 <h1>{{ pos.designation }} <span class="badge">{{ status_label(pos.status) }}</span></h1>
@@ -14,6 +15,13 @@
     {% if pos.step_path %}<a href="/positions/{{ pos.id }}/file/step">{{ pos.step_name }}</a> <span class="muted">(открыть в CAD-просмотрщике)</span>{% else %}<span class="err">нет файла</span>{% endif %}</div>
   {% if pos.needs_link %}<span class="badge err">Нет пары STEP+PDF: свяжите файлы в карточке заказа</span>{% endif %}
 </div>
+
+{% if d.get('auto_issues') %}
+<div class="card" style="border-left:4px solid var(--warn);border-radius:0">
+  <h2>Замечания системы</h2>
+  <ul style="margin:0;padding-left:18px">{% for i in d.auto_issues %}<li>{{ i }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
 
 <div class="grid">
 <div class="card">
@@ -44,7 +52,7 @@
   <hr style="border:0;border-top:1px solid var(--line)">
   <div class="row">
     <form method="post" action="/positions/{{ pos.id }}/complexity" class="inline">
-      <label>Балл сложности</label>
+      <label>Балл сложности {% if auto.get('complexity', True) %}<span class="badge">оценка системы</span>{% else %}<span class="badge ok">задан технологом</span>{% endif %}</label>
       <select name="complexity" {{ 'disabled' if not tech }}>
         <option value="">—</option>
         {% for s in scale %}<option value="{{ s.score }}" {{ 'selected' if pos.complexity == s.score }}>{{ s.score }} — {{ s.description }}</option>{% endfor %}
@@ -59,10 +67,17 @@
 
 <div class="card">
   <h2>Аналог из журнала калибровки</h2>
-  <p>Выбран: <b>{{ pos.analog_code or ("аналога нет — время вводится вручную" if pos.no_analog else "не выбран") }}</b></p>
+  <p>Аналог: <b>{{ pos.analog_code or ("нет — время вводится вручную" if pos.no_analog else "не выбран") }}</b>
+    {% if pos.analog_code %}{% if auto.get('analog', True) %}<span class="badge">выбран системой</span>{% else %}<span class="badge ok">выбран технологом</span>{% endif %}
+    {% if d.get('analog_approximate') %}<span class="badge warn">аналог подобран по технологии, время пересчитано</span>{% endif %}{% endif %}</p>
+  {% if d.get('analog_reasons') %}<p>{% for reason in d.analog_reasons %}<span class="badge">{{ reason }}</span>{% endfor %}</p>{% endif %}
   {% if problem %}<p class="muted">{{ problem }}</p>{% endif %}
+  {% if tech and journal %}
+  <form method="post" action="/positions/{{ pos.id }}/analog" class="inline" style="margin-bottom:8px">
+    <select name="code">{% for e in journal %}<option value="{{ e.part_code }}" {{ 'selected' if e.part_code == pos.analog_code }}>{{ e.part_code }} — {{ e.name }} ({{ e.material }}, {{ e.machine_code }})</option>{% endfor %}</select>
+    <button class="secondary">Выбрать другой аналог</button></form>{% endif %}
   <table>
-    <tr><th>Деталь</th><th>Признаки сходства</th><th>Станок</th><th></th></tr>
+    <tr><th>Строгие аналоги</th><th>Признаки сходства</th><th>Станок</th><th></th></tr>
     {% for m in analogs %}
     <tr><td>{{ m.entry.part_code }}<br><span class="muted">{{ m.entry.name }}</span></td>
       <td>{% for reason in m.reasons %}<span class="badge">{{ reason }}</span>{% endfor %}</td>
@@ -70,7 +85,7 @@
       <td>{% if tech %}<form method="post" action="/positions/{{ pos.id }}/analog" class="inline">
         <input type="hidden" name="code" value="{{ m.entry.part_code }}"><button class="secondary">Подтвердить</button></form>{% endif %}</td></tr>
     {% else %}
-    <tr><td colspan="4" class="muted">Подходящих аналогов нет (сложность, квалитет ±1, габариты ±10 мм, материал)</td></tr>
+    <tr><td colspan="4" class="muted">Строгих аналогов нет (сложность, квалитет ±1, габариты ±10 мм, материал) — используется ближайший по технологии</td></tr>
     {% endfor %}
   </table>
   {% if tech %}<form method="post" action="/positions/{{ pos.id }}/analog" class="inline" style="margin-top:8px">
@@ -108,7 +123,8 @@
 <div class="grid">
 <div class="card">
   <h2>Станок</h2>
-  <p>Назначен: <b>{{ pos.machine_code or "—" }}</b>{% if suggested %} · предложен по аналогу: {{ suggested.model }}{% endif %}</p>
+  <p>Назначен: <b>{{ pos.machine_code or "—" }}</b>
+    {% if pos.machine_code %}{% if auto.get('machine', True) %}<span class="badge">назначен системой</span>{% else %}<span class="badge ok">назначен технологом</span>{% endif %}{% endif %}</p>
   {% if tech %}
   <form method="post" action="/positions/{{ pos.id }}/machine" class="inline">
     <select name="code">{% for m in allowed %}<option value="{{ m.code }}" {{ 'selected' if (pos.machine_code or (suggested.code if suggested)) == m.code }}>{{ m.model }}</option>{% endfor %}</select>
@@ -122,8 +138,11 @@
   <h2>Действия</h2>
   <div class="row">
   {% if tech %}
-    <form method="post" action="/positions/{{ pos.id }}/calculate" class="inline"><button>Рассчитать</button></form>
+    <form method="post" action="/positions/{{ pos.id }}/auto" class="inline"><button class="secondary">Пересчитать автоматически</button></form>
     {% if pos.status == 'tech_review' %}<form method="post" action="/positions/{{ pos.id }}/submit" class="inline"><button>Передать на утверждение</button></form>{% endif %}
+  {% endif %}
+  {% if can('edit_journal') and calc %}
+    <form method="post" action="/positions/{{ pos.id }}/journal" class="inline"><button class="secondary">Внести в журнал калибровки</button></form>
   {% endif %}
   {% if can('approve') and pos.status == 'awaiting_approval' %}
     <form method="post" action="/positions/{{ pos.id }}/approve" class="inline"><button>Утвердить</button></form>

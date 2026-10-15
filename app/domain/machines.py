@@ -16,3 +16,16 @@ def suggest_machine(allowed: list[Machine], analog: CalibrationEntry | None) -> 
     if analog is None:
         return None
     return next((m for m in allowed if m.code == analog.machine_code), None)
+
+
+def choose_machine(part: PartFeatures, machines: list[Machine], analog_machine: str | None, strict: bool,
+                   preferred: dict[str, str]) -> Machine | None:
+    """Станок назначает система: станок строгого аналога, иначе основной станок технологии,
+    иначе станок аналога, иначе первый допустимый. Технолог может переназначить."""
+    allowed = {m.code: m for m in allowed_machines(part, machines)}
+    order = [analog_machine] if strict else []
+    order += [preferred.get(part.technology), analog_machine]
+    for code in order:
+        if code in allowed:
+            return allowed[code]
+    return next(iter(allowed.values()), None)

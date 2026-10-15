@@ -62,6 +62,9 @@ def record_fact(session: Session, actor: Actor, position_id: int, kind: FactKind
                           "ситуацию разбирает технолог")
 
     duration = _duration(session, pos, kind, ended_at)
+    if duration <= 0:
+        raise ServiceError(f"Отметка «{kind.label}» ({ended_at:%d.%m.%Y %H:%M}) раньше возможного начала работ "
+                           "(даты начала заказа или окончания предыдущего этапа): проверьте дату и время")
     group = _GROUP.get(kind)
     calc_hours = group_calc_hours(_times(pos), group) if group else None
     fact = FactRow(position_id=pos.id, kind=kind.value, ended_at=ended_at, entered_by=actor.username,

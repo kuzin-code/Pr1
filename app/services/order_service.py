@@ -13,6 +13,7 @@ from app.domain.status import is_editable
 from app.parsers.pdf_reader import read_pdf
 from app.parsers.step_reader import read_step
 from app.services.actor import Actor, ServiceError
+from app.services.auto_service import auto_prepare
 from app.services.history_service import record
 from app.services.reference_service import journal_entries
 from app.storage.orm import OrderRow, PositionRow
@@ -58,7 +59,7 @@ def _apply_reading(position: PositionRow, known_materials: list[str]) -> None:
 
 
 def create_order(session: Session, actor: Actor, start_date: date | None, files: list[UploadedFile],
-                 upload_dir: Path | str, number: str | None = None) -> OrderRow:
+                 upload_dir: Path | str, number: str | None = None, quantity: int = 1) -> OrderRow:
     require(actor.role, Action.UPLOAD_ORDER)
     if start_date is None:
         raise ServiceError("Укажите дату начала изготовления")
@@ -67,6 +68,8 @@ def create_order(session: Session, actor: Actor, start_date: date | None, files:
         file_kind(name)
     pairing = pair_files(names)
     validate_position_count(pairing.position_count)
+    if quantity < 1:
+        raise ServiceError("Количество должно быть не меньше 1")
 
     order = OrderRow(number=number or "", start_date=start_date, created_at=datetime.now(),
                      created_by=actor.username)
@@ -85,11 +88,15 @@ def create_order(session: Session, actor: Actor, start_date: date | None, files:
     groups = [(d, pair) for d, pair in pairing.pairs.items()]
     groups += [(u.designation, {u.kind: u.filename}) for u in pairing.unpaired]
     for desig, pair in groups:
-        pos = PositionRow(designation=desig, quantity=1, status=PositionStatus.CALCULATION.value,
+        pos = PositionRow(designation=desig, quantity=quantity, status=PositionStatus.CALCULATION.value,
                           step_name=pair.get("step"), step_path=paths.get(pair.get("step")),
                           pdf_name=pair.get("pdf"), pdf_path=paths.get(pair.get("pdf")))
         _apply_reading(pos, known)
         order.positions.append(pos)
+    session.flush()
+    # Расчёт формируется сам; технолог проверяет и при необходимости корректирует.
+    for pos in order.positions:
+        auto_prepare(session, pos)
     session.commit()
     return order
 
@@ -126,7 +133,7 @@ def set_quantity(session: Session, actor: Actor, position_id: int, quantity: int
     if pos.quantity != quantity:
         record(session, actor, "position", pos.id, "quantity", pos.quantity, quantity)
         pos.quantity = quantity
-        pos.current_calc = None
+        auto_prepare(session, pos)
     session.commit()
     return pos
 
@@ -149,6 +156,8 @@ def link_files(session: Session, actor: Actor, position_id: int, other_id: int) 
     record(session, actor, "position", pos.id, "files", None,
            {"step": pos.step_name, "pdf": pos.pdf_name}, "ручное связывание STEP и PDF")
     session.delete(other)
+    session.flush()
+    auto_prepare(session, pos)
     session.commit()
     session.refresh(pos.order)
     return pos

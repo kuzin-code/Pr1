@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, can, require
 from app.domain.enums import FactKind, PositionStatus, Stage
 from app.domain.status import is_editable
-from app.services import approval_service, fact_service, order_service, plan_service, tech_service
+from app.services import approval_service, fact_service, journal_service, order_service, plan_service, tech_service
 from app.services.actor import ServiceError
 from app.services.history_service import list_history
-from app.services.reference_service import complexity_scale
+from app.services.reference_service import complexity_scale, journal_entries
 from app.web.deps import act, current_actor, get_db, redirect
 from app.web.templating import render
 
@@ -39,7 +39,8 @@ def position_page(request: Request, position_id: int, db: Session = Depends(get_
     actual = fact_service.actual_cost(db, pos.id) if pos.approved_calc else None
     return render(
         request, "position.html", pos=pos, analogs=analogs, allowed=allowed, suggested=suggested,
-        problem=problem, scale=complexity_scale(db), editable=is_editable(PositionStatus(pos.status)),
+        problem=problem, scale=complexity_scale(db),
+        journal=[e for e in journal_entries(db) if e.technology == ((pos.data or {}).get("technology") or "milling")], editable=is_editable(PositionStatus(pos.status)),
         calc=plan_service.plan_calc(pos), planned=plan.positions.get(pos.id), deviation=deviation,
         actual=actual, history=list_history(db, entity="position", entity_id=pos.id, limit=50),
         facts=plan_service.fact_ends(db, pos.id), now=datetime.now().strftime("%Y-%m-%dT%H:%M"),
@@ -128,6 +129,21 @@ def calculate(request: Request, position_id: int, db: Session = Depends(get_db))
     actor = current_actor(request)
     return act(request, db, _back(position_id), lambda: tech_service.calculate(db, actor, position_id),
                "Расчёт выполнен")
+
+
+@router.post("/positions/{position_id}/auto")
+def auto_recalculate(request: Request, position_id: int, db: Session = Depends(get_db)):
+    actor = current_actor(request)
+    return act(request, db, _back(position_id), lambda: tech_service.auto_recalculate(db, actor, position_id),
+               "Расчёт выполнен заново")
+
+
+@router.post("/positions/{position_id}/journal")
+def add_to_journal(request: Request, position_id: int, db: Session = Depends(get_db)):
+    actor = current_actor(request)
+    require(actor.role, Action.EDIT_JOURNAL)
+    return act(request, db, _back(position_id), lambda: journal_service.add_to_journal(db, actor, position_id),
+               "Деталь внесена в журнал калибровки")
 
 
 @router.post("/positions/{position_id}/submit")

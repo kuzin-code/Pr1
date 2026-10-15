@@ -1,5 +1,6 @@
 {
   "rates": {"machine": 2000, "bench": 1000},
+  "preferred_machines": {"milling": "VF2", "turning": "ST20Y"},
   "schedule": {"machine_hours_per_day": 6, "bench_hours_per_day": 8, "workdays_per_week": 5},
   "complexity_scale": [
     {"score": 1, "description": "Простая: 2D-контур, грубые допуски (IT12–IT14)"},

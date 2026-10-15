@@ -32,7 +32,7 @@ def test_order_created_with_read_data(session, make_order):
     order = make_order()
     (pos,) = order.positions
     assert pos.designation == "Кронштейн-1"
-    assert pos.status == PositionStatus.CALCULATION.value
+    assert pos.status == PositionStatus.TECH_REVIEW.value  # рассчитана автоматически
     assert sorted(pos.data["dims"], reverse=True) == pytest.approx([152, 58, 40])
     assert pos.data["material"] == "D16T"
     assert pos.data["tolerance_grade"] == 9
@@ -86,10 +86,10 @@ def test_correction_saved_in_history_with_reason(session, make_order):
     assert (h.username, h.old, h.new, h.reason) == ("technolog", "D16T", "Д16Т", "по чертежу")
 
 
-def test_calculation_requires_complexity(session, make_order):
-    pos = make_order().positions[0]
-    with pytest.raises(ServiceError, match="сложност"):
-        tech.calculate(session, TECH, pos.id)
+def test_complexity_estimated_automatically(session, make_order):
+    pos = make_order().positions[0]  # H9, без резьб
+    assert pos.complexity == 3
+    assert pos.data["auto"]["complexity"] is True
 
 
 def test_analog_candidates_and_machine_suggestion(session, make_order):
@@ -123,8 +123,7 @@ def test_route_edit_requires_reason_and_invalidates_calc(session, make_order):
     with pytest.raises(ReasonRequired):
         tech.edit_route_stage(session, TECH, pos.id, Stage.MACHINING, 0.7, "piece", "")
     tech.edit_route_stage(session, TECH, pos.id, Stage.MACHINING, 0.7, "piece", "сложнее аналога")
-    assert orders.get_position(session, pos.id).current_calc is None
-    calc = tech.calculate(session, TECH, pos.id)
+    calc = orders.get_position(session, pos.id).current_calc  # пересчитано сразу
     assert calc["cost"]["machine_hours"] == pytest.approx(8)
     assert any(h.field == "route" and h.reason == "сложнее аналога"
                for h in list_history(session, entity="position", entity_id=pos.id))
@@ -190,10 +189,8 @@ def test_rate_change_does_not_change_saved_calculation(session, make_order):
 
 
 def test_submit_requires_machine(session, make_order):
-    pos = make_order().positions[0]
-    tech.update_data(session, TECH, pos.id, {"material": "Д16Т"}, "по чертежу")
-    tech.set_complexity(session, TECH, pos.id, 2)
-    tech.choose_analog(session, TECH, pos.id, "DEMO-02")
-    tech.calculate(session, TECH, pos.id)
+    pos = make_order(part_files("Балка", dims=(2000, 30, 30))).positions[0]
+    assert pos.machine_code is None
+    assert any("Ни один станок" in i for i in pos.data["auto_issues"])
     with pytest.raises(ServiceError, match="станок"):
         tech.submit(session, TECH, pos.id)

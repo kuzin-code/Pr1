@@ -52,6 +52,12 @@ def set_rates(session: Session, actor: Actor, machine: float, bench: float, reas
     return get_rates(session)
 
 
+def preferred_machines(session: Session) -> dict[str, str]:
+    """Основной станок по технологии: фрезерная — Haas VF-2, токарная — Haas ST-20Y."""
+    row = session.get(Parameter, "preferred_machines")
+    return dict(row.value) if row else {"milling": "VF2", "turning": "ST20Y"}
+
+
 def complexity_scale(session: Session) -> list[dict]:
     return list(_param(session, "complexity_scale").value)
 
@@ -89,7 +95,7 @@ def journal_version(session: Session) -> int:
     return int(_param(session, "journal_version").value)
 
 
-def _bump_journal_version(session: Session) -> None:
+def bump_journal_version(session: Session) -> None:
     row = _param(session, "journal_version")
     row.value = int(row.value) + 1
 
@@ -116,7 +122,7 @@ def add_journal_measurement(session: Session, code: str, group: StageGroup, calc
     row = _journal_row(session, code)
     entry = add_measurement(entry_from_row(row), group, calc_hours, actual_hours, position_id, at)
     entry_to_row(entry, row)
-    _bump_journal_version(session)
+    bump_journal_version(session)
     return entry
 
 
@@ -132,7 +138,7 @@ def import_journal_file(session: Session, actor: Actor, path: Path | str, replac
         existing = {}
     for entry in entries:
         session.add(entry_to_row(entry, existing.get(entry.part_code)))
-    _bump_journal_version(session)
+    bump_journal_version(session)
     record(session, actor, "journal", "*", "import", None, [e.part_code for e in entries],
            "замена журнала" if replace else "загрузка из Excel")
     session.commit()

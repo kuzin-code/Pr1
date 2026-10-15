@@ -8,11 +8,14 @@
     <div class="row">
       <div><label>Номер заказа (необязательно)</label><input name="number"></div>
       <div><label>Дата начала изготовления</label><input type="date" name="start_date" value="{{ today }}" required></div>
+      <div><label>Количество, шт.</label><input type="number" name="quantity" min="1" value="1" required></div>
     </div>
     <p><label>Файлы STEP и PDF (на каждую деталь пара с одинаковым именем, до 50 позиций)</label>
       <input type="file" name="files" multiple required accept=".step,.stp,.pdf"></p>
     <button>Принять заказ</button>
   </form>
-  <p class="muted">Количество по позициям вводится в карточке заказа после загрузки. Файлы других форматов отклоняются.</p>
+  <p class="muted">Количество применяется ко всем загруженным позициям; для отдельных позиций его можно изменить в карточке заказа.
+    После загрузки система сама читает чертежи, подбирает аналог и станок и считает стоимость — технолог только проверяет.
+    Файлы других форматов отклоняются.</p>
 </div>
 {% endblock %}

@@ -134,3 +134,5 @@ class Mark(str, Enum):
     FEW_MEASUREMENTS = "по аналогу меньше 5 замеров"
     NO_COOPERATION = "без кооперации"
     PRELIMINARY = "срок предварительный"
+    APPROX_ANALOG = "аналог подобран по технологии, время пересчитано"
+    MATERIAL_UNKNOWN = "материал не прочитан"
