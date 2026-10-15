@@ -54,7 +54,7 @@ def test_full_flow(login):
     assert login("head").post(f"/positions/{pid}/approve").status_code == 303
     assert "Утверждена" in login("head").get(f"/positions/{pid}").text
 
-    plan = login("management").get("/plan").text
+    plan = login("management").get("/plan?view=day").text
     assert "Haas VF-2" in plan and "%" in plan
 
     # Все операции позиции по порядку: мастер может отметить за любого специалиста.

@@ -3,10 +3,43 @@
 {% block content %}
 <h1>Загрузка станков с ЧПУ <span class="badge warn">ориентировочно</span></h1>
 <div class="row">
-  <a class="btn {{ '' if view != 'week' else 'secondary' }}" href="/plan?view=day">По дням</a>
+  <a class="btn {{ '' if view == 'gantt' else 'secondary' }}" href="/plan?view=gantt">Диаграмма Ганта</a>
+  <a class="btn {{ '' if view == 'day' else 'secondary' }}" href="/plan?view=day">По дням</a>
   <a class="btn {{ '' if view == 'week' else 'secondary' }}" href="/plan?view=week">По неделям</a>
-  <span class="muted">Часы и % от рабочего графика станка: 6 ч в смену, 5 дней в неделю (30 ч в неделю).</span>
+  <span class="muted">{% if gantt %}Полоса — наладка и обработка позиции на станке по плану; наведите курсор — подробности.
+    {% else %}Часы и % от рабочего графика станка: 6 ч в смену, 5 дней в неделю (30 ч в неделю).{% endif %}</span>
 </div>
+{% if gantt %}
+<div class="card">
+  <div class="row gantt-legend">
+    {% for kind, label in kind_labels.items() %}<span><i class="gantt-swatch {{ kind }}"></i>{{ label }}</span>{% endfor %}
+    <span><i class="gantt-swatch today"></i>сегодня</span>
+  </div>
+  <div class="gantt">
+    <div class="gantt-names">
+      <div class="gantt-head">Станок · план, ч</div>
+      {% for r in gantt.rows %}<div class="gantt-name"><b>{{ r.name }}</b><br><span class="muted">{{ r.hours|hours }}</span></div>{% endfor %}
+    </div>
+    <div class="gantt-scroll">
+      <div class="gantt-canvas" style="width:{{ gantt.width }}px">
+        <div class="gantt-head">{% for d in gantt.days %}<div class="gantt-day{{ ' weekend' if d.weekend }}" style="width:{{ gantt.day_px }}px">{{ d.label }}<br><span>{{ d.weekday }}</span></div>{% endfor %}</div>
+        {% for r in gantt.rows %}
+        <div class="gantt-row">
+          {% for d in gantt.days %}{% if d.weekend %}<div class="gantt-off" style="left:{{ loop.index0 * gantt.day_px }}px;width:{{ gantt.day_px }}px"></div>{% endif %}{% endfor %}
+          {% for b in r.bars %}
+          {% set style = "left:%.1fpx;width:%.1fpx"|format(b.left, b.width) %}
+          {% if can('view_orders') %}<a class="gantt-bar {{ b.kind }}" href="/positions/{{ b.position_id }}" style="{{ style }}" title="{{ b.title }}">{{ b.label }}</a>
+          {% else %}<span class="gantt-bar {{ b.kind }}" style="{{ style }}" title="{{ b.title }}">{{ b.label }}</span>{% endif %}
+          {% endfor %}
+        </div>
+        {% endfor %}
+        {% if gantt.today is not none %}<div class="gantt-today" style="left:{{ '%.1f'|format(gantt.today) }}px"></div>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% if not plan.slots %}<p class="muted">В плане нет позиций с назначенным станком и расчётом.</p>{% endif %}
+</div>
+{% else %}
 <div class="card scroll">
 <table>
   <tr><th>Станок</th>{% for c in columns %}<th class="num">{% if view == 'week' %}{{ c[0] }}-Н{{ c[1] }}{% else %}{{ c.strftime('%d.%m') }}{% endif %}</th>{% endfor %}</tr>
@@ -20,6 +53,7 @@
 </table>
 {% if not columns %}<p class="muted">В плане нет позиций с назначенным станком и расчётом.</p>{% endif %}
 </div>
+{% endif %}
 
 <div class="grid">
 <div class="card">
