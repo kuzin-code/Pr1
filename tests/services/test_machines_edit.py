@@ -20,7 +20,8 @@ def test_it_updates_characteristics_with_history(session):
     ref.update_machine(session, IT, "MV6", {
         "work_zone": "650 x 420 x 450", "accuracy": "±0,005 мм", "power": "11 кВт", "axes": "3",
         "spindle_rpm": "10000", "tool_count": "24", "max_weight_kg": "350", "table_size": "800×420",
-        "inventory_number": "ИН-0042", "controller": "Fanuc 0i-MF"}, "паспорт станка")
+        "inventory_number": "ИН-0042", "controller": "Fanuc 0i-MF", "operations": ["setup", "machining"]},
+        "паспорт станка")
     m = ref.get_machine(session, "MV6")
     assert m.work_zone == [650, 420, 450]
     assert (m.axes, m.spindle_rpm, m.tool_count, m.max_weight_kg) == (3, 10000, 24, 350)
@@ -63,3 +64,27 @@ def test_technologist_and_it_edit_equipment_others_cannot(session):
     for actor in (HEAD, MASTER):
         with pytest.raises(AccessDenied):
             ref.update_machine(session, actor, "VF2", {"power": "1"}, "")
+
+
+def test_operations_performed_by_machine(session):
+    ref.update_machine(session, TECH, "VF2", {"operations": ["setup", "machining"]}, "паспорт")
+    assert ref.get_machine(session, "VF2").operations == ["setup", "machining"]
+    ref.update_machine(session, TECH, "BS275", {"operations": "cutting"}, "")
+    assert ref.get_machine(session, "BS275").operations == ["cutting"]
+    with pytest.raises(ServiceError, match="операци"):
+        ref.update_machine(session, TECH, "VF2", {"operations": ["welding"]}, "")
+
+
+def test_empty_operations_is_a_gap_for_any_equipment(session):
+    assert "Выполняемые операции" in ref.machine_gaps(ref.get_machine(session, "VF2"))
+    assert "Выполняемые операции" in ref.machine_gaps(ref.get_machine(session, "AKB1000"))
+    ref.update_machine(session, TECH, "AKB1000", {"operations": ["locksmith", "finishing"]}, "")
+    assert "Выполняемые операции" not in ref.machine_gaps(ref.get_machine(session, "AKB1000"))
+
+
+def test_machines_for_operation(session):
+    ref.update_machine(session, TECH, "BS275", {"operations": ["cutting"]}, "")
+    ref.update_machine(session, TECH, "VF2", {"operations": ["setup", "machining"]}, "")
+    from app.domain.enums import Stage
+    assert [m.code for m in ref.machines_for_operation(session, Stage.CUTTING)] == ["BS275"]
+    assert ref.machines_for_operation(session, Stage.INSPECTION) == []

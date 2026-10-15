@@ -20,11 +20,12 @@
   <h2>Оборудование</h2>
   {% if can('edit_reference') %}<p><a class="btn" href="/machines/new">Добавить станок</a></p>{% endif %}
   <table>
-    <tr><th>Модель</th><th>Вид</th><th>ЧПУ</th><th>Рабочая зона, мм</th><th>Технология</th><th>Стойка</th><th>Точность</th><th>Мощность</th>
+    <tr><th>Модель</th><th>Вид</th><th>ЧПУ</th><th>Рабочая зона, мм</th><th>Технология</th><th>Операции</th><th>Стойка</th><th>Точность</th><th>Мощность</th>
       <th class="num">Осей</th><th class="num">Шпиндель, об/мин</th><th class="num">Ч/смену</th><th>Пробелы</th><th>Примечание</th>{% if can('edit_reference') %}<th></th>{% endif %}</tr>
     {% for m in machines %}
     <tr><td>{{ m.model }}</td><td>{{ m.kind }}</td><td>{{ 'да' if m.is_cnc else 'нет' }}</td>
       <td>{{ m.work_zone|dims }}</td><td>{{ m.technologies|join(', ') }}</td>
+      <td>{% for op in m.operations or [] %}<span class="badge">{{ stage_label(op) }}</span>{% else %}<span class="badge err">не указаны</span>{% endfor %}</td>
       <td>{{ m.controller or '—' }}</td><td>{{ m.accuracy or '—' }}</td><td>{{ m.power or '—' }}</td>
       <td class="num">{{ m.axes or '—' }}</td><td class="num">{{ m.spindle_rpm or '—' }}</td>
       <td class="num">{{ m.hours_per_day }}</td>

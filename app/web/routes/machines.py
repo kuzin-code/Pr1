@@ -12,7 +12,8 @@ router = APIRouter()
 
 async def _form_fields(request: Request) -> tuple[dict, str]:
     form = await request.form()
-    fields = {name: str(form.get(name, "")) for name, *_ in ref.MACHINE_FIELDS}
+    fields = {name: (form.getlist(name) if kind == "stages" else str(form.get(name, "")))
+              for name, _, kind, *_ in ref.MACHINE_FIELDS}
     fields["is_cnc"] = form.get("is_cnc") == "on"
     return fields, str(form.get("reason", ""))
 

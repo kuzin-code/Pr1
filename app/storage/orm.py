@@ -41,6 +41,8 @@ class MachineRow(Base):  # Д-5
     max_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
     table_size: Mapped[str | None] = mapped_column(String(128), nullable=True)
     inventory_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Операции маршрута, которые выполняет оборудование (Stage.value): связь операций и станков
+    operations: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
 
 class Parameter(Base):  # Д-6

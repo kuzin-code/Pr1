@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
 from app.domain.calibration import add_measurement
-from app.domain.enums import StageGroup
+from app.domain.enums import Stage, StageGroup
 from app.domain.history import require_reason
 from app.domain.models import CalibrationEntry, Machine, Rates
 from app.parsers.journal_excel import export_journal, import_journal
@@ -159,6 +159,7 @@ MACHINE_FIELDS = [
     ("kind", "Вид оборудования", "str", False, False),
     ("work_zone", "Рабочая зона, мм", "dims", True, False),
     ("technologies", "Технологии", "list", True, False),
+    ("operations", "Выполняемые операции", "stages", True, True),
     ("controller", "Стойка ЧПУ", "str", True, False),
     ("accuracy", "Точность", "str", True, False),
     ("power", "Мощность", "str", True, True),
@@ -185,7 +186,7 @@ def machine_gaps(row: MachineRow) -> list[str]:
 
 def _parse_machine_value(name: str, kind: str, value):
     if value is None or (isinstance(value, str) and not value.strip()):
-        return {"list": [], "str": ""}.get(kind)
+        return {"list": [], "stages": [], "str": ""}.get(kind)
     if kind == "dims":
         if isinstance(value, list):
             parts = value
@@ -198,6 +199,13 @@ def _parse_machine_value(name: str, kind: str, value):
         if len(dims) != 3 or min(dims) <= 0:
             raise ServiceError("Рабочая зона: три положительных размера, мм")
         return dims
+    if kind == "stages":
+        items = value if isinstance(value, list) else [v.strip() for v in str(value).split(",") if v.strip()]
+        valid = {s.value for s in Stage}
+        unknown = [v for v in items if v not in valid]
+        if unknown:
+            raise ServiceError(f"Неизвестные операции: {', '.join(unknown)}")
+        return [s.value for s in Stage if s.value in items]  # в порядке маршрута
     if kind == "list":
         items = value if isinstance(value, list) else [v.strip() for v in str(value).split(",") if v.strip()]
         unknown = set(items) - MACHINE_TECHNOLOGIES
@@ -231,6 +239,11 @@ def update_machine(session: Session, actor: Actor, code: str, fields: dict, reas
             setattr(row, name, new)
     session.commit()
     return row
+
+
+def machines_for_operation(session: Session, stage: Stage) -> list[MachineRow]:
+    """Оборудование, на котором выполняется операция маршрута."""
+    return [m for m in list_machines(session) if stage.value in (m.operations or [])]
 
 
 def create_machine(session: Session, actor: Actor, fields: dict) -> MachineRow:

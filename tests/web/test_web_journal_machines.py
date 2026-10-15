@@ -78,3 +78,13 @@ def test_it_adds_machine(login):
                                       "is_cnc": "on", "technologies": "milling", "work_zone": "650x520x475"})
     assert resp.status_code == 303
     assert "DMG Mori DMU 50" in it.get("/reference").text
+
+
+def test_operations_checkboxes_in_machine_form(login):
+    tech = login("technolog")
+    form = tech.get("/machines/BS275/edit").text
+    assert 'name="operations" value="cutting"' in form and "Резка заготовки" in form
+    data = {"model": "Holzmann BS275TOP", "kind": "Ленточнопильный", "technologies": "cutting",
+            "hours_per_day": "8", "operations": ["cutting"], "reason": "паспорт"}
+    assert tech.post("/machines/BS275", data=data).status_code == 303
+    assert "Резка заготовки" in tech.get("/reference").text
