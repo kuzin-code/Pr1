@@ -2,7 +2,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -69,6 +69,16 @@ def position_model(request: Request, position_id: int, db: Session = Depends(get
     return render(request, "model.html", title=pos.designation, step_url=f"/positions/{position_id}/file/step",
                   pdf_url=f"/positions/{position_id}/file/pdf" if pos.pdf_path else None,
                   back_url=f"/positions/{position_id}", back_label="Карточка позиции")
+
+
+@router.post("/positions/{position_id}/files")
+async def attach_files(request: Request, position_id: int, files: list[UploadFile] = File(default=[]),
+                       db: Session = Depends(get_db)):
+    """Прикрепить или заменить STEP/PDF позиции (мастер, технолог)."""
+    actor = current_actor(request)
+    uploaded = [order_service.UploadedFile(f.filename or "", await f.read()) for f in files if f.filename]
+    return act(request, db, _back(position_id), lambda: order_service.attach_position_files(
+        db, actor, position_id, uploaded, request.app.state.settings.upload_dir), "Файлы прикреплены, расчёт обновлён")
 
 
 @router.post("/positions/{position_id}/data")

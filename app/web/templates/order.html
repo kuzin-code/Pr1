@@ -13,6 +13,14 @@
   {% endif %}
   <div style="margin-left:24px"><label>Принят</label>{{ order.created_at|dt }}, {{ order.created_by }}</div>
 </div>
+{% if order.customer or order.source_list %}
+<div class="card row">
+  {% if order.customer %}<div><label>Заказчик</label>{{ order.customer }}</div>{% endif %}
+  {% if order.customer_order_date %}<div style="margin-left:24px"><label>Дата заказа</label>{{ order.customer_order_date|dt }}</div>{% endif %}
+  {% for k, v in (order.contacts or {}).items() %}{% if v %}<div style="margin-left:24px"><label>{{ k }}</label>{{ v }}</div>{% endif %}{% endfor %}
+  {% if order.source_list %}<div style="margin-left:24px"><label>Список деталей</label>{{ order.source_list }}</div>{% endif %}
+</div>
+{% endif %}
 
 <div class="card scroll">
 <h2>Позиции</h2>
@@ -20,12 +28,16 @@
   <tr><th>Позиция</th><th>Файлы</th><th class="num">Кол-во</th><th>Статус</th>
     {% if can('view_machine_assignment') %}<th>Станок</th>{% endif %}<th>Аналог</th><th>Срок позиции</th><th>Отклонение</th>
     {% if can('view_cost') %}<th class="num">Себестоимость партии</th><th class="num">Факт</th>{% endif %}</tr>
+  {% set ns = namespace(section='') %}
   {% for p in order.positions %}
   {% set planned = plan.positions.get(p.id) %}
+  {% if (p.data or {}).get('section') and p.data.section != ns.section %}{% set ns.section = p.data.section %}
+  <tr><td colspan="11"><b>{{ ns.section }}</b></td></tr>{% endif %}
   {% set calc = p.approved_calc or p.current_calc %}
   <tr>
     <td><a href="/positions/{{ p.id }}">{{ p.designation }}</a>
-      {% if p.needs_link %}<span class="badge err">требует проверки: нет пары</span>{% endif %}</td>
+      {% if p.needs_link %}<span class="badge err">нет файлов STEP/PDF</span>{% endif %}
+      {% for key in ('coating', 'note') %}{% if (p.data or {}).get(key) %}<br><span class="badge warn">{{ p.data[key] }}</span>{% endif %}{% endfor %}</td>
     <td class="muted">{{ p.step_name or "— STEP" }}<br>{{ p.pdf_name or "— PDF" }}</td>
     <td class="num">
       {% if can('upload_order') and p.status in ('calculation', 'tech_review') %}

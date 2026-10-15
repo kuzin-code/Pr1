@@ -15,8 +15,20 @@
   <div style="margin-left:24px"><label>Модель STEP</label>
     {% if pos.step_path %}<a class="btn secondary" href="/positions/{{ pos.id }}/model">Открыть 3D-модель</a>
       <a href="/positions/{{ pos.id }}/file/step">скачать {{ pos.step_name }}</a>{% else %}<span class="err">нет файла</span>{% endif %}</div>
-  {% if pos.needs_link %}<span class="badge err">Нет пары STEP+PDF: свяжите файлы в карточке заказа</span>{% endif %}
+  {% if pos.needs_link %}<span class="badge err">Нет пары STEP+PDF</span>{% endif %}
+  {% if editable and (can('upload_order') or can('edit_tech_data')) %}
+  <form method="post" action="/positions/{{ pos.id }}/files" enctype="multipart/form-data" class="inline" style="margin-left:auto">
+    <input type="file" name="files" multiple required accept=".step,.stp,.pdf"><button class="secondary">Прикрепить файлы</button>
+  </form>{% endif %}
 </div>
+{% if d.get('section') or d.get('coating') or d.get('note') or d.get('list_material') %}
+<div class="card row">
+  {% if d.get('section') %}<div><label>Раздел списка</label>{{ d.section }}</div>{% endif %}
+  {% if d.get('list_material') %}<div style="margin-left:24px"><label>Материал по списку</label>{{ d.list_material }}</div>{% endif %}
+  {% if d.get('coating') %}<div style="margin-left:24px"><label>Покрытие, цвет</label>{{ d.coating }}</div>{% endif %}
+  {% if d.get('note') %}<div style="margin-left:24px"><label>Примечание заказчика</label>{{ d.note }}</div>{% endif %}
+</div>
+{% endif %}
 
 {% if d.get('auto_issues') %}
 <div class="card" style="border-left:4px solid var(--warn);border-radius:0">

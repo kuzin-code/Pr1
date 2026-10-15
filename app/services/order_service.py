@@ -1,4 +1,5 @@
-"""Приём заказа и чтение документации (ФТ-01…ФТ-04)."""
+"""Приём заказа и чтение документации (ФТ-01…ФТ-04, ФТ-32)."""
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path, PurePath
@@ -6,14 +7,16 @@ from pathlib import Path, PurePath
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.access import Action, require
+from app.domain.access import Action, can, require
 from app.domain.enums import PositionStatus
-from app.domain.order_intake import designation, file_kind, pair_files, validate_position_count
+from app.domain.order_intake import designation, file_kind, match_files, pair_files, validate_position_count
 from app.domain.status import is_editable
+from app.parsers.order_list import OrderListItem, cooperation_hint, read_order_list
 from app.parsers.pdf_reader import read_pdf
 from app.parsers.step_reader import read_step
 from app.services.actor import Actor, ServiceError
 from app.services.auto_service import auto_prepare
+from app.services.file_check import unreadable_reason
 from app.services.history_service import record
 from app.services.reference_service import journal_entries
 from app.storage.orm import OrderRow, PositionRow
@@ -160,4 +163,114 @@ def link_files(session: Session, actor: Actor, position_id: int, other_id: int) 
     auto_prepare(session, pos)
     session.commit()
     session.refresh(pos.order)
+    return pos
+
+
+# --- заказ списком деталей (ФТ-32) ----------------------------------------------------------------
+
+def _material_key(material: str | None) -> str:
+    """Материал без ГОСТ/ТУ и пробелов — для сравнения списка с чертежом."""
+    return re.split(r"\s+(?:ГОСТ|ТУ|GOST)\b", material or "", maxsplit=1)[0].replace(" ", "").casefold()
+
+
+def _apply_list_item(pos: PositionRow, item: OrderListItem) -> None:
+    """Данные строки списка: раздел, покрытие, примечание; материал — если не прочитан из чертежа."""
+    data, issues = dict(pos.data or {}), []
+    data.update(name=item.name, section=item.section, coating=item.coating, note=item.note,
+                list_material=item.material)
+    if item.material and not data.get("material"):
+        data["material"] = item.material
+    elif item.material and _material_key(item.material) != _material_key(data.get("material")):
+        issues.append(f"Материал в списке «{item.material}» отличается от чертежа «{data['material']}»: "
+                      "принят чертёж, проверьте")
+    hint = cooperation_hint(f"{item.coating} {item.note}")
+    if hint:
+        pos.cooperation = True
+        issues.append(f"Внешняя операция по списку («{item.coating or item.note}»): расчёт без кооперации")
+    data["list_issues"] = issues
+    pos.data = data
+
+
+def create_order_from_list(session: Session, actor: Actor, start_date: date | None, list_file: UploadedFile,
+                           files: list[UploadedFile], upload_dir: Path | str,
+                           number: str | None = None) -> tuple[OrderRow, list[str]]:
+    """Заказ по списку деталей заказчика: позиция на каждую строку, файлы — по обозначению."""
+    require(actor.role, Action.UPLOAD_ORDER)
+    if start_date is None:
+        raise ServiceError("Укажите дату начала изготовления")
+    folder = Path(upload_dir) / "_lists"
+    folder.mkdir(parents=True, exist_ok=True)
+    list_path = folder / f"{datetime.now():%Y%m%d%H%M%S%f}_{_safe_name(list_file.filename)}"
+    list_path.write_bytes(list_file.content)
+    parsed = read_order_list(list_path)
+    validate_position_count(len(parsed.items))
+    names = [_safe_name(f.filename) for f in files]
+    matched, unmatched = match_files([i.designation for i in parsed.items], names)
+    warnings = [f"Файл «{n}» не относится ни к одной детали списка — не загружен" for n in unmatched]
+
+    order = OrderRow(number=number or "", start_date=start_date, created_at=datetime.now(),
+                     created_by=actor.username, customer=parsed.customer or None,
+                     customer_order_date=parsed.order_date, contacts=parsed.contacts or None,
+                     source_list=_safe_name(list_file.filename))
+    session.add(order)
+    session.flush()
+    order.number = order.number or f"З-{order.id:04d}"
+    order_dir = Path(upload_dir) / f"order_{order.id}"
+    order_dir.mkdir(parents=True, exist_ok=True)
+    list_path.replace(order_dir / _safe_name(list_file.filename))
+    content = dict(zip(names, (f.content for f in files)))
+    known = [e.material for e in journal_entries(session)]
+    for item in parsed.items:
+        pos = PositionRow(designation=f"{item.designation} {item.name}".strip(), quantity=item.quantity,
+                          status=PositionStatus.CALCULATION.value)
+        for kind, name in matched.get(item.designation, {}).items():
+            path = order_dir / name
+            path.write_bytes(content[name])
+            setattr(pos, f"{kind}_name", name)
+            setattr(pos, f"{kind}_path", str(path))
+        _apply_reading(pos, known)
+        _apply_list_item(pos, item)
+        order.positions.append(pos)
+    session.flush()
+    for pos in order.positions:
+        auto_prepare(session, pos)
+    record(session, actor, "order", order.id, "list", None,
+           {"file": order.source_list, "positions": len(parsed.items)}, "заказ по списку деталей")
+    session.commit()
+    return order, warnings
+
+
+def attach_position_files(session: Session, actor: Actor, position_id: int, files: list[UploadedFile],
+                          upload_dir: Path | str) -> PositionRow:
+    """Прикрепить или заменить STEP/PDF позиции (мастер, технолог); позиция пересчитывается."""
+    if not (can(actor.role, Action.UPLOAD_ORDER) or can(actor.role, Action.EDIT_TECH_DATA)):
+        require(actor.role, Action.UPLOAD_ORDER)
+    pos = get_position(session, position_id)
+    ensure_editable(pos)
+    if not files:
+        raise ServiceError("Выберите файлы STEP и/или PDF")
+    folder = Path(upload_dir) / f"order_{pos.order_id}"
+    folder.mkdir(parents=True, exist_ok=True)
+    for f in files:
+        name = _safe_name(f.filename)
+        kind = file_kind(name)
+        path = folder / name
+        path.write_bytes(f.content)
+        reason = unreadable_reason(kind, str(path))
+        if reason:
+            path.unlink(missing_ok=True)
+            raise ServiceError(f"Файл «{name}» отклонён: {reason}")
+        setattr(pos, f"{kind}_name", name)
+        setattr(pos, f"{kind}_path", str(path))
+    current = dict(pos.data or {})
+    _apply_reading(pos, [e.material for e in journal_entries(session)])
+    keep = set(current.get("edited") or []) | {"name", "section", "coating", "note", "list_material", "auto",
+                                                "edited", "list_issues"}
+    pos.data = {**pos.data, **{k: v for k, v in current.items() if k in keep}}
+    if current.get("list_material") and not pos.data.get("material"):
+        pos.data = {**pos.data, "material": current["list_material"]}
+    record(session, actor, "position", pos.id, "files", None, {"step": pos.step_name, "pdf": pos.pdf_name},
+           "файлы прикреплены")
+    auto_prepare(session, pos)
+    session.commit()
     return pos

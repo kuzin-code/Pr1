@@ -80,3 +80,21 @@ def pair_files(filenames: list[str]) -> PairingResult:
             (kind, name), = files.items()
             result.unpaired.append(UnpairedFile(designation(name), kind, name))
     return result
+
+
+def match_files(designations: list[str], filenames: list[str]) -> tuple[dict[str, dict[str, str]], list[str]]:
+    """Привязка файлов к позициям списка по обозначению: имя файла равно обозначению или начинается
+    с него и пробела / подчёркивания (MBIS.AI.11000.19 не забирает файл MBIS.AI.11000.19-01)."""
+    matched: dict[str, dict[str, str]] = {}
+    unmatched = []
+    ordered = sorted(designations, key=len, reverse=True)
+    for name in filenames:
+        kind = file_kind(name)
+        stem = designation(name).casefold()
+        target = next((d for d in ordered if stem == d.casefold()
+                       or (stem.startswith(d.casefold()) and stem[len(d)] in " _")), None)
+        if target is None or kind in matched.get(target, {}):
+            unmatched.append(name)
+            continue
+        matched.setdefault(target, {})[kind] = name
+    return matched, unmatched

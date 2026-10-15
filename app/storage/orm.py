@@ -77,6 +77,11 @@ class OrderRow(Base):  # Д-1
     start_date: Mapped[date] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     created_by: Mapped[str] = mapped_column(String(64))
+    # Шапка списка деталей заказчика (ФТ-32)
+    customer: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    customer_order_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    contacts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    source_list: Mapped[str | None] = mapped_column(String(256), nullable=True)
     positions: Mapped[list["PositionRow"]] = relationship(
         back_populates="order", cascade="all, delete-orphan", order_by="PositionRow.id")
 

@@ -1,7 +1,11 @@
 """Заказы: список, приём, карточка заказа (ФТ-01, ФТ-02, ФТ-16)."""
+import tempfile
 from datetime import date
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
@@ -10,7 +14,8 @@ from app.domain.status import order_done
 from app.services import fact_service, order_service, plan_service
 from app.services.actor import ServiceError
 from app.domain.order_intake import IntakeError
-from app.web.deps import act, current_actor, get_db, redirect
+from app.parsers.order_list import write_template
+from app.web.deps import act, current_actor, flash, get_db, redirect
 from app.web.templating import render
 
 router = APIRouter()
@@ -36,16 +41,38 @@ def order_new(request: Request):
     return render(request, "order_new.html", today=date.today().isoformat())
 
 
+@router.get("/orders/template")
+def order_template(request: Request):
+    """Шаблон списка деталей заказа (Excel)."""
+    require(current_actor(request).role, Action.VIEW_ORDERS)
+    tmp = Path(tempfile.mkdtemp()) / "template.xlsx"
+    write_template(tmp)
+    return FileResponse(tmp, filename="Шаблон списка деталей.xlsx",
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        background=BackgroundTask(lambda: tmp.unlink(missing_ok=True)))
+
+
 @router.post("/orders")
 async def order_create(request: Request, start_date: str = Form(""), number: str = Form(""), quantity: str = Form("1"),
-                       files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+                       files: list[UploadFile] = File(default=[]), list_file: UploadFile | None = File(default=None),
+                       db: Session = Depends(get_db)):
     actor = current_actor(request)
     require(actor.role, Action.UPLOAD_ORDER)
     uploaded = [order_service.UploadedFile(f.filename or "", await f.read()) for f in files if f.filename]
+    upload_dir = request.app.state.settings.upload_dir
     try:
         start = date.fromisoformat(start_date) if start_date else None
+        if list_file is not None and list_file.filename:
+            listed = order_service.UploadedFile(list_file.filename, await list_file.read())
+            order, warnings = order_service.create_order_from_list(db, actor, start, listed, uploaded, upload_dir,
+                                                                   number.strip() or None)
+            for warning in warnings:
+                flash(request, warning, "error")
+            return redirect(f"/orders/{order.id}")
+        if not uploaded:
+            raise ServiceError("Выберите файлы STEP и PDF или список деталей (Excel)")
         qty = int(quantity or 1)
-        order = order_service.create_order(db, actor, start, uploaded, request.app.state.settings.upload_dir,
+        order = order_service.create_order(db, actor, start, uploaded, upload_dir,
                                            number.strip() or None, quantity=qty)
     except (IntakeError, ServiceError, ValueError) as err:
         db.rollback()

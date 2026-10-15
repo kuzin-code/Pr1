@@ -62,13 +62,16 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
         return issues
 
     if pos.needs_link:
-        issues.append("Нет пары STEP+PDF: свяжите файлы вручную, расчёт не запускается")
+        issues.extend(data.get("list_issues") or [])
+        issues.append("Нет пары STEP+PDF: прикрепите файлы в карточке позиции или свяжите вручную — "
+                      "расчёт не запускается")
         pos.current_calc = None
         return finish()
     if not data.get("dims"):
         issues.append("Габариты не прочитаны из STEP: введите их вручную")
         pos.current_calc = None
         return finish()
+    issues.extend(data.get("list_issues") or [])
     grade = data.get("tolerance_grade")
     if grade is None:
         issues.append(f"Квалитет не прочитан: принят IT{DEFAULT_GRADE} (неуказанные допуски)")
