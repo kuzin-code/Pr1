@@ -30,6 +30,31 @@
 </div>
 {% endif %}
 
+{% set dr = d.get('drawing') or {} %}
+{% if dr.get('designation') or dr.get('requirements') %}
+<div class="card">
+  <h2>Чертёж по ЕСКД</h2>
+  <div class="row">
+    <div><label>Обозначение (графа 2)</label>{{ dr.designation or '—' }}</div>
+    <div style="margin-left:24px"><label>Наименование (графа 1)</label>{{ dr.name or '—' }}</div>
+    <div style="margin-left:24px"><label>Материал (графа 3)</label>{% if dr.sortament %}{{ dr.sortament }} / {% endif %}{{ d.get('material') or '—' }}</div>
+    <div style="margin-left:24px"><label>Масса, кг (графа 5)</label>{{ dr.mass_kg if dr.mass_kg is not none else '—' }}</div>
+    <div style="margin-left:24px"><label>Масштаб · формат</label>{{ dr.scale or '—' }} · {{ dr.sheet_format or '—' }}</div>
+  </div>
+  <div class="row">
+    <div><label>Общие допуски</label>{{ 'IT%s'|format(dr.general_grade) if dr.general_grade else '—' }}</div>
+    <div style="margin-left:24px"><label>Шероховатость, min</label>{{ ('Ra %s'|format(dr.ra_min)).replace('.', ',') if dr.ra_min is not none else '—' }}</div>
+    <div style="margin-left:24px"><label>Резьбы · отверстия</label>{{ dr.thread_count }} · {{ dr.hole_count }}</div>
+    <div style="margin-left:24px"><label>Допуски формы и расположения</label>{{ 'есть' if dr.has_form_tolerances else 'нет' }}</div>
+    {% for op in dr.external_operations or [] %}<span class="badge warn">{{ op }}</span>{% endfor %}
+  </div>
+  {% if dr.requirements %}
+  <label>Технические требования</label>
+  <ol style="margin:4px 0 0;padding-left:20px">{% for r in dr.requirements %}<li>{{ r }}</li>{% endfor %}</ol>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if d.get('auto_issues') %}
 <div class="card" style="border-left:4px solid var(--warn);border-radius:0">
   <h2>Замечания системы</h2>

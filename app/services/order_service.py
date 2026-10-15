@@ -52,6 +52,15 @@ def read_documents(step_path: str | None, pdf_path: str | None, known_materials:
                        "errors": pdf.errors}
         data.update(material=pdf.material, tolerance_grade=pdf.tolerance_grade,
                     threads=pdf.threads, fits=pdf.fits)
+        if pdf.eskd is not None:
+            e = pdf.eskd
+            data["drawing"] = {
+                "designation": e.designation, "name": e.name, "mass_kg": e.mass_kg, "scale": e.scale,
+                "sheet_format": e.sheet_format, "sortament": e.sortament, "blank": e.blank,
+                "general_grade": e.general_grade, "ra_min": e.ra_min, "thread_count": e.thread_count,
+                "hole_count": e.hole_count, "has_form_tolerances": e.has_form_tolerances,
+                "coating": e.coating, "heat_treatment": e.heat_treatment, "requirements": e.requirements,
+                "external_operations": e.external_operations}
     return {"read": read, "data": data}
 
 

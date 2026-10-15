@@ -5,7 +5,7 @@
 """
 from sqlalchemy.orm import Session
 
-from app.domain.analog import evaluate_analog, pick_analog
+from app.domain.analog import evaluate_analog, pick_analog, same_part
 from app.domain.complexity import estimate_complexity
 from app.domain.enums import CountMode, PositionStatus, Role, Stage
 from app.domain.machines import choose_machine
@@ -48,6 +48,27 @@ def mark_manual(pos: PositionRow, *keys: str) -> None:
     pos.data = {**(pos.data or {}), "auto": auto_flags(pos) | {k: False for k in keys}}
 
 
+TURNED_BLANKS = {"круг", "пруток", "шестигранник", "труба"}
+
+
+def _drawing_issues(pos: PositionRow, data: dict, drawing: dict) -> list[str]:
+    """Замечания по чертежу ЕСКД: внешние операции из ТТ, обозначение в штампе, вид заготовки."""
+    issues = []
+    external = drawing.get("external_operations") or []
+    if external and not data.get("cooperation_manual"):
+        pos.cooperation = True
+        issues.append(f"По техническим требованиям чертежа — внешняя операция ({'; '.join(external)}): "
+                      "расчёт без кооперации")
+    number = drawing.get("designation")
+    if number and number.casefold() not in pos.designation.casefold():
+        issues.append(f"Обозначение в штампе «{number}» не совпадает с позицией «{pos.designation}» — "
+                      "проверьте, тот ли чертёж")
+    if drawing.get("blank") in TURNED_BLANKS and (data.get("technology") or "milling") == "milling":
+        issues.append(f"Заготовка по чертежу — {drawing['blank']} ({drawing.get('sortament')}): "
+                      "проверьте технологию, возможно токарная")
+    return issues
+
+
 def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> list[str]:
     """Подготовить и рассчитать позицию. Возвращает замечания для технолога."""
     if not is_editable(PositionStatus(pos.status)):
@@ -78,17 +99,25 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
     if not data.get("material"):
         issues.append("Материал не прочитан: время оценено как для Д16Т, укажите материал")
 
+    drawing = data.get("drawing") or {}
     if auto["complexity"] or pos.complexity is None:
-        pos.complexity = estimate_complexity(grade, len(data.get("threads") or []))
+        pos.complexity = estimate_complexity(grade, drawing.get("thread_count") or len(data.get("threads") or []),
+                                             drawing.get("ra_min"), bool(drawing.get("has_form_tolerances")))
         auto["complexity"] = True
+    issues.extend(_drawing_issues(pos, data, drawing))
     technology = data.get("technology") or "milling"
     features = PartFeatures(Dimensions.from_list(data["dims"]), data.get("material") or "",
                             int(grade) if grade is not None else DEFAULT_GRADE, pos.complexity, technology)
 
+    journal = journal_entries(session)
+    same = same_part(journal, pos.designation, drawing.get("designation"))
     if auto["analog"]:
-        picked = pick_analog(features, journal_entries(session))
+        picked = same or pick_analog(features, journal)
         pos.analog_code, pos.no_analog = (picked.entry.part_code, False) if picked else (None, True)
-    choice = evaluate_analog(features, journal_entry(session, pos.analog_code)) if pos.analog_code else None
+    if same and pos.analog_code == same.entry.part_code:
+        choice = same
+    else:
+        choice = evaluate_analog(features, journal_entry(session, pos.analog_code)) if pos.analog_code else None
     if choice:
         data["analog_approximate"], data["analog_reasons"] = choice.approximate, list(choice.reasons)
     else:

@@ -125,3 +125,17 @@ def pick_analog(part: PartFeatures, journal: list[CalibrationEntry]) -> AnalogCh
     if not same_tech:
         return None
     return evaluate_analog(part, min(same_tech, key=lambda e: (_score(part, e), e.part_code)))
+
+
+def same_part(journal: list[CalibrationEntry], designation: str, drawing_designation: str | None = None
+              ) -> AnalogChoice | None:
+    """Деталь с тем же обозначением уже есть в журнале — она и есть аналог (время журнала как есть)."""
+    import re
+
+    code = re.sub(r"\s*\(\d+\)$", "", designation).strip().casefold()
+    number = (drawing_designation or "").strip().casefold()
+    for entry in journal:
+        part = entry.part_code.casefold()
+        if part == code or (number and (part == number or part.startswith(number + " "))):
+            return AnalogChoice(entry, False, list(entry.stages), ("та же деталь в журнале калибровки",))
+    return None

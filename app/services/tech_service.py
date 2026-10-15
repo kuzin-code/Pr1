@@ -94,6 +94,7 @@ def set_cooperation(session: Session, actor: Actor, position_id: int, flag: bool
     if pos.cooperation != flag:
         record(session, actor, "position", pos.id, "cooperation", pos.cooperation, flag)
         pos.cooperation = flag
+        pos.data = {**(pos.data or {}), "cooperation_manual": True}  # решение технолога сильнее ТТ чертежа
         auto_prepare(session, pos)
     session.commit()
     return pos

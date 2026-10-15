@@ -85,3 +85,20 @@ def test_choose_machine_falls_back_to_any_allowed(machines):
     part = features(dims=(700, 300, 100))
     assert choose_machine(part, machines, None, False, {"milling": "SMM"}).code == "VF2"
     assert choose_machine(features(dims=(2000, 10, 10)), machines, None, False, {}) is None
+
+
+@pytest.mark.parametrize("grade,threads,ra,form,expected", [
+    (9, 0, 0.8, False, 4), (9, 0, 3.2, True, 4), (9, 6, 0.4, True, 4),  # надбавка — не больше 1 балла
+    (12, 0, None, False, 1), (6, 6, 0.4, True, 5),
+])
+def test_complexity_with_roughness_and_form_tolerances(grade, threads, ra, form, expected):
+    assert estimate_complexity(grade, threads, ra_min=ra, form_tolerances=form) == expected
+
+
+def test_same_part_in_journal_is_analog_by_designation():
+    from app.domain.analog import same_part
+    journal = [make_entry("КПУ.741645.001 Корпус", dims=(84, 76, 26), complexity=3)]
+    choice = same_part(journal, "КПУ.741645.001 Корпус (1)", "КПУ.741645.001")
+    assert choice.entry.part_code == "КПУ.741645.001 Корпус" and not choice.approximate
+    assert choice.route == journal[0].stages
+    assert same_part(journal, "Другая деталь", "АБВГ.000.001") is None

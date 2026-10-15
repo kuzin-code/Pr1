@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.parsers.eskd import EskdData, parse_eskd
+
 logging.getLogger("pypdf").setLevel(logging.ERROR)
 
 _LETTERS = "A-Za-zА-Яа-яЁё"
@@ -45,30 +47,12 @@ class DrawingData:
     tolerances: list[str] = field(default_factory=list)
     threads: list[str] = field(default_factory=list)
     mass_kg: float | None = None
+    eskd: EskdData | None = None
     errors: list[str] = field(default_factory=list)
 
     @property
     def unread_fields(self) -> list[str]:
         return [name for name in ("material", "tolerance_grade") if getattr(self, name) is None]
-
-
-def _title_block(text: str) -> tuple[str | None, float | None]:
-    """Материал и масса из основной надписи ЕСКД."""
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
-        if not _SHEETS.search(line):
-            continue
-        material_lines = []
-        for j in range(i + 1, min(i + 6, len(lines))):
-            if _SCALE.match(lines[j]):
-                mass = next((_NUMBER.match(x) for x in lines[j + 1:j + 4] if _NUMBER.match(x)), None)
-                material = " ".join(material_lines).strip() or None
-                if material and not re.search(f"[{_LETTERS}]", material):
-                    material = None
-                return material, float(mass.group(1).replace(",", ".")) if mass else None
-            if lines[j].strip():
-                material_lines.append(" ".join(lines[j].split()))
-    return None, None
 
 
 def _find_material(text: str, known: list[str]) -> str | None:
@@ -77,7 +61,7 @@ def _find_material(text: str, known: list[str]) -> str | None:
         value = _MATERIAL_CUT.split(label.group(1), maxsplit=1)[0].strip()
         if value:
             return value
-    material, _ = _title_block(text)
+    material = parse_eskd(text).material
     if material:
         return material
     for name in sorted(known, key=len, reverse=True):
@@ -101,8 +85,9 @@ def _normalize_thread(m: re.Match) -> str:
 
 def parse_drawing_text(text: str, known_materials: list[str] | tuple = ()) -> DrawingData:
     data = DrawingData()
+    data.eskd = parse_eskd(text)
     data.material = _find_material(text, list(known_materials))
-    data.mass_kg = _title_block(text)[1]
+    data.mass_kg = data.eskd.mass_kg
     data.threads = list(dict.fromkeys(_normalize_thread(m) for m in _THREAD.finditer(text)))
 
     rest = _THREAD.sub(" ", text)
@@ -112,7 +97,8 @@ def parse_drawing_text(text: str, known_materials: list[str] | tuple = ()) -> Dr
                                    if 1 <= int(m.group(2)) <= 18))
     grades = [int(m.group(2)) for m in _FIT.finditer(rest) if 1 <= int(m.group(2)) <= 18]
     grades += [int(g) for g in _IT.findall(rest)]
-    data.tolerance_grade = min(grades) if grades else None
+    data.tolerance_grade = min(grades) if grades else data.eskd.general_grade
+    data.threads = data.eskd.threads or data.threads
     data.tolerances = [t.replace(" ", "") for t in _TOLERANCE.findall(text)]
     return data
 
