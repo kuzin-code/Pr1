@@ -50,7 +50,11 @@ def short(value, limit: int = 80) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
-templates.env.filters.update(money=money, hours=hours, dt=dt, short=short)
+def dims(values) -> str:
+    return " × ".join(f"{v:g}" for v in values) if values else "—"
+
+
+templates.env.filters.update(money=money, hours=hours, dt=dt, short=short, dims=dims)
 templates.env.globals.update(
     Stage=Stage, CountMode=CountMode, FactKind=FactKind, PositionStatus=PositionStatus,
     STAGE_LABELS=STAGE_LABELS, STATUS_LABELS=STATUS_LABELS,

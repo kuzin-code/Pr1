@@ -34,6 +34,13 @@ class MachineRow(Base):  # Д-5
     maintenance: Mapped[list] = mapped_column(JSON, default=list)  # график ТО: в MVP не используется
     note: Mapped[str] = mapped_column(Text, default="")
     busy_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Дополнительные характеристики (в расчёте не используются, для справки технолога)
+    axes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    spindle_rpm: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tool_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    table_size: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    inventory_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class Parameter(Base):  # Д-6
@@ -55,6 +62,10 @@ class JournalRow(Base):  # Д-4
     technology: Mapped[str] = mapped_column(String(32), default="milling")
     stages: Mapped[list] = mapped_column(JSON, default=list)
     measurements: Mapped[list] = mapped_column(JSON, default=list)
+    step_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    step_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    pdf_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    pdf_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 
 class OrderRow(Base):  # Д-1

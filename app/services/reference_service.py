@@ -1,4 +1,5 @@
 """Справочники: оборудование, ставки, шкала сложности, журнал калибровки (ФТ-25), вход."""
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -148,3 +149,103 @@ def import_journal_file(session: Session, actor: Actor, path: Path | str, replac
 def export_journal_file(session: Session, path: Path | str) -> Path:
     export_journal(journal_entries(session), path)
     return Path(path)
+
+
+# --- правка справочника оборудования (IT, п. 4.5) ---
+
+MACHINE_FIELDS = [
+    # (поле, подпись, тип, важно для станка с ЧПУ, важно для прочего оборудования)
+    ("model", "Модель", "str", False, False),
+    ("kind", "Вид оборудования", "str", False, False),
+    ("work_zone", "Рабочая зона, мм", "dims", True, False),
+    ("technologies", "Технологии", "list", True, False),
+    ("controller", "Стойка ЧПУ", "str", True, False),
+    ("accuracy", "Точность", "str", True, False),
+    ("power", "Мощность", "str", True, True),
+    ("axes", "Число осей", "int", True, False),
+    ("spindle_rpm", "Обороты шпинделя, об/мин", "int", True, False),
+    ("tool_count", "Магазин инструментов, шт.", "int", True, False),
+    ("max_weight_kg", "Макс. масса заготовки, кг", "float", True, False),
+    ("table_size", "Размер стола, мм", "str", True, False),
+    ("inventory_number", "Инвентарный номер", "str", True, True),
+    ("hours_per_day", "Часов в смену", "float", False, False),
+    ("note", "Примечание", "str", False, False),
+]
+MACHINE_TECHNOLOGIES = {"milling", "turning", "cutting", "finishing"}
+
+
+def machine_gaps(row: MachineRow) -> list[str]:
+    """Незаполненные важные характеристики («пробелы» справочника)."""
+    gaps = []
+    for name, label, _, for_cnc, for_other in MACHINE_FIELDS:
+        if (for_cnc if row.is_cnc else for_other) and getattr(row, name) in (None, "", []):
+            gaps.append(label)
+    return gaps
+
+
+def _parse_machine_value(name: str, kind: str, value):
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return {"list": [], "str": ""}.get(kind)
+    if kind == "dims":
+        if isinstance(value, list):
+            parts = value
+        else:
+            parts = [p for p in re.split(r"[x×хX*\s;]+", str(value).replace(",", ".")) if p]
+        try:
+            dims = [float(p) for p in parts]
+        except ValueError:
+            raise ServiceError("Рабочая зона: три размера через «x», например 762 x 406 x 508") from None
+        if len(dims) != 3 or min(dims) <= 0:
+            raise ServiceError("Рабочая зона: три положительных размера, мм")
+        return dims
+    if kind == "list":
+        items = value if isinstance(value, list) else [v.strip() for v in str(value).split(",") if v.strip()]
+        unknown = set(items) - MACHINE_TECHNOLOGIES
+        if unknown:
+            raise ServiceError(f"Неизвестные технологии: {', '.join(sorted(unknown))} "
+                               f"(допустимо: {', '.join(sorted(MACHINE_TECHNOLOGIES))})")
+        return items
+    if kind in ("int", "float"):
+        try:
+            number = (int if kind == "int" else float)(str(value).replace(",", ".").replace(" ", ""))
+        except ValueError:
+            raise ServiceError(f"Поле «{name}»: нужно число") from None
+        if number <= 0:
+            raise ServiceError(f"Поле «{name}»: число должно быть больше нуля")
+        return number
+    return str(value).strip()
+
+
+def update_machine(session: Session, actor: Actor, code: str, fields: dict, reason: str = "") -> MachineRow:
+    require(actor.role, Action.EDIT_REFERENCE)
+    row = get_machine(session, code)
+    kinds = {name: kind for name, _, kind, _, _ in MACHINE_FIELDS} | {"is_cnc": "bool"}
+    for name, value in fields.items():
+        if name not in kinds:
+            raise ServiceError(f"Недопустимое поле «{name}»")
+        new = bool(value) if kinds[name] == "bool" else _parse_machine_value(name, kinds[name], value)
+        if name in ("model", "kind", "hours_per_day") and new in (None, ""):
+            raise ServiceError("Модель, вид оборудования и часы в смену обязательны")
+        if getattr(row, name) != new:
+            record(session, actor, "machine", code, name, getattr(row, name), new, reason)
+            setattr(row, name, new)
+    session.commit()
+    return row
+
+
+def create_machine(session: Session, actor: Actor, fields: dict) -> MachineRow:
+    require(actor.role, Action.EDIT_REFERENCE)
+    code = str(fields.get("code") or "").strip()
+    if not code:
+        raise ServiceError("Укажите код станка")
+    if session.scalar(select(MachineRow).where(MachineRow.code == code)):
+        raise ServiceError(f"Станок с кодом «{code}» уже есть")
+    row = MachineRow(code=code, model="", kind="", is_cnc=bool(fields.get("is_cnc")), technologies=[],
+                     hours_per_day=6, maintenance=[], note="")
+    session.add(row)
+    session.flush()
+    record(session, actor, "machine", code, "create", None, code, "добавлен в справочник")
+    rest = {k: v for k, v in fields.items() if k not in ("code", "is_cnc")}
+    if not str(rest.get("hours_per_day") or "").strip():
+        rest["hours_per_day"] = 6 if row.is_cnc else 8
+    return update_machine(session, actor, code, rest, "добавлен в справочник")

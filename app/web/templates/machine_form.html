@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ machine.model if machine else 'Новый станок' }}{% endblock %}
+{% block content %}
+<p class="muted"><a href="/reference">← Справочники</a></p>
+<h1>{{ machine.model if machine else 'Новый станок' }}</h1>
+{% if gaps %}<div class="flash error">Не заполнено: {{ gaps|join(', ') }}</div>{% endif %}
+<div class="card">
+<form method="post" action="{{ '/machines/' ~ machine.code if machine else '/machines' }}">
+  <div class="row">
+    <div><label>Код (латиницей, без пробелов)</label>
+      <input name="code" value="{{ machine.code if machine else '' }}" {{ 'disabled' if machine else 'required' }}></div>
+    <div><label>&nbsp;</label><label><input type="checkbox" name="is_cnc" {{ 'checked' if (not machine) or machine.is_cnc }}> станок с ЧПУ (ограниченный ресурс плана)</label></div>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(260px, 1fr))">
+  {% for name, label, kind, for_cnc, for_other in fields %}
+    {% set value = machine[name] if machine else None %}
+    {% if kind == 'dims' and value %}{% set value = value|dims|replace(' × ', ' x ') %}{% elif kind == 'list' and value %}{% set value = value|join(', ') %}{% endif %}
+    <div><label>{{ label }}{% if label in gaps %} <span class="badge err">не заполнено</span>{% endif %}</label>
+      <input name="{{ name }}" value="{{ value if value is not none else '' }}" style="width:100%"
+        placeholder="{{ {'dims': '762 x 406 x 508', 'list': 'milling, turning', 'int': 'число', 'float': 'число'}.get(kind, '') }}"></div>
+  {% endfor %}
+  </div>
+  <div class="row" style="margin-top:12px">
+    {% if machine %}<input name="reason" placeholder="Основание: паспорт станка, замер" style="flex:1">{% endif %}
+    <button>{{ 'Сохранить' if machine else 'Добавить станок' }}</button>
+  </div>
+  <p class="muted">Технологии: milling — фрезерная, turning — токарная, cutting — резка, finishing — слесарно-финишная.
+    Рабочая зона определяет, какие детали система может поставить на станок.</p>
+</form>
+</div>
+{% endblock %}
