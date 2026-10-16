@@ -55,7 +55,8 @@ def dims(values) -> str:
     return " × ".join(f"{v:g}" for v in values) if values else "—"
 
 
-templates.env.filters.update(money=money, hours=hours, dt=dt, short=short, dims=dims)
+templates.env.filters.update(money=money, hours=hours, dt=dt, short=short, dims=dims,
+                             role_label=lambda v: Role(v).label)
 templates.env.globals.update(
     Stage=Stage, CountMode=CountMode, FactKind=FactKind, PositionStatus=PositionStatus,
     STAGE_LABELS=STAGE_LABELS, STATUS_LABELS=STATUS_LABELS,

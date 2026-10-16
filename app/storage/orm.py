@@ -16,6 +16,8 @@ class User(Base):  # Д-9
     full_name: Mapped[str] = mapped_column(String(128), default="")
     role: Mapped[str] = mapped_column(String(32))
     password_hash: Mapped[str] = mapped_column(String(256))
+    active: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
+    must_change_password: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=False)
 
 
 class MachineRow(Base):  # Д-5

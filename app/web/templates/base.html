@@ -20,13 +20,16 @@
     {% if can('view_journal') %}<a href="/journal">Журнал калибровки</a>{% endif %}
     {% if can('view_reference') %}<a href="/reference">Справочники</a>{% endif %}
     {% if can('view_history') %}<a href="/history">История</a>{% endif %}
+    {% if can('manage_users') %}<a href="/users">Пользователи</a>{% endif %}
   </nav>
-  <div class="me">{{ user.name }}{% if user.name != role.label %} ({{ role.label }}){% endif %}
+  <div class="me"><a href="/account" title="Мой пароль" style="color:inherit">{{ user.name }}</a>{% if user.name != role.label %} ({{ role.label }}){% endif %}
     <form method="post" action="/logout" class="inline"><button class="secondary">Выйти</button></form>
   </div>
   {% endif %}
 </header>
 <main>
+  {% if user and user.must_change %}<div class="flash error">Задан временный пароль — придумайте свой, чтобы продолжить работу.</div>
+  {% elif user and user.weak %}<div class="flash error">Вы вошли с демо-паролем — смените его: <a href="/account">Мой пароль</a>.</div>{% endif %}
   {% for kind, message in flashes %}<div class="flash {{ kind }}">{{ message }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>

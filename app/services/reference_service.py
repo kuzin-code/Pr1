@@ -22,7 +22,7 @@ from app.storage.orm import JournalRow, MachineRow, Parameter, User
 
 def authenticate(session: Session, username: str, password: str) -> User | None:
     user = session.scalar(select(User).where(User.username == username))
-    if user and verify_password(password, user.password_hash):
+    if user and user.active is not False and verify_password(password, user.password_hash):
         return user
     return None
 

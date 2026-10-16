@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Пользователи{% endblock %}
+{% block content %}
+<h1>Пользователи</h1>
+<div class="card">
+  <h2>Новая учётная запись</h2>
+  <form method="post" action="/users" class="inline">
+    <input name="username" placeholder="имя входа (латиницей)" required>
+    <input name="full_name" placeholder="ФИО или должность">
+    <select name="role">{% for r in roles %}<option value="{{ r.value }}">{{ r.label }}</option>{% endfor %}</select>
+    <input type="password" name="password" placeholder="временный пароль" required minlength="8">
+    <button>Создать</button>
+  </form>
+  <p class="muted">Пользователь сменит временный пароль при первом входе. Для специалистов участка достаточно одной общей учётной записи на специальность.</p>
+</div>
+<div class="card scroll">
+<table>
+  <tr><th>Учётная запись</th><th>Имя</th><th>Роль</th><th>Состояние</th><th>Временный пароль</th><th></th></tr>
+  {% for u in users %}
+  {% set off = u.active is sameas false %}
+  <tr><td><b>{{ u.username }}</b></td><td>{{ u.full_name }}</td><td>{{ u.role|role_label }}</td>
+    <td>{% if off %}<span class="badge err">отключена</span>{% else %}<span class="badge ok">активна</span>{% endif %}
+      {% if u.must_change_password %}<span class="badge warn">ждёт смены пароля</span>{% endif %}</td>
+    <td><form method="post" action="/users/{{ u.username }}/reset" class="inline">
+      <input type="password" name="password" placeholder="новый временный" minlength="8" required style="width:150px">
+      <button class="secondary">Задать</button></form></td>
+    <td>{% if u.username != user.username %}<form method="post" action="/users/{{ u.username }}/active" class="inline">
+      <input type="hidden" name="active" value="{{ 1 if off else 0 }}">
+      {% if off %}<button class="secondary">Включить</button>{% else %}<button class="danger">Отключить</button>{% endif %}
+      </form>{% endif %}</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

@@ -13,6 +13,13 @@ class NotLoggedIn(Exception):
     pass
 
 
+class MustChangePassword(Exception):
+    """Временный пароль: до смены доступна только страница «Мой пароль»."""
+
+
+PASSWORD_PAGES = ("/account", "/account/password", "/logout")
+
+
 def get_db(request: Request) -> Iterator[Session]:
     with request.app.state.session_factory() as session:
         yield session
@@ -22,6 +29,8 @@ def current_actor(request: Request) -> Actor:
     user = request.session.get("user")
     if not user:
         raise NotLoggedIn()
+    if user.get("must_change") and request.url.path not in PASSWORD_PAGES:
+        raise MustChangePassword()
     return Actor(user["username"], Role(user["role"]))
 
 

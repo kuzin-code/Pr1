@@ -11,8 +11,8 @@ from app.domain.access import AccessDenied
 from app.services.operation_service import ensure_all_operations
 from app.services.seed import seed_reference
 from app.storage.db import init_db, make_engine
-from app.web.deps import NotLoggedIn, redirect
-from app.web.routes import auth, dashboard, journal, machines, orders, plan, positions, reference, work
+from app.web.deps import MustChangePassword, NotLoggedIn, redirect
+from app.web.routes import auth, dashboard, users, journal, machines, orders, plan, positions, reference, work
 from app.web.templating import render
 
 
@@ -37,10 +37,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def _not_logged_in(request: Request, exc: NotLoggedIn):
         return redirect("/login")
 
+    @app.exception_handler(MustChangePassword)
+    async def _must_change(request: Request, exc: MustChangePassword):
+        return redirect("/account")
+
     @app.exception_handler(AccessDenied)
     async def _denied(request: Request, exc: AccessDenied):
         return render(request, "error.html", status_code=403, title="Нет доступа", message=str(exc))
 
-    for module in (auth, dashboard, orders, positions, plan, reference, journal, machines, work):
+    for module in (auth, dashboard, users, orders, positions, plan, reference, journal, machines, work):
         app.include_router(module.router)
     return app

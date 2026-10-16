@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Мой пароль{% endblock %}
+{% block content %}
+<h1>Мой пароль</h1>
+<div class="card" style="max-width:460px">
+  <p class="muted">{{ user.name }} · {{ role.label }} · учётная запись <b>{{ user.username }}</b></p>
+  <form method="post" action="/account/password">
+    <p><label>Текущий пароль</label><input type="password" name="old" required autocomplete="current-password" style="width:100%"></p>
+    <p><label>Новый пароль (не короче 8 символов, без имени учётной записи)</label>
+      <input type="password" name="new" required minlength="8" autocomplete="new-password" style="width:100%"></p>
+    <p><label>Повтор нового пароля</label><input type="password" name="repeat" required minlength="8" autocomplete="new-password" style="width:100%"></p>
+    <button>Сменить пароль</button>
+  </form>
+</div>
+{% endblock %}

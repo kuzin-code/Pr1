@@ -31,7 +31,8 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     if user is None:
         return render(request, "login.html", status_code=401, error="Неверное имя пользователя или пароль")
     request.session.clear()
-    request.session["user"] = {"username": user.username, "role": user.role, "name": user.full_name}
+    request.session["user"] = {"username": user.username, "role": user.role, "name": user.full_name,
+                               "must_change": bool(user.must_change_password), "weak": password == "demo"}
     return redirect("/")
 
 
