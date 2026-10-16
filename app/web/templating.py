@@ -36,7 +36,7 @@ def dt(value) -> str:
     if value is None:
         return "—"
     if isinstance(value, str):
-        value = datetime.fromisoformat(value)
+        value = date.fromisoformat(value) if len(value) == 10 else datetime.fromisoformat(value)
     if isinstance(value, datetime):
         return value.strftime("%d.%m.%Y %H:%M")
     if isinstance(value, date):
@@ -61,6 +61,19 @@ templates.env.filters.update(money=money, hours=hours, dt=dt, short=short, dims=
 templates.env.globals.update(check_desired=check_desired)
 from app.services.proposal_docx import hours as kp_hours, money as kp_money  # noqa: E402
 templates.env.globals.update(kp_money=kp_money, kp_hours=kp_hours)
+
+
+def quick_bar(first: str, last: str, start: str, end: str) -> str:
+    """Полоса занятости станка на общей шкале быстрого расчёта."""
+    a, b = datetime.fromisoformat(first), datetime.fromisoformat(last)
+    s, e = datetime.fromisoformat(start), datetime.fromisoformat(end)
+    span = max((b - a).total_seconds(), 1)
+    left, width = (s - a).total_seconds() / span * 100, (e - s).total_seconds() / span * 100
+    return (f'<div class="quick-track" title="{s:%d.%m %H:%M} — {e:%d.%m %H:%M}">'
+            f'<span style="left:{left:.1f}%;width:{width:.1f}%"></span></div>')
+
+
+templates.env.globals.update(quick_bar=quick_bar)
 templates.env.globals.update(
     Stage=Stage, CountMode=CountMode, FactKind=FactKind, PositionStatus=PositionStatus,
     STAGE_LABELS=STAGE_LABELS, STATUS_LABELS=STATUS_LABELS,

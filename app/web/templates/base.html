@@ -13,7 +13,7 @@
   <nav>
     {% if can('view_plan') %}<a href="/dashboard">Главная</a>{% endif %}
     {% if can('view_orders') %}<a href="/orders">Заказы</a>{% endif %}
-    {% if can('upload_order') %}<a href="/orders/new">Новый заказ</a>{% endif %}
+    {% if can('upload_order') %}<a href="/orders/new">Новый заказ</a><a href="/quick">Быстрый расчёт</a>{% endif %}
     {% if can('view_plan') %}<a href="/plan">Загрузка станков</a>{% endif %}
     {% if can('do_operations') %}<a href="/work">Мои операции</a>{% endif %}
     {% if can('receive_notifications') %}<a href="/notifications">Уведомления{% if unread %} <span class="nav-count">{{ unread }}</span>{% endif %}</a>{% endif %}

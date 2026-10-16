@@ -12,6 +12,7 @@ router = APIRouter()
 
 QUICK_ACTIONS = [
     (Action.UPLOAD_ORDER, "/orders/new", "Новый заказ"),
+    (Action.UPLOAD_ORDER, "/quick", "Быстрый расчёт"),
     (Action.VIEW_ORDERS, "/orders", "Заказы"),
     (Action.VIEW_PLAN, "/plan", "Загрузка станков"),
     (Action.DO_OPERATIONS, "/work", "Операции участка"),

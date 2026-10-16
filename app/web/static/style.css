@@ -154,3 +154,9 @@ button.big { font-size:16px; padding:9px 26px; margin-right:14px; }
 @media print { header, .no-print, main > .flash { display:none !important; } body, main { background:#fff; margin:0; padding:0; }
   .kp-sheet { box-shadow:none; width:auto; min-height:0; padding:0; margin:0; } }
 @media (max-width:820px) { .kp-sheet { width:auto; min-height:0; padding:16px; } .kp-head { flex-direction:column; } .kp-meta { text-align:left; } }
+/* Быстрый расчёт */
+.quick-kpi { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:14px; }
+.quick-kpi .card { margin:0; } .quick-big { font-size:20px; font-weight:700; margin:4px 0; }
+.quick-track { position:relative; height:14px; background:#eef2f7; border-radius:7px; }
+.quick-track span { position:absolute; top:0; bottom:0; background:var(--accent); border-radius:7px; min-width:4px; }
+.quick-actions { gap:12px; align-items:center; flex-wrap:wrap; }

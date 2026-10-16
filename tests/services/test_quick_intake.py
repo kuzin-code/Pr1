@@ -98,3 +98,10 @@ def test_stray_files_skipped_with_warning_not_whole_order(session, tmp_path):
     files = part_files() + [UploadedFile("фото.jpg", b"x")]
     order = intake.quick_intake(session, MASTER, files, tmp_path / "up", start_date=MON)
     assert len(order.positions) == 1 and "фото.jpg" in order.intake_warnings[0]
+
+
+def test_part_known_in_journal_takes_its_technology(session, tmp_path):
+    order = intake.quick_intake(session, MANAGER, part_files("DEMO-07", dims=(180, 40, 40)), tmp_path / "up",
+                                start_date=MON)  # DEMO-07 «Вал» в журнале — токарная, ST-20Y
+    pos = order.positions[0]
+    assert pos.analog_code == "DEMO-07" and pos.machine_code == "ST20Y"

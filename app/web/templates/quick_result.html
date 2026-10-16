@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Быстрый расчёт — результат{% endblock %}
+{% block content %}
+<h1>Быстрый расчёт{% if s.customer %} · {{ s.customer }}{% endif %}</h1>
+<p class="muted">Посчитано {{ s.created_at|dt }} по загрузке на этот момент. Заказ не создан, план не изменён.</p>
+
+<div class="quick-kpi">
+  <div class="card"><label>Цена с НДС</label><div class="quick-big">{{ kp_money(s.grand_total) }} ₽</div>
+    <div class="muted">без НДС {{ kp_money(s.total) }} ₽</div></div>
+  <div class="card"><label>Срок изготовления (±10 %)</label>
+    {% if s.range %}<div class="quick-big">{{ s.range.earliest|dt }} — {{ s.range.latest|dt }}</div>
+    <div class="muted">расчётная дата {{ s.calc_date|dt }} · {{ s.range.duration }} раб. дн. ±{{ s.range.delta }}</div>
+    {% else %}<div class="quick-big">не определён</div>{% endif %}</div>
+  <div class="card"><label>Желаемая дата</label>
+    {% if s.desired %}<div class="quick-big">{{ s.desired|dt }}</div>
+    {% set cls = {"ok": "ok", "range": "warn", "late": "err"} %}
+    <span class="badge {{ cls.get(s.check.status, '') }}">{{ s.check.label }}</span>
+    {% else %}<div class="quick-big">—</div><div class="muted">не указана</div>{% endif %}</div>
+</div>
+
+{% if s.machines %}
+<div class="card">
+  <h2>Занятость станков{% if s.bottleneck %} · узкое место: {{ s.bottleneck }}{% endif %}</h2>
+  {% set first = s.machines|map(attribute="start")|min %}{% set last = s.machines|map(attribute="end")|max %}
+  <table>
+    <tr><th>Станок</th><th class="num">Позиций</th><th class="num">Часы</th><th>С</th><th>По</th><th style="width:40%"></th></tr>
+    {% for m in s.machines %}
+    <tr><td>{{ m.model }}{% if m.model == s.bottleneck %} <span class="badge warn">узкое место</span>{% endif %}</td>
+      <td class="num">{{ m.positions }}</td><td class="num">{{ m.hours|hours }}</td><td>{{ m.start|dt }}</td><td>{{ m.end|dt }}</td>
+      <td>{{ quick_bar(first, last, m.start, m.end)|safe }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="muted">Работы ставятся в очередь станка после уже запланированных — как будто заказ принят сейчас.</p>
+</div>
+{% endif %}
+
+<div class="card scroll">
+  <h2>Позиции и цена операций</h2>
+  <table>
+    <tr><th>Обозначение</th><th>Наименование</th><th>Материал</th><th class="num">Кол-во</th>
+      <th class="num">Станочная, ч × ₽/ч</th><th class="num">Слесарно-финишная, ч × ₽/ч</th>
+      <th class="num">Цена за шт., ₽</th><th class="num">Сумма, ₽</th></tr>
+    {% for i in s["items"] %}
+    <tr><td>{{ i.designation }}</td><td>{{ i.name }}</td><td>{{ i.material }}</td><td class="num">{{ i.quantity }}</td>
+      {% if i.batch_price is none %}<td colspan="4" class="muted">цена не рассчитана</td>
+      {% else %}<td class="num">{{ kp_hours(i.machine_hours) }} × {{ kp_money(i.machine_rate) }} = {{ kp_money(i.machine_price) }}</td>
+      <td class="num">{{ kp_hours(i.bench_hours) }} × {{ kp_money(i.bench_rate) }} = {{ kp_money(i.bench_price) }}</td>
+      <td class="num">{{ kp_money(i.price) }}</td><td class="num"><b>{{ kp_money(i.batch_price) }}</b></td>{% endif %}</tr>
+    {% endfor %}
+  </table>
+  <p class="muted">Цена — по операциям механической обработки (время × ставка участка); материал, резка, программирование,
+    покрытие не включены.</p>
+</div>
+
+{% if s.issues or s.notes %}
+<div class="card">
+  <h2>Нюансы</h2>
+  <ul>
+    {% for item in s.issues %}{% for text in item.issues %}<li><b>{{ item.designation }}:</b> {{ text }}</li>{% endfor %}{% endfor %}
+    {% for note in s.notes %}<li>{{ note }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="card row quick-actions">
+  <form method="post" action="/quick/{{ token }}/launch" class="inline"
+        onsubmit="return confirm('Принять эти файлы как заказ? Он попадёт в план, участники получат уведомление.')">
+    <button class="big">Запустить как заказ</button></form>
+  <form method="post" action="/quick/{{ token }}/notify" class="inline"><button class="secondary">Сообщить начальнику участка</button></form>
+  <form method="post" action="/quick/{{ token }}/discard" class="inline"><button class="secondary">Удалить расчёт</button></form>
+  <a href="/quick" class="muted">Новый расчёт</a>
+</div>
+<p class="muted">Неиспользованный расчёт удаляется автоматически через сутки.</p>
+{% endblock %}

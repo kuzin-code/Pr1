@@ -1,0 +1,53 @@
+{# Поле файлов заказа: список Excel, STEP и PDF одним разом; предпросмотр пар до отправки. #}
+  <label class="drop" id="drop">
+    <input type="file" name="files" id="files" multiple accept=".xlsx,.step,.stp,.pdf">
+    <b>Перетащите сюда все файлы заказа</b>
+    <span>список деталей (Excel) и/или чертежи PDF и модели STEP — одним разом (выделите всё в папке: Ctrl+A)</span>
+    <span class="muted">или нажмите, чтобы выбрать</span>
+  </label>
+  <div id="preview" class="intake-preview" hidden></div>
+
+<script>
+(function () {
+  var opened = document.getElementById('opened_at'); if (opened) opened.value = Date.now();
+  var input = document.getElementById('files'), drop = document.getElementById('drop'),
+      preview = document.getElementById('preview'), qty = document.getElementById('qty_row');
+  function stem(name) {
+    return name.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)$/, '').trim().toLowerCase();
+  }
+  function esc(s) { return s.replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function show() {
+    var files = Array.prototype.slice.call(input.files), lists = [], parts = {}, other = [];
+    files.forEach(function (f) {
+      var ext = (f.name.split('.').pop() || '').toLowerCase();
+      if (ext === 'xlsx') { lists.push(f.name); return; }
+      var kind = ext === 'pdf' ? 'pdf' : (ext === 'step' || ext === 'stp') ? 'step' : null;
+      if (!kind) { other.push(f.name); return; }
+      var key = stem(f.name);
+      parts[key] = parts[key] || {name: f.name.replace(/\.[^.]+$/, ''), step: false, pdf: false};
+      parts[key][kind] = true;
+    });
+    var keys = Object.keys(parts), full = keys.filter(function (k) { return parts[k].step && parts[k].pdf; });
+    var half = keys.filter(function (k) { return !(parts[k].step && parts[k].pdf); });
+    var html = '';
+    if (lists.length) html += '<div>Список деталей: <b>' + esc(lists.join(', ')) + '</b>' +
+      (lists.length > 1 ? ' <span class="badge err">нужен один список</span>' : '') + '</div>';
+    html += '<div>Деталей с парой STEP + PDF: <b>' + full.length + '</b></div>';
+    if (half.length) html += '<div>Без пары (можно прикрепить позже): ' + half.map(function (k) {
+      return '<span class="badge warn">' + esc(parts[k].name) + ' — нет ' + (parts[k].step ? 'PDF' : 'STEP') + '</span>';
+    }).join(' ') + '</div>';
+    if (other.length) html += '<div>Не будут приняты: ' + other.map(function (n) {
+      return '<span class="badge err">' + esc(n) + '</span>'; }).join(' ') + '</div>';
+    preview.innerHTML = html;
+    preview.hidden = !files.length;
+    if (qty) qty.hidden = lists.length > 0;
+    drop.classList.toggle('has-files', files.length > 0);
+  }
+  input.addEventListener('change', show);
+  ['dragenter', 'dragover'].forEach(function (e) { drop.addEventListener(e, function () { drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (e) { drop.addEventListener(e, function () { drop.classList.remove('over'); }); });
+  input.form.addEventListener('submit', function () {
+    var b = input.form.querySelector('button.big'); b.disabled = true; b.textContent = b.dataset.busy || 'Считаем…';
+  });
+})();
+</script>

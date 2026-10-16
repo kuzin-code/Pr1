@@ -105,12 +105,14 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
                                              drawing.get("ra_min"), bool(drawing.get("has_form_tolerances")))
         auto["complexity"] = True
     issues.extend(_drawing_issues(pos, data, drawing))
+    journal = journal_entries(session)
+    same = same_part(journal, pos.designation, drawing.get("designation"))
+    # Деталь уже есть в журнале — её технология (токарная / фрезерная), если технолог не задал свою.
+    if same and "technology" not in (data.get("edited") or []):
+        data["technology"] = same.entry.technology
     technology = data.get("technology") or "milling"
     features = PartFeatures(Dimensions.from_list(data["dims"]), data.get("material") or "",
                             int(grade) if grade is not None else DEFAULT_GRADE, pos.complexity, technology)
-
-    journal = journal_entries(session)
-    same = same_part(journal, pos.designation, drawing.get("designation"))
     if auto["analog"]:
         picked = same or pick_analog(features, journal)
         pos.analog_code, pos.no_analog = (picked.entry.part_code, False) if picked else (None, True)

@@ -1,4 +1,5 @@
 """Приём заказа: форматы файлов, лимит позиций, связывание STEP+PDF по имени (ФТ-01, ФТ-02)."""
+import re
 from dataclasses import dataclass, field
 from pathlib import PurePath
 
@@ -29,8 +30,8 @@ def file_kind(filename: str) -> str:
 
 
 def designation(filename: str) -> str:
-    """Обозначение детали — имя файла без расширения."""
-    return PurePath(filename).stem.strip()
+    """Обозначение детали — имя файла без расширения и без приписки копии браузера «(1)», «(2)»."""
+    return re.sub(r"\s*\(\d+\)$", "", PurePath(filename).stem.strip())
 
 
 def validate_position_count(count: int) -> None:

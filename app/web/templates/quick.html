@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Быстрый расчёт{% endblock %}
+{% block content %}
+<h1>Быстрый расчёт</h1>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+<form method="post" action="/quick" enctype="multipart/form-data" class="card intake">
+  <p class="muted" style="margin-top:0">Цена и срок по текущей загрузке станков — <b>без создания заказа</b>:
+    план и загрузка не меняются. Посчитали — удалили, или сообщили начальнику участка и запустили как заказ.</p>
+  <div class="intake-fields">
+    <div><label for="customer">Заказчик (необязательно)</label>
+      <input id="customer" name="customer" value="{{ form.customer or '' }}" placeholder="Название или ФИО"></div>
+    <div><label for="desired_date">Желаемая дата изготовления</label>
+      <input id="desired_date" type="date" name="desired_date" value="{{ form.desired_date or '' }}" min="{{ today }}"></div>
+  </div>
+  {% include "_files_drop.html" %}
+  <div class="intake-fields" id="qty_row">
+    <div><label for="quantity">Количество, шт. (если без списка — для всех деталей)</label>
+      <input id="quantity" type="number" name="quantity" min="1" value="{{ form.quantity or 1 }}"></div>
+  </div>
+  <p><button class="big" data-busy="Считаем по текущей загрузке…">Рассчитать</button></p>
+</form>
+{% endblock %}
