@@ -41,7 +41,7 @@ def test_order_done_when_all_positions_done():
 
 # Матрица прав п. 4.5: (действие, роли «вносит/видит»).
 MATRIX = {
-    Action.UPLOAD_ORDER: {Role.MASTER},
+    Action.UPLOAD_ORDER: {Role.MASTER, Role.TECHNOLOGIST, Role.HEAD, Role.MANAGER},
     Action.EDIT_TECH_DATA: {Role.TECHNOLOGIST},
     Action.ASSIGN_MACHINE: {Role.TECHNOLOGIST},
     Action.VIEW_MACHINE_ASSIGNMENT: {Role.TECHNOLOGIST, Role.MASTER, Role.HEAD},
@@ -49,7 +49,7 @@ MATRIX = {
     Action.APPROVE: {Role.HEAD},
     Action.FACT_MACHINE: {Role.MASTER, Role.OPERATOR},
     Action.FACT_BENCH: {Role.MASTER},
-    Action.VIEW_PLAN: {Role.TECHNOLOGIST, Role.MASTER, Role.HEAD, Role.MANAGEMENT},
+    Action.VIEW_PLAN: {Role.TECHNOLOGIST, Role.MASTER, Role.HEAD, Role.MANAGEMENT, Role.MANAGER},
     Action.VIEW_COST: {Role.HEAD, Role.IT, Role.TECHNOLOGIST, Role.MASTER},
     Action.EDIT_RATES: {Role.IT},
     Action.MANAGE_USERS: {Role.IT},
@@ -58,7 +58,8 @@ MATRIX = {
     Action.IMPORT_JOURNAL: {Role.TECHNOLOGIST, Role.IT},
     Action.VIEW_REFERENCE: {Role.TECHNOLOGIST, Role.HEAD, Role.IT},
     Action.EDIT_REFERENCE: {Role.IT, Role.TECHNOLOGIST},
-    Action.RECEIVE_NOTIFICATIONS: {Role.MASTER, Role.OPERATOR, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR},
+    Action.RECEIVE_NOTIFICATIONS: {Role.TECHNOLOGIST, Role.HEAD, Role.MASTER, Role.OPERATOR, Role.CUTTER,
+                                   Role.LOCKSMITH, Role.INSPECTOR},
     Action.DO_OPERATIONS: {Role.MASTER, Role.OPERATOR, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR},
     Action.VIEW_HISTORY: {Role.TECHNOLOGIST, Role.MASTER, Role.HEAD},
 }

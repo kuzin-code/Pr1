@@ -56,7 +56,7 @@ def test_only_it_manages_users(session):
                  lambda: users.reset_password(session, HEAD, "master", "Временный-1")):
         with pytest.raises(AccessDenied):
             call()
-    assert len(users.list_users(session, IT)) == 9
+    assert len(users.list_users(session, IT)) == 10
 
 
 def test_must_change_cleared_after_own_change(session):

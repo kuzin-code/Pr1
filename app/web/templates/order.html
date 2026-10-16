@@ -5,8 +5,12 @@
 {% if done %}<div class="flash ok">Заказ завершён: все позиции прошли внутренний контроль.</div>{% endif %}
 <div class="card row">
   <div><label>Дата начала</label>{{ order.start_date|dt }}</div>
-  <div style="margin-left:24px"><label>Срок заказа (макс. по позициям)</label>{{ deadline|dt }}
+  <div style="margin-left:24px"><label>Расчётная дата изготовления</label>{{ deadline|dt }}
     <span class="badge warn">ориентировочно</span></div>
+  {% if order.desired_date %}{% set chk = check_desired(deadline, order.desired_date) %}
+  <div style="margin-left:24px"><label>Желаемая дата заказчика</label>{{ order.desired_date|dt }}
+    <span class="badge {{ 'ok' if chk.status == 'ok' else 'err' if chk.status == 'late' else '' }}">{{ chk.label }}</span></div>
+  {% endif %}
   {% if can('view_cost') %}
   <div style="margin-left:24px"><label>Себестоимость обработки, итого</label>{{ total_cost|money }}
     <span class="badge warn">ориентировочно</span></div>

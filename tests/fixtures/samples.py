@@ -100,7 +100,8 @@ def make_arc_step(radius=35.0, height=10.0, same_sense=".T.") -> str:
     return _HEADER + "\n".join(lines) + "\n" + _FOOTER
 
 
-def make_order_list(path, items, sections=None, customer="ООО «Тест»", order_date=None, extra_sheet=True):
+def make_order_list(path, items, sections=None, customer="ООО «Тест»", order_date=None, extra_sheet=True,
+                    desired_date=None):
     """Список деталей по шаблону заказа предприятия (Лист1: шапка B2:H5, таблица с B7)."""
     from datetime import datetime as _dt
 
@@ -110,8 +111,10 @@ def make_order_list(path, items, sections=None, customer="ООО «Тест»", 
     ws = wb.active
     ws.title = "Лист1"
     for rng in ("B2:C2", "D2:E2", "G2:H2", "B3:C3", "D3:E3", "G3:H3", "B4:C4", "D4:E4", "G4:H4",
-                "B5:C5", "D5:E5", "G5:H5", "B6:H6"):
+                "B5:C5", "D5:E5", "G5:H5") + (("B6:C6", "D6:E6") if desired_date else ("B6:H6",)):
         ws.merge_cells(rng)
+    if desired_date:
+        ws["B6"], ws["D6"] = "Желаемая дата изготовления:", desired_date
     ws["B2"], ws["D2"], ws["F2"], ws["G2"] = "Дата заказа:", order_date or _dt(2026, 3, 12), "Заказчик ", customer
     ws["B3"], ws["D3"], ws["F3"], ws["G3"] = "Разработчик:", "Иванов И. И.", "Ответственный:", "Петров П. П."
     ws["B4"], ws["D4"], ws["F4"], ws["G4"] = "Тел:", "+7 900 000-00-01", "Тел:", "+7 900 000-00-02"

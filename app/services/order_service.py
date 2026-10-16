@@ -220,7 +220,7 @@ def create_order_from_list(session: Session, actor: Actor, start_date: date | No
     order = OrderRow(number=number or "", start_date=start_date, created_at=datetime.now(),
                      created_by=actor.username, customer=parsed.customer or None,
                      customer_order_date=parsed.order_date, contacts=parsed.contacts or None,
-                     source_list=_safe_name(list_file.filename))
+                     source_list=_safe_name(list_file.filename), desired_date=parsed.desired_date)
     session.add(order)
     session.flush()
     order.number = order.number or f"З-{order.id:04d}"

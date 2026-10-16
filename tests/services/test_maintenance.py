@@ -62,7 +62,7 @@ def test_reset_orders_keeps_reference_and_journal(tmp_path):
     with factory() as s:
         assert s.query(OrderRow).count() == s.query(PositionRow).count() == 0
         assert s.query(OperationRow).count() == s.query(FactRow).count() == 0
-        assert s.query(User).count() == 9 and len(ref.list_machines(s)) == 7
+        assert s.query(User).count() == 10 and len(ref.list_machines(s)) == 7
         assert [e.part_code for e in ref.journal_entries(s)] == []  # демо-детали убраны
     assert not any((tmp_path / "uploads").glob("order_*"))
 

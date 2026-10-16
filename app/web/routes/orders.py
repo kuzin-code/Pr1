@@ -1,6 +1,6 @@
 """Заказы: список, приём, карточка заказа (ФТ-01, ФТ-02, ФТ-16)."""
 import tempfile
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, require
 from app.domain.enums import PositionStatus
 from app.domain.status import order_done
-from app.services import approval_service, fact_service, order_service, plan_service, tech_service
+from app.services import approval_service, fact_service, intake_service, order_service, plan_service, tech_service
 from app.services.actor import ServiceError
 from app.domain.order_intake import IntakeError
 from app.parsers.order_list import write_template
@@ -35,10 +35,15 @@ def orders_list(request: Request, db: Session = Depends(get_db)):
     return render(request, "orders.html", rows=rows)
 
 
+def _customers(db: Session) -> list[str]:
+    """Заказчики прежних заказов — подсказка при вводе."""
+    return sorted({o.customer for o in order_service.list_orders(db) if o.customer})
+
+
 @router.get("/orders/new")
-def order_new(request: Request):
+def order_new(request: Request, db: Session = Depends(get_db)):
     require(current_actor(request).role, Action.UPLOAD_ORDER)
-    return render(request, "order_new.html", today=date.today().isoformat())
+    return render(request, "order_new.html", today=date.today().isoformat(), customers=_customers(db), form={})
 
 
 @router.get("/orders/template")
@@ -54,30 +59,34 @@ def order_template(request: Request):
 
 @router.post("/orders")
 async def order_create(request: Request, start_date: str = Form(""), number: str = Form(""), quantity: str = Form("1"),
+                       customer: str = Form(""), desired_date: str = Form(""), opened_at: str = Form(""),
                        files: list[UploadFile] = File(default=[]), list_file: UploadFile | None = File(default=None),
                        db: Session = Depends(get_db)):
+    """Приём заказа за минуту: все файлы одним полем; список Excel распознаётся по расширению."""
     actor = current_actor(request)
     require(actor.role, Action.UPLOAD_ORDER)
     uploaded = [order_service.UploadedFile(f.filename or "", await f.read()) for f in files if f.filename]
-    upload_dir = request.app.state.settings.upload_dir
+    if list_file is not None and list_file.filename:
+        uploaded.insert(0, order_service.UploadedFile(list_file.filename, await list_file.read()))
+    form = {"customer": customer, "desired_date": desired_date, "number": number, "start_date": start_date,
+            "quantity": quantity}
     try:
-        start = date.fromisoformat(start_date) if start_date else None
-        if list_file is not None and list_file.filename:
-            listed = order_service.UploadedFile(list_file.filename, await list_file.read())
-            order, warnings = order_service.create_order_from_list(db, actor, start, listed, uploaded, upload_dir,
-                                                                   number.strip() or None)
-            for warning in warnings:
-                flash(request, warning, "error")
-            return redirect(f"/orders/{order.id}")
-        if not uploaded:
-            raise ServiceError("Выберите файлы STEP и PDF или список деталей (Excel)")
-        qty = int(quantity or 1)
-        order = order_service.create_order(db, actor, start, uploaded, upload_dir,
-                                           number.strip() or None, quantity=qty)
+        order = intake_service.quick_intake(
+            db, actor, uploaded, request.app.state.settings.upload_dir, customer=customer,
+            desired_date=date.fromisoformat(desired_date) if desired_date else None,
+            start_date=date.fromisoformat(start_date) if start_date else None,
+            number=number, quantity=int(quantity or 1))
     except (IntakeError, ServiceError, ValueError) as err:
         db.rollback()
-        return render(request, "order_new.html", status_code=400, error=str(err),
-                      today=start_date or date.today().isoformat())
+        return render(request, "order_new.html", status_code=400, error=str(err), today=date.today().isoformat(),
+                      customers=_customers(db), form=form)
+    took = ""
+    if opened_at.isdigit():
+        seconds = max(0, int(datetime.now().timestamp() - int(opened_at) / 1000))
+        took = f" Приём занял {seconds // 60} мин {seconds % 60} с." if seconds >= 60 else f" Приём занял {seconds} с."
+    flash(request, f"Заказ {order.number} принят: позиций {len(order.positions)}, расчёт выполнен.{took}")
+    for warning in getattr(order, "intake_warnings", []):
+        flash(request, warning, "error")
     return redirect(f"/orders/{order.id}")
 
 

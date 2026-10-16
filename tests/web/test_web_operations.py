@@ -86,7 +86,8 @@ def test_unread_counter_in_menu_and_auto_refresh(login):
     press(cutter, cut, "start", "2026-10-19T08:00")
     press(cutter, cut, "finish", "2026-10-19T09:00")
     page = login("operator").get("/work").text
-    assert _re.search(r'Уведомления <span class="nav-count">1</span>', page)  # «Наладка: можно начинать»
+    # «Новый заказ» и «Наладка: можно начинать»
+    assert _re.search(r'Уведомления <span class="nav-count">2</span>', page)
     assert "data-auto-refresh" in page
     login("operator").get("/notifications")  # прочитаны
     assert "nav-count" not in login("operator").get("/work").text

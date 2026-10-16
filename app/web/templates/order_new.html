@@ -3,30 +3,86 @@
 {% block content %}
 <h1>Новый заказ</h1>
 {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
-<div class="card">
-  <form method="post" action="/orders" enctype="multipart/form-data">
-    <div class="row">
-      <div><label>Номер заказа (необязательно)</label><input name="number"></div>
-      <div><label>Дата начала изготовления</label><input type="date" name="start_date" value="{{ today }}" required></div>
+<form method="post" action="/orders" enctype="multipart/form-data" class="card intake" id="intake">
+  <input type="hidden" name="opened_at" id="opened_at">
+  <div class="intake-fields">
+    <div><label for="customer">Заказчик</label>
+      <input id="customer" name="customer" list="customers" value="{{ form.customer or '' }}" autofocus
+             placeholder="Название или ФИО">
+      <datalist id="customers">{% for c in customers %}<option value="{{ c }}">{% endfor %}</datalist></div>
+    <div><label for="desired_date">Желаемая дата изготовления</label>
+      <input id="desired_date" type="date" name="desired_date" value="{{ form.desired_date or '' }}" min="{{ today }}"></div>
+  </div>
+
+  <label class="drop" id="drop">
+    <input type="file" name="files" id="files" multiple accept=".xlsx,.step,.stp,.pdf">
+    <b>Перетащите сюда все файлы заказа</b>
+    <span>список деталей (Excel) и/или чертежи PDF и модели STEP — одним разом (выделите всё в папке: Ctrl+A)</span>
+    <span class="muted">или нажмите, чтобы выбрать</span>
+  </label>
+  <div id="preview" class="intake-preview" hidden></div>
+
+  <div class="intake-fields" id="qty_row">
+    <div><label for="quantity">Количество, шт. (если без списка — для всех деталей)</label>
+      <input id="quantity" type="number" name="quantity" min="1" value="{{ form.quantity or 1 }}"></div>
+  </div>
+
+  <details>
+    <summary>Дополнительно: номер заказа, дата начала</summary>
+    <div class="intake-fields">
+      <div><label>Номер заказа (по умолчанию — следующий З-…)</label><input name="number" value="{{ form.number or '' }}"></div>
+      <div><label>Дата начала изготовления</label><input type="date" name="start_date" value="{{ form.start_date or today }}"></div>
     </div>
-    <div class="grid">
-      <div class="card" style="margin:0">
-        <h2>Список деталей (Excel)</h2>
-        <p><input type="file" name="list_file" accept=".xlsx"></p>
-        <p class="muted">Позиция и количество — из списка; файлы ниже привязываются по обозначению детали.
-          <a href="/orders/template">Скачать шаблон списка</a></p>
-      </div>
-      <div class="card" style="margin:0">
-        <h2>Файлы STEP и PDF</h2>
-        <p><input type="file" name="files" multiple accept=".step,.stp,.pdf"></p>
-        <p><label>Количество, шт. (если заказ без списка — для всех позиций)</label>
-          <input type="number" name="quantity" min="1" value="1"></p>
-      </div>
-    </div>
-    <button>Принять заказ</button>
-  </form>
-  <p class="muted">Количество применяется ко всем загруженным позициям; для отдельных позиций его можно изменить в карточке заказа.
-    После загрузки система сама читает чертежи, подбирает аналог и станок и считает стоимость — технолог только проверяет.
-    Файлы других форматов отклоняются.</p>
-</div>
+  </details>
+
+  <p><button class="big" id="submit">Принять заказ</button>
+    <a href="/orders/template" class="muted">Шаблон списка деталей (Excel)</a></p>
+  <p class="muted">После приёма система сама читает чертежи, подбирает аналог и станок, считает стоимость и
+    <b>расчётную дату</b> и сравнивает её с желаемой. Технолог, начальник участка, мастер и специалисты,
+    задействованные в заказе, получают уведомление.</p>
+</form>
+<script>
+(function () {
+  document.getElementById('opened_at').value = Date.now();
+  var input = document.getElementById('files'), drop = document.getElementById('drop'),
+      preview = document.getElementById('preview'), qty = document.getElementById('qty_row');
+  function stem(name) {
+    return name.replace(/\.[^.]+$/, '').replace(/\s*\(\d+\)$/, '').trim().toLowerCase();
+  }
+  function esc(s) { return s.replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function show() {
+    var files = Array.prototype.slice.call(input.files), lists = [], parts = {}, other = [];
+    files.forEach(function (f) {
+      var ext = (f.name.split('.').pop() || '').toLowerCase();
+      if (ext === 'xlsx') { lists.push(f.name); return; }
+      var kind = ext === 'pdf' ? 'pdf' : (ext === 'step' || ext === 'stp') ? 'step' : null;
+      if (!kind) { other.push(f.name); return; }
+      var key = stem(f.name);
+      parts[key] = parts[key] || {name: f.name.replace(/\.[^.]+$/, ''), step: false, pdf: false};
+      parts[key][kind] = true;
+    });
+    var keys = Object.keys(parts), full = keys.filter(function (k) { return parts[k].step && parts[k].pdf; });
+    var half = keys.filter(function (k) { return !(parts[k].step && parts[k].pdf); });
+    var html = '';
+    if (lists.length) html += '<div>Список деталей: <b>' + esc(lists.join(', ')) + '</b>' +
+      (lists.length > 1 ? ' <span class="badge err">нужен один список</span>' : '') + '</div>';
+    html += '<div>Деталей с парой STEP + PDF: <b>' + full.length + '</b></div>';
+    if (half.length) html += '<div>Без пары (можно прикрепить позже): ' + half.map(function (k) {
+      return '<span class="badge warn">' + esc(parts[k].name) + ' — нет ' + (parts[k].step ? 'PDF' : 'STEP') + '</span>';
+    }).join(' ') + '</div>';
+    if (other.length) html += '<div>Не будут приняты: ' + other.map(function (n) {
+      return '<span class="badge err">' + esc(n) + '</span>'; }).join(' ') + '</div>';
+    preview.innerHTML = html;
+    preview.hidden = !files.length;
+    qty.hidden = lists.length > 0;
+    drop.classList.toggle('has-files', files.length > 0);
+  }
+  input.addEventListener('change', show);
+  ['dragenter', 'dragover'].forEach(function (e) { drop.addEventListener(e, function () { drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (e) { drop.addEventListener(e, function () { drop.classList.remove('over'); }); });
+  document.getElementById('intake').addEventListener('submit', function () {
+    var b = document.getElementById('submit'); b.disabled = true; b.textContent = 'Принимаем и считаем…';
+  });
+})();
+</script>
 {% endblock %}

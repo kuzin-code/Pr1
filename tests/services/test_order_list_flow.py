@@ -8,7 +8,7 @@ from app.domain.order_intake import match_files
 from app.services import order_service as orders
 from app.services.order_service import UploadedFile
 from tests.fixtures.samples import make_box_step, make_order_list, make_pdf
-from tests.services.conftest import MASTER, MON, TECH
+from tests.services.conftest import MASTER, MON, OPERATOR, TECH
 
 ITEMS = [
     ("MBIS.AI.11000.19", "Обшивка боковая", 7, "Д16Т ГОСТ 4784-2019"),
@@ -73,7 +73,7 @@ def test_unmatched_files_reported(session, tmp_path):
 
 def test_list_rights_and_limits(session, tmp_path):
     with pytest.raises(AccessDenied):
-        orders.create_order_from_list(session, TECH, MON, list_file(tmp_path), [], tmp_path / "u")
+        orders.create_order_from_list(session, OPERATOR, MON, list_file(tmp_path), [], tmp_path / "u")
     many = [(f"D-{i}", "Деталь", 1, "Д16Т") for i in range(51)]
     from app.domain.order_intake import OrderTooLargeError
     with pytest.raises(OrderTooLargeError):

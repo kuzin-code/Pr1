@@ -13,6 +13,7 @@ class Role(str, Enum):
     CUTTER = "cutter"
     LOCKSMITH = "locksmith"
     INSPECTOR = "inspector"
+    MANAGER = "manager"  # менеджер производства: приём заказов, сроки
 
     @property
     def label(self) -> str:
@@ -29,6 +30,7 @@ ROLE_LABELS = {
     Role.CUTTER: "Заготовитель",
     Role.LOCKSMITH: "Слесарь",
     Role.INSPECTOR: "Контролёр",
+    Role.MANAGER: "Менеджер производства",
 }
 
 

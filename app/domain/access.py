@@ -3,8 +3,8 @@ from enum import Enum
 
 from app.domain.enums import Role
 
-T, M, O, H, IT, MG = (Role.TECHNOLOGIST, Role.MASTER, Role.OPERATOR, Role.HEAD, Role.IT,
-                      Role.MANAGEMENT)
+T, M, O, H, IT, MG, MGR = (Role.TECHNOLOGIST, Role.MASTER, Role.OPERATOR, Role.HEAD, Role.IT,
+                           Role.MANAGEMENT, Role.MANAGER)
 
 
 class Action(str, Enum):
@@ -33,9 +33,10 @@ class Action(str, Enum):
 
 
 PERMISSIONS: dict[Action, frozenset[Role]] = {
-    Action.UPLOAD_ORDER: frozenset({M}),
+    # Заказ принимают менеджер производства, мастер, технолог и начальник участка (решение 16.10.2026).
+    Action.UPLOAD_ORDER: frozenset({M, T, H, MGR}),
     # Технолог, мастер и начальник видят неопределённые в матрице клетки (п. 4.5).
-    Action.VIEW_ORDERS: frozenset({T, M, H}),
+    Action.VIEW_ORDERS: frozenset({T, M, H, MGR}),
     Action.EDIT_TECH_DATA: frozenset({T}),
     Action.ASSIGN_MACHINE: frozenset({T}),
     Action.VIEW_MACHINE_ASSIGNMENT: frozenset({T, M, H}),
@@ -43,7 +44,7 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.APPROVE: frozenset({H}),
     Action.FACT_MACHINE: frozenset({M, O}),
     Action.FACT_BENCH: frozenset({M}),
-    Action.VIEW_PLAN: frozenset({T, M, H, MG}),
+    Action.VIEW_PLAN: frozenset({T, M, H, MG, MGR}),
     # Себестоимость и ставки видят начальник участка, технолог, мастер и IT
     # (решение пользователя 15.10.2026; в ТЗ 1.0 — только начальник участка и IT). Ставки меняет только IT.
     Action.VIEW_COST: frozenset({H, IT, T, M}),
@@ -55,7 +56,8 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     # Оборудование вносят IT и технолог (решение пользователя 15.10.2026; в ТЗ 1.0 — только IT).
     Action.EDIT_REFERENCE: frozenset({IT, T}),
     Action.MANAGE_USERS: frozenset({IT}),
-    Action.RECEIVE_NOTIFICATIONS: frozenset({M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
+    # Технолог и начальник участка получают уведомление о новом заказе.
+    Action.RECEIVE_NOTIFICATIONS: frozenset({T, H, M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
     Action.DO_OPERATIONS: frozenset({M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
     Action.UNDO_OPERATIONS: frozenset({M}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),

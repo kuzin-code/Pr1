@@ -6,6 +6,7 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from app.domain.access import Action, can
+from app.domain.desired_date import check_desired
 from app.domain.enums import (
     CountMode,
     FactKind,
@@ -57,6 +58,7 @@ def dims(values) -> str:
 
 templates.env.filters.update(money=money, hours=hours, dt=dt, short=short, dims=dims,
                              role_label=lambda v: Role(v).label)
+templates.env.globals.update(check_desired=check_desired)
 templates.env.globals.update(
     Stage=Stage, CountMode=CountMode, FactKind=FactKind, PositionStatus=PositionStatus,
     STAGE_LABELS=STAGE_LABELS, STATUS_LABELS=STATUS_LABELS,

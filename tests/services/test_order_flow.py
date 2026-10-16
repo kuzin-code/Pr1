@@ -39,9 +39,11 @@ def test_order_created_with_read_data(session, make_order):
     assert pos.read_data["step"]["bodies"] == 1
 
 
-def test_only_master_uploads(session, tmp_path):
+def test_operator_and_it_cannot_upload(session, tmp_path):
     with pytest.raises(AccessDenied):
-        orders.create_order(session, TECH, None, part_files(), tmp_path)
+        orders.create_order(session, OPERATOR, None, part_files(), tmp_path)
+    with pytest.raises(AccessDenied):
+        orders.create_order(session, IT, None, part_files(), tmp_path)
 
 
 def test_51_positions_rejected(session, make_order):
@@ -69,10 +71,10 @@ def test_unpaired_files_linked_by_technologist(session, make_order):
     assert len(orders.get_order(session, order.id).positions) == 1
 
 
-def test_quantity_set_by_master_only(session, make_order):
+def test_quantity_set_by_order_takers_only(session, make_order):
     pos = make_order().positions[0]
     with pytest.raises(AccessDenied):
-        orders.set_quantity(session, TECH, pos.id, 5)
+        orders.set_quantity(session, OPERATOR, pos.id, 5)
     orders.set_quantity(session, MASTER, pos.id, 5)
     assert orders.get_position(session, pos.id).quantity == 5
 

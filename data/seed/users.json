@@ -54,6 +54,12 @@
       "full_name": "Контролёр",
       "role": "inspector",
       "password": "demo"
+    },
+    {
+      "username": "manager",
+      "full_name": "Менеджер производства",
+      "role": "manager",
+      "password": "demo"
     }
   ]
 }

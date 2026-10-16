@@ -12,7 +12,7 @@ from app.services import fact_service as facts
 from app.services import plan_service as plans
 from app.services import reference_service as ref
 from app.services import tech_service as tech
-from tests.services.conftest import HEAD, MASTER, OPERATOR, TECH, part_files
+from tests.services.conftest import HEAD, IT, MASTER, OPERATOR, TECH, part_files
 from tests.services.test_order_flow import prepared
 
 
@@ -106,7 +106,7 @@ def test_notifications_for_master(session, make_order):
     assert plans.sync_notifications(session, finish) == []  # повторно не создаются
     assert len(plans.list_notifications(session, MASTER)) == 3
     with pytest.raises(AccessDenied):
-        plans.list_notifications(session, TECH)
+        plans.list_notifications(session, IT)
 
 
 def test_preliminary_deadline_for_unapproved(session, make_order):

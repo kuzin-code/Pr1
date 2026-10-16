@@ -86,6 +86,7 @@ class OrderRow(Base):  # Д-1
     customer_order_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     contacts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     source_list: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    desired_date: Mapped[date | None] = mapped_column(Date, nullable=True)  # желаемая дата заказчика
     positions: Mapped[list["PositionRow"]] = relationship(
         back_populates="order", cascade="all, delete-orphan", order_by="PositionRow.id")
 

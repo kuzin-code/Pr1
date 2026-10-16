@@ -2,20 +2,24 @@
 {% block title %}Заказы{% endblock %}
 {% block content %}
 <h1>Заказы</h1>
+{% if can('upload_order') %}<p><a class="btn" href="/orders/new">+ Новый заказ</a></p>{% endif %}
 <div class="card scroll">
 <table>
-  <tr><th>Номер</th><th>Дата начала</th><th class="num">Позиций</th><th>Статус</th><th>Срок</th><th>Создан</th></tr>
+  <tr><th>Номер</th><th>Заказчик</th><th>Дата начала</th><th class="num">Позиций</th><th>Статус</th><th>Расчётная дата</th><th>Желаемая дата</th><th>Создан</th></tr>
   {% for r in rows %}
   <tr>
     <td><a href="/orders/{{ r.order.id }}">{{ r.order.number }}</a></td>
+    <td>{{ r.order.customer or "—" }}</td>
     <td>{{ r.order.start_date|dt }}</td>
     <td class="num">{{ r.order.positions|length }}</td>
     <td>{% if r.done %}<span class="badge ok">Завершён</span>{% else %}<span class="badge">В работе</span>{% endif %}</td>
     <td>{{ r.deadline|dt }} {% if r.deadline %}<span class="badge warn">ориентировочно</span>{% if r.preliminary %}<span class="badge">есть предварительные</span>{% endif %}{% endif %}</td>
+    <td>{% if r.order.desired_date %}{% set chk = check_desired(r.deadline, r.order.desired_date) %}{{ r.order.desired_date|dt }}
+      <span class="badge {{ 'ok' if chk.status == 'ok' else 'err' if chk.status == 'late' else '' }}">{{ chk.label }}</span>{% else %}—{% endif %}</td>
     <td class="muted">{{ r.order.created_at|dt }}, {{ r.order.created_by }}</td>
   </tr>
   {% else %}
-  <tr><td colspan="6" class="muted">Заказов нет</td></tr>
+  <tr><td colspan="8" class="muted">Заказов нет</td></tr>
   {% endfor %}
 </table>
 </div>

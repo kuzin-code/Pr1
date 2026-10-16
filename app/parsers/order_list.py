@@ -19,7 +19,7 @@ COLUMNS = {
     "coating": ("покрытие",),
     "note": ("прим",),
 }
-HEADER_LABELS = ("дата заказа", "заказчик", "разработчик", "ответственный", "тел", "e-mail", "email")
+HEADER_LABELS = ("дата заказа", "желаем", "срок", "заказчик", "разработчик", "ответственный", "тел", "e-mail", "email")
 # Внешние (кооперационные) операции по покрытию и примечаниям (ТЗ, раздел 10).
 COOPERATION = re.compile(r"анод|оксид|гальван|цинк|хромир|никел|кадми|окрас|покрас|порошк|эмал|\bral\b|лак"
                          r"|термообр|закалк|отпуск|цементац|азотир|шлифов|лазерн", re.I)
@@ -44,6 +44,7 @@ class OrderListItem:
 @dataclass
 class OrderList:
     order_date: date | None = None
+    desired_date: date | None = None  # желаемая дата изготовления (срок заказчика)
     customer: str = ""
     contacts: dict[str, str] = field(default_factory=dict)
     items: list[OrderListItem] = field(default_factory=list)
@@ -89,8 +90,11 @@ def _read_header(ws, header_row: int, data: OrderList) -> None:
             if any(_text(value).casefold().startswith(h) for h in HEADER_LABELS):
                 pair += 1
                 continue
-            if key.startswith("дата"):
-                data.order_date = value.date() if isinstance(value, datetime) else value if isinstance(value, date) else None
+            day = value.date() if isinstance(value, datetime) else value if isinstance(value, date) else None
+            if key.startswith(("желаем", "срок")):
+                data.desired_date = day
+            elif key.startswith("дата"):
+                data.order_date = day
             elif key.startswith("заказчик"):
                 data.customer = _text(value)
             elif key.startswith(("разработчик", "ответственный")):
@@ -182,6 +186,11 @@ def write_template(path: Path | str, rows: int = 50) -> Path:
         for cell in (f"D{r}", f"G{r}"):
             ws[cell].border = Border(bottom=thin)
     ws["G2"].number_format = "DD.MM.YYYY"
+    ws.merge_cells("B6:C6")
+    ws.merge_cells("D6:E6")
+    ws["B6"] = "Желаемая дата изготовления:"
+    ws["D6"].number_format = "DD.MM.YYYY"
+    ws["D6"].border = Border(bottom=thin)
     titles = ["№", "Обозначение", "Наименование", "К-во", "Материал", "Покрытие, цвет", "Прим."]
     widths = [5, 28, 40, 7, 40, 26, 40]
     fill = PatternFill("solid", fgColor="DCE6F1")

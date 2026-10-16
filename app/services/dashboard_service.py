@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.access import Action, can, require
+from app.domain.desired_date import check_desired
 from app.domain.enums import PositionStatus as S, Role
 from app.domain.status import order_done
 from app.services import plan_service
@@ -126,11 +127,27 @@ def _tasks(session: Session, actor: Actor, positions: list[PositionRow], deviati
         if unread:
             tasks.insert(0, Task(None, "Уведомления", f"Новых: {unread}", "Открыть", "/notifications"))
         return "Требует внимания мастера", tasks
+    if actor.role is Role.MANAGER:
+        return "Сроки заказов", _desired_tasks(session)
     by_id = {p.id: p for p in positions}
     return "Отставания от плана", [
         Task(d.position_id, f"{by_id[d.position_id].designation}", f"Заказ {by_id[d.position_id].order.number}. "
              f"Сдвиг срока +{d.shift_hours:.0f} раб. ч", "Загрузка станков", "/plan")
         for d in deviations if d.shift_hours > 0 and d.position_id in by_id]
+
+
+def _desired_tasks(session: Session) -> list[Task]:
+    """Заказы в работе с желаемой датой: сначала те, что не успевают."""
+    plan = plan_service.current_plan(session)
+    tasks = []
+    for order in session.scalars(select(OrderRow).order_by(OrderRow.id.desc())):
+        if not order.desired_date or order_done([S(p.status) for p in order.positions]):
+            continue
+        chk = check_desired(plan_service.order_deadline(session, order.id, plan), order.desired_date)
+        who = f" · {order.customer}" if order.customer else ""
+        tasks.append((chk.status != "late", Task(None, f"Заказ {order.number}{who}",
+                      f"Желаемая {order.desired_date:%d.%m.%Y}: {chk.label}", "Открыть", f"/orders/{order.id}")))
+    return [t for _, t in sorted(tasks, key=lambda x: x[0])]
 
 
 def build_dashboard(session: Session, actor: Actor, now: datetime | None = None) -> Dashboard:

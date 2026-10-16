@@ -6,12 +6,12 @@ ROLES = ["technolog", "master", "operator", "head", "it", "management"]
 
 PAGES = {
     "/orders": {"technolog", "master", "head"},
-    "/orders/new": {"master"},
+    "/orders/new": {"master", "technolog", "head"},
     "/plan": {"technolog", "master", "head", "management"},
     "/reference": {"technolog", "head", "it"},
     "/journal": {"technolog", "master", "head", "it"},
     "/history": {"technolog", "master", "head"},
-    "/notifications": {"master", "operator"},
+    "/notifications": {"master", "operator", "technolog", "head"},
     "/work": {"master", "operator"},
 }
 
