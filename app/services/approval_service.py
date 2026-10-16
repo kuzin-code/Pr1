@@ -61,3 +61,15 @@ def return_position(session: Session, actor: Actor, position_id: int, reason: st
            pos.status, reason)
     session.commit()
     return pos
+
+
+def approve_all(session: Session, actor: Actor, order_id: int, now: datetime | None = None) -> int:
+    """Утвердить все позиции заказа, ожидающие утверждения (в порядке позиций)."""
+    require(actor.role, Action.APPROVE)
+    from app.services.order_service import get_order
+
+    waiting = [p.id for p in get_order(session, order_id).positions
+               if p.status == PositionStatus.AWAITING_APPROVAL.value]
+    for position_id in waiting:
+        approve(session, actor, position_id, now)
+    return len(waiting)

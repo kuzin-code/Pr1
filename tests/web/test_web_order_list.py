@@ -41,3 +41,18 @@ def test_list_without_files_allowed_and_bad_list_reported(login, tmp_path):
     resp = login("master").post("/orders", data={"start_date": "2026-10-19"},
                                 files=[("list_file", ("bad.xlsx", bad.read_bytes(), "application/octet-stream"))])
     assert resp.status_code == 400 and "количество" in resp.text
+
+
+def test_bulk_buttons_on_order_page(login, tmp_path):
+    path = make_order_list(tmp_path / "list.xlsx", ITEMS[:1])
+    files = [("list_file", ("Заказ.xlsx", path.read_bytes(), "application/octet-stream")),
+             ("files", ("MBIS.AI.18000.01.step", make_box_step(150, 60, 40).encode(), "application/octet-stream")),
+             ("files", ("MBIS.AI.18000.01.pdf", make_pdf(["Bore 10H9"]), "application/pdf"))]
+    url = login("master").post("/orders", data={"start_date": "2026-10-19"}, files=files).headers["location"]
+    order_id = url.rsplit("/", 1)[1]
+    assert "Передать на утверждение все готовые (1)" in login("technolog").get(url).text
+    login("technolog").post(f"/orders/{order_id}/submit-all")
+    assert "Утвердить все ожидающие (1)" in login("head").get(url).text
+    assert login("technolog").post(f"/orders/{order_id}/approve-all").status_code == 403
+    login("head").post(f"/orders/{order_id}/approve-all")
+    assert "Утверждена" in login("head").get(url).text

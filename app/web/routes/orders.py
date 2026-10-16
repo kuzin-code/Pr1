@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, require
 from app.domain.enums import PositionStatus
 from app.domain.status import order_done
-from app.services import fact_service, order_service, plan_service
+from app.services import approval_service, fact_service, order_service, plan_service, tech_service
 from app.services.actor import ServiceError
 from app.domain.order_intake import IntakeError
 from app.parsers.order_list import write_template
@@ -114,3 +114,28 @@ def link(request: Request, order_id: int, position_id: int = Form(...), other_id
     actor = current_actor(request)
     return act(request, db, f"/orders/{order_id}",
                lambda: order_service.link_files(db, actor, position_id, other_id), "Файлы связаны")
+
+
+@router.post("/orders/{order_id}/submit-all")
+def submit_all(request: Request, order_id: int, db: Session = Depends(get_db)):
+    """Технолог передаёт на утверждение все готовые позиции заказа."""
+    actor = current_actor(request)
+
+    def run():
+        submitted, skipped = tech_service.submit_all(db, actor, order_id)
+        flash(request, f"Передано на утверждение: {submitted}")
+        for reason in skipped:
+            flash(request, f"Не передана — {reason}", "error")
+
+    return act(request, db, f"/orders/{order_id}", run)
+
+
+@router.post("/orders/{order_id}/approve-all")
+def approve_all(request: Request, order_id: int, db: Session = Depends(get_db)):
+    """Начальник участка утверждает все ожидающие позиции заказа."""
+    actor = current_actor(request)
+
+    def run():
+        flash(request, f"Утверждено позиций: {approval_service.approve_all(db, actor, order_id)}")
+
+    return act(request, db, f"/orders/{order_id}", run)

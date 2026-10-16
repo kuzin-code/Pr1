@@ -22,6 +22,20 @@
 </div>
 {% endif %}
 
+{% set ready = order.positions|selectattr('status', 'equalto', 'tech_review')|list %}
+{% set waiting = order.positions|selectattr('status', 'equalto', 'awaiting_approval')|list %}
+{% if (can('edit_tech_data') and ready) or (can('approve') and waiting) %}
+<div class="card row">
+  {% if can('edit_tech_data') and ready %}
+  <form method="post" action="/orders/{{ order.id }}/submit-all" class="inline">
+    <button>Передать на утверждение все готовые ({{ ready|length }})</button></form>{% endif %}
+  {% if can('approve') and waiting %}
+  <form method="post" action="/orders/{{ order.id }}/approve-all" class="inline"
+        onsubmit="return confirm('Утвердить все {{ waiting|length }} позиций заказа {{ order.number }}?')">
+    <button>Утвердить все ожидающие ({{ waiting|length }})</button></form>
+  <span class="muted">Отдельные позиции можно вернуть на пересчёт в их карточках.</span>{% endif %}
+</div>
+{% endif %}
 <div class="card scroll">
 <h2>Позиции</h2>
 <table>

@@ -217,3 +217,25 @@ def submit(session: Session, actor: Actor, position_id: int) -> PositionRow:
     record(session, actor, "position", pos.id, "status", PositionStatus.TECH_REVIEW.value, pos.status)
     session.commit()
     return pos
+
+
+def submit_all(session: Session, actor: Actor, order_id: int) -> tuple[int, list[str]]:
+    """Передать на утверждение все рассчитанные позиции заказа со станком; остальные — с причиной."""
+    require(actor.role, Action.EDIT_TECH_DATA)
+    from app.services.order_service import get_order
+
+    submitted, skipped = 0, []
+    for pos in get_order(session, order_id).positions:
+        if pos.status != PositionStatus.TECH_REVIEW.value:
+            if pos.status == PositionStatus.CALCULATION.value:
+                skipped.append(f"«{pos.designation}»: расчёт не выполнен")
+            continue
+        if not pos.machine_code or pos.current_calc is None:
+            skipped.append(f"«{pos.designation}»: нет станка или расчёта")
+            continue
+        pos.status = PositionStatus.AWAITING_APPROVAL.value
+        record(session, actor, "position", pos.id, "status", PositionStatus.TECH_REVIEW.value, pos.status,
+               "передана на утверждение (весь заказ)")
+        submitted += 1
+    session.commit()
+    return submitted, skipped
