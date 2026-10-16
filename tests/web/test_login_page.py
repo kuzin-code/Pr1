@@ -25,3 +25,11 @@ def test_background_referenced_from_css(app):
 def test_error_shown_on_login_page(app):
     resp = TestClient(app).post("/login", data={"username": "x", "password": "y"})
     assert 'class="login-page"' in resp.text and "Неверное имя" in resp.text
+
+
+def test_department_above_section_title(app, login):
+    import re
+    page = TestClient(app).get("/login").text
+    assert re.search(r"Производственный отдел</div>\s*<div class=\"login-kicker\">Участок механической обработки", page)
+    dash = login("head").get("/dashboard").text
+    assert re.search(r"Производственный отдел</p>\s*<p>Участок механической обработки", dash)

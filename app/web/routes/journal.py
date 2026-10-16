@@ -15,6 +15,7 @@ from app.services import reference_service as ref
 from app.services.actor import ServiceError
 from app.services.file_check import check_entry_files
 from app.services.history_service import list_history
+from app.parsers.journal_excel import write_journal_template
 from app.services.order_service import UploadedFile
 from app.storage.convert import entry_from_row
 from app.web.deps import act, current_actor, flash, get_db, redirect
@@ -50,21 +51,37 @@ def journal_export(request: Request, db: Session = Depends(get_db)):
                         background=BackgroundTask(lambda: tmp.unlink(missing_ok=True)))
 
 
+@router.get("/journal/template")
+def journal_template(request: Request):
+    """Пустой журнал калибровки с подсказкой по заполнению."""
+    require(current_actor(request).role, Action.VIEW_JOURNAL)
+    tmp = Path(tempfile.mkdtemp()) / "template.xlsx"
+    write_journal_template(tmp)
+    return FileResponse(tmp, filename="Шаблон журнала калибровки.xlsx",
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        background=BackgroundTask(lambda: tmp.unlink(missing_ok=True)))
+
+
 @router.post("/journal/import")
-async def journal_import(request: Request, file: UploadFile = File(...), replace: str = Form(""),
-                         db: Session = Depends(get_db)):
+async def journal_import(request: Request, file: UploadFile = File(...), files: list[UploadFile] = File(default=[]),
+                         replace: str = Form(""), db: Session = Depends(get_db)):
+    """Журнал из Excel и сразу STEP/PDF деталей — файлы привязываются по обозначению."""
     actor = current_actor(request)
     require(actor.role, Action.IMPORT_JOURNAL)
     tmp = Path(tempfile.mkdtemp()) / "upload.xlsx"
     tmp.write_bytes(await file.read())
+    uploaded = [UploadedFile(f.filename or "", await f.read()) for f in files if f.filename]
 
     def run():
         try:
-            ref.import_journal_file(db, actor, tmp, replace=replace == "on")
+            report = js.import_journal_with_files(db, actor, tmp, uploaded, _storage(request), replace == "on")
         finally:
             tmp.unlink(missing_ok=True)
+        flash(request, f"Журнал загружен: деталей {report.imported}, файлов прикреплено {report.attached}")
+        for warning in report.warnings:
+            flash(request, warning, "error")
 
-    return act(request, db, "/journal", run, "Журнал загружен")
+    return act(request, db, "/journal", run)
 
 
 @router.post("/journal/new")

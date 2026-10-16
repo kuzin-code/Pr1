@@ -17,14 +17,17 @@
 <div class="card">
   <h2>Excel</h2>
   <div class="row">
-    <a class="btn secondary" href="/journal/export">Экспорт в Excel (шаблон)</a>
-    {% if can('import_journal') %}
-    <form method="post" action="/journal/import" enctype="multipart/form-data" class="inline">
-      <input type="file" name="file" accept=".xlsx" required>
-      <label><input type="checkbox" name="replace"> заменить весь журнал</label>
-      <button class="secondary">Импорт</button>
-    </form>{% endif %}
+    <a class="btn secondary" href="/journal/template">Пустой шаблон</a>
+    <a class="btn secondary" href="/journal/export">Выгрузить журнал</a>
   </div>
+  {% if can('import_journal') %}
+  <form method="post" action="/journal/import" enctype="multipart/form-data" style="margin-top:10px">
+    <p><label>Журнал Excel</label><input type="file" name="file" accept=".xlsx" required></p>
+    <p><label>Чертежи PDF и модели STEP (можно сразу все; имя файла начинается с обозначения детали)</label>
+      <input type="file" name="files" multiple accept=".step,.stp,.pdf"></p>
+    <div class="row"><label><input type="checkbox" name="replace"> заменить весь журнал</label>
+      <button class="secondary">Загрузить</button></div>
+  </form>{% endif %}
 </div>
 </div>
 <div class="card scroll">

@@ -88,3 +88,18 @@ def test_operations_checkboxes_in_machine_form(login):
             "hours_per_day": "8", "operations": ["cutting"], "reason": "паспорт"}
     assert tech.post("/machines/BS275", data=data).status_code == 303
     assert "Резка заготовки" in tech.get("/reference").text
+
+
+def test_journal_template_and_import_with_files(login, tmp_path):
+    from app.parsers.journal_excel import export_journal
+    from tests.domain.conftest import make_entry
+    tech = login("technolog")
+    assert tech.get("/journal/template").content[:2] == b"PK"
+    xlsx = tmp_path / "j.xlsx"
+    export_journal([make_entry("KPU.300.001")], xlsx)
+    files = [("file", ("j.xlsx", xlsx.read_bytes(), "application/octet-stream")),
+             ("files", ("KPU.300.001 Ось.stp", make_box_step(60, 20, 20).encode(), "application/octet-stream")),
+             ("files", ("KPU.300.001 Ось.pdf", make_pdf(["KPU.300.001"]), "application/pdf"))]
+    assert tech.post("/journal/import", files=files).status_code == 303
+    page = tech.get("/journal").text
+    assert "деталей 1, файлов прикреплено 2" in page and "KPU.300.001" in page

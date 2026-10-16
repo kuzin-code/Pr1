@@ -1,6 +1,7 @@
 """Ведение журнала калибровки технологом: добавление детали (из позиции или по STEP+PDF),
 правка характеристик и времени операций, ручные замеры, файлы, удаление (ФТ-25)."""
 import shutil
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from sqlalchemy import select
@@ -255,3 +256,40 @@ def delete_entry(session: Session, actor: Actor, entry_id: int, reason: str = ""
     bump_journal_version(session)
     record(session, actor, "journal", code, "delete", code, None, reason)
     session.commit()
+
+
+@dataclass
+class ImportReport:
+    imported: int
+    attached: int = 0
+    warnings: list[str] = field(default_factory=list)
+
+
+def import_journal_with_files(session: Session, actor: Actor, xlsx: Path | str, files: list[UploadedFile],
+                              storage_dir: Path | str, replace: bool = False) -> ImportReport:
+    """Журнал из Excel и сразу чертежи/модели: файлы привязываются к деталям по обозначению."""
+    from app.domain.order_intake import match_files
+    from app.parsers.journal_excel import import_journal
+    from app.services.reference_service import import_journal_file
+
+    report = ImportReport(import_journal_file(session, actor, xlsx, replace=replace))
+    codes = [e.part_code for e in import_journal(xlsx)]
+    by_name = {Path(f.filename.replace("\\", "/")).name: f for f in files}
+    try:
+        matched, unmatched = match_files(codes, list(by_name))
+    except ValueError as err:
+        report.warnings.append(str(err))
+        return report
+    report.warnings += [f"Файл «{n}» не относится ни к одной детали журнала — не загружен" for n in unmatched]
+    for code, pair in matched.items():
+        row = entry_row_by_code(session, code)
+        try:
+            report.warnings += _store_files(row, [by_name[n] for n in pair.values()], storage_dir)
+        except ServiceError as err:
+            report.warnings.append(f"{code}: {err}")
+            continue
+        report.attached += len(pair)
+    bump_journal_version(session)
+    record(session, actor, "journal", "*", "files", None, report.attached, "файлы загружены вместе с журналом")
+    session.commit()
+    return report
