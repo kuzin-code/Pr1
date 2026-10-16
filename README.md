@@ -21,6 +21,38 @@ python -m venv .venv
 `head`, `it`, `management` — файл `data/seed/users.json`.
 База — `data/app.db`, загруженные файлы — `data/uploads/`. Удалите `data/app.db`, чтобы начать с чистого листа.
 
+## Работа на участке
+
+Учётные записи (пароль `demo` у всех демо-записей — смените в «Мой пароль»; IT управляет записями в «Пользователи»):
+`technolog`, `master`, `head`, `it`, `management` — офис; `operator`, `zagotovitel`, `slesar`, `kontroler` — общие
+учётные записи специалистов участка (окно «Мои операции»).
+
+Запуск для сети участка и автозапуск при входе в Windows:
+
+```bash
+scripts\start_server.bat
+```
+```bash
+powershell -ExecutionPolicy Bypass -File scripts\install_autostart.ps1
+```
+
+Обслуживание (резервная копия базы делается сервером раз в сутки в `data/backups`, хранятся 30 последних):
+
+```bash
+.venv/Scripts/python manage.py status
+```
+```bash
+.venv/Scripts/python manage.py backup
+```
+```bash
+.venv/Scripts/python manage.py reset-orders --drop-demo-journal
+```
+
+`reset-orders` перед запуском в работу удаляет заказы, позиции, операции и факты (сначала делает копию базы);
+справочники, станки, пользователи, ставки и журнал калибровки сохраняются.
+
+Рекомендуется установить Python 3.12 с python.org и пересоздать окружение `.venv`.
+
 ## Структура
 
 ```

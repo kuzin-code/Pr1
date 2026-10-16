@@ -28,3 +28,12 @@ class Settings:
     seed_dir: Path = field(default_factory=lambda: Path(os.environ.get("APP_SEED_DIR", DATA_DIR / "seed")))
     secret_key: str = field(default_factory=_secret_key)
     demo_journal: bool = field(default_factory=lambda: os.environ.get("APP_DEMO_JOURNAL", "1") == "1")
+    backups_dir: Path = field(default_factory=lambda: Path(os.environ.get("APP_BACKUPS_DIR", DATA_DIR / "backups")))
+
+    @property
+    def db_path(self) -> Path | None:
+        """Файл базы SQLite (None — база в памяти)."""
+        prefix = "sqlite:///"
+        if not self.db_url.startswith(prefix) or self.db_url in ("sqlite:///:memory:",):
+            return None
+        return Path(self.db_url[len(prefix):])

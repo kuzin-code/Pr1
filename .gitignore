@@ -223,3 +223,5 @@ __marimo__/
 data/app.db
 data/uploads/
 data/.secret_key
+data/backups/
+data/server.log
