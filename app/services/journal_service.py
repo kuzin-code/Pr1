@@ -136,8 +136,11 @@ def create_entry_from_files(session: Session, actor: Actor, files: list[Uploaded
         raise ServiceError("Габариты не прочитаны из STEP: создайте деталь импортом Excel или исправьте модель")
 
     grade = data.get("tolerance_grade") or DEFAULT_GRADE
-    features = PartFeatures(Dimensions.from_list(data["dims"]), data.get("material") or "", grade,
-                            estimate_complexity(grade, len(data.get("threads") or [])), "milling")
+    drawing = data.get("drawing") or {}  # как при расчёте заказа: число резьбовых отверстий, Ra, допуски формы
+    complexity = estimate_complexity(grade, drawing.get("thread_count") or len(data.get("threads") or []),
+                                     drawing.get("ra_min"), bool(drawing.get("has_form_tolerances")))
+    features = PartFeatures(Dimensions.from_list(data["dims"]), data.get("material") or "", grade, complexity,
+                            "milling")
     analog = pick_analog(features, journal_entries(session))
     machine = preferred_machines(session).get(features.technology, "")
     entry = CalibrationEntry(

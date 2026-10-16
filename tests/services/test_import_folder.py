@@ -77,3 +77,12 @@ def test_browser_copy_suffixes_and_solidworks_files(session, tmp_path):
     assert report.created == ["KPU.700.001 Крышка"]
     assert any("KPU.700.002 Изолятор.SLDPRT" in n and "STEP" in n for n in report.solidworks)
     assert "KPU.700.002 Изолятор.pdf" in report.unpaired
+
+
+def test_complexity_counts_threaded_holes_not_thread_kinds(session, tmp_path):
+    kd = tmp_path / "КД"
+    kd.mkdir()
+    (kd / "KPU.600.001 Korpus.stp").write_text(make_box_step(90, 50, 20))
+    (kd / "KPU.600.001 Korpus.pdf").write_bytes(make_pdf(["KPU.600.001", "Material: D16T"] + ["M3", "M4"] * 3))
+    js.import_folder(session, SYSTEM, kd, tmp_path / "jf")
+    assert ref.journal_entry(session, "KPU.600.001 Korpus").complexity == 2  # IT12 → 1; 6 резьбовых отверстий двух видов → +1
