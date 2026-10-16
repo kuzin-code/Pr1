@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
@@ -138,6 +138,16 @@ def list_notifications(session: Session, actor: Actor, unread_only: bool = False
     if unread_only:
         query = query.where(NotificationRow.read.is_(False))
     return list(session.scalars(query))
+
+
+def unread_count(session: Session, role: Role) -> int:
+    """Число непрочитанных уведомлений роли (для счётчика в меню)."""
+    query = select(func.count(NotificationRow.id)).where(NotificationRow.read.is_(False))
+    if role is Role.MASTER:
+        query = query.where((NotificationRow.role == Role.MASTER.value) | NotificationRow.role.is_(None))
+    else:
+        query = query.where(NotificationRow.role == role.value)
+    return session.scalar(query) or 0
 
 
 def mark_notifications_read(session: Session, actor: Actor) -> None:

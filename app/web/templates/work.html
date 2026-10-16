@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Мои операции{% endblock %}
 {% block content %}
-<h1>Мои операции <span class="badge">{{ role.label }}</span></h1>
+<h1 data-auto-refresh="60">Мои операции <span class="badge">{{ role.label }}</span></h1>
 {% if show_machine_filter %}
 <form method="get" action="/work" class="inline" style="margin-bottom:12px">
   <label>Мой станок</label>

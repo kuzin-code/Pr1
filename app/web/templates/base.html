@@ -16,7 +16,7 @@
     {% if can('upload_order') %}<a href="/orders/new">Новый заказ</a>{% endif %}
     {% if can('view_plan') %}<a href="/plan">Загрузка станков</a>{% endif %}
     {% if can('do_operations') %}<a href="/work">Мои операции</a>{% endif %}
-    {% if can('receive_notifications') %}<a href="/notifications">Уведомления</a>{% endif %}
+    {% if can('receive_notifications') %}<a href="/notifications">Уведомления{% if unread %} <span class="nav-count">{{ unread }}</span>{% endif %}</a>{% endif %}
     {% if can('view_journal') %}<a href="/journal">Журнал калибровки</a>{% endif %}
     {% if can('view_reference') %}<a href="/reference">Справочники</a>{% endif %}
     {% if can('view_history') %}<a href="/history">История</a>{% endif %}
@@ -33,5 +33,18 @@
   {% for kind, message in flashes %}<div class="flash {{ kind }}">{{ message }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>
+<script>
+  // Автообновление страниц с живыми данными; не мешает, пока пользователь заполняет форму.
+  (function () {
+    var el = document.querySelector('[data-auto-refresh]');
+    if (!el) return;
+    var seconds = parseInt(el.getAttribute('data-auto-refresh'), 10) || 60;
+    setInterval(function () {
+      var a = document.activeElement;
+      var busy = a && (a.tagName === 'INPUT' || a.tagName === 'SELECT' || a.tagName === 'TEXTAREA');
+      if (!busy && !document.hidden) location.reload();
+    }, seconds * 1000);
+  })();
+</script>
 </body>
 </html>

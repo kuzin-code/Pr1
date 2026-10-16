@@ -122,3 +122,5 @@ a.dash-kpi:hover { box-shadow:0 4px 14px rgba(16,24,40,.08); }
 .dash-events a, .dash-grid table a { color:var(--text); text-decoration:none; }
 .dash-events a:hover, .dash-grid table a:hover { color:var(--accent); text-decoration:underline; }
 .dash-task .btn { white-space:nowrap; }
+.nav-count { display:inline-block; min-width:18px; padding:0 5px; border-radius:9px; background:#993556; color:#fff;
+  font-size:11px; line-height:18px; text-align:center; font-weight:700; }

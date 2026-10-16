@@ -70,9 +70,16 @@ templates.env.globals.update(
 def render(request: Request, name: str, status_code: int = 200, **context):
     user = request.session.get("user")
     role = Role(user["role"]) if user else None
+    unread = 0
+    if role is not None and can(role, Action.RECEIVE_NOTIFICATIONS):
+        from app.services.plan_service import unread_count
+
+        with request.app.state.session_factory() as session:
+            unread = unread_count(session, role)
     context.update(
         user=user,
         role=role,
+        unread=unread,
         can=lambda action: role is not None and can(role, Action(action)),
         flashes=pop_flashes(request),
     )
