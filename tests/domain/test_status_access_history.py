@@ -53,6 +53,7 @@ MATRIX = {
     Action.VIEW_COST: {Role.HEAD, Role.IT, Role.TECHNOLOGIST, Role.MASTER},
     Action.EDIT_RATES: {Role.IT},
     Action.MANAGE_USERS: {Role.IT},
+    Action.UNDO_OPERATIONS: {Role.MASTER},
     Action.EDIT_JOURNAL: {Role.TECHNOLOGIST},
     Action.IMPORT_JOURNAL: {Role.TECHNOLOGIST, Role.IT},
     Action.VIEW_REFERENCE: {Role.TECHNOLOGIST, Role.HEAD, Role.IT},

@@ -45,6 +45,7 @@ def position_page(request: Request, position_id: int, db: Session = Depends(get_
         calc=plan_service.plan_calc(pos), planned=plan.positions.get(pos.id), deviation=deviation,
         actual=actual, history=list_history(db, entity="position", entity_id=pos.id, limit=50),
         facts=plan_service.fact_ends(db, pos.id), operations=operation_service.position_operations(db, pos.id),
+        last_mark=operation_service.last_mark(db, pos.id),
     )
 
 
@@ -79,6 +80,14 @@ async def attach_files(request: Request, position_id: int, files: list[UploadFil
     uploaded = [order_service.UploadedFile(f.filename or "", await f.read()) for f in files if f.filename]
     return act(request, db, _back(position_id), lambda: order_service.attach_position_files(
         db, actor, position_id, uploaded, request.app.state.settings.upload_dir), "Файлы прикреплены, расчёт обновлён")
+
+
+@router.post("/positions/{position_id}/undo")
+def undo_mark(request: Request, position_id: int, reason: str = Form(""), db: Session = Depends(get_db)):
+    """Мастер отменяет последнюю ошибочную отметку «Начал» / «Закончил»."""
+    actor = current_actor(request)
+    return act(request, db, _back(position_id),
+               lambda: operation_service.undo_last(db, actor, position_id, reason), "Отметка отменена")
 
 
 @router.post("/positions/{position_id}/data")

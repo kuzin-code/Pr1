@@ -228,7 +228,7 @@
   </table>
   {% if facts %}<p>Факт: {% for k, v in facts.items() %}<span class="badge ok">{{ k.label }}: {{ v|dt }}</span>{% endfor %}</p>{% endif %}
   {% if operations %}
-  <h2 style="margin-top:12px">Операции</h2>
+  <h2 style="margin-top:12px" id="operations">Операции</h2>
   <table>
     <tr><th>№</th><th>Операция</th><th>Оборудование</th><th class="num">План, ч</th><th>Статус</th>
       <th>Начал</th><th>Закончил</th><th class="num">Факт, ч</th></tr>
@@ -241,7 +241,15 @@
       <td class="num">{{ o.duration_hours|hours if o.duration_hours is not none else '—' }}</td></tr>
     {% endfor %}
   </table>
-  {% if can('do_operations') %}<p><a class="btn secondary" href="/work">Отметить в окне операций</a></p>{% endif %}
+  <div class="row">
+  {% if can('do_operations') %}<a class="btn secondary" href="/work">Отметить в окне операций</a>{% endif %}
+  {% if can('undo_operations') and last_mark %}
+  <form method="post" action="/positions/{{ pos.id }}/undo" class="inline" style="margin-left:auto">
+    <span class="muted">Последняя отметка — {{ last_mark }}</span>
+    <input name="reason" placeholder="причина отмены" required>
+    <button class="danger">Отменить отметку</button>
+  </form>{% endif %}
+  </div>
   {% endif %}
 </div>
 {% endif %}

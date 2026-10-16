@@ -28,7 +28,8 @@ class Action(str, Enum):
     RECEIVE_NOTIFICATIONS = "receive_notifications"
     VIEW_HISTORY = "view_history"
     MANAGE_USERS = "manage_users"  # учётные записи и пароли
-    DO_OPERATIONS = "do_operations"  # окно специалиста: очередь операций, «Начал» / «Закончил»
+    DO_OPERATIONS = "do_operations"
+    UNDO_OPERATIONS = "undo_operations"  # отмена ошибочной отметки «Начал» / «Закончил»  # окно специалиста: очередь операций, «Начал» / «Закончил»
 
 
 PERMISSIONS: dict[Action, frozenset[Role]] = {
@@ -56,6 +57,7 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.MANAGE_USERS: frozenset({IT}),
     Action.RECEIVE_NOTIFICATIONS: frozenset({M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
     Action.DO_OPERATIONS: frozenset({M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
+    Action.UNDO_OPERATIONS: frozenset({M}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),
 }
 

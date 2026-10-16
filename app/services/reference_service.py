@@ -128,6 +128,17 @@ def add_journal_measurement(session: Session, code: str, group: StageGroup, calc
     return entry
 
 
+def remove_measurements(session: Session, code: str, position_id: int, group: StageGroup) -> None:
+    """Убирает замеры позиции по группе (отменённая ошибочная отметка факта)."""
+    row = session.scalar(select(JournalRow).where(JournalRow.part_code == code))
+    if row is None:
+        return
+    kept = [m for m in row.measurements if not (m.get("position_id") == position_id and m["group"] == group.value)]
+    if len(kept) != len(row.measurements):
+        row.measurements = kept
+        bump_journal_version(session)
+
+
 def import_journal_file(session: Session, actor: Actor, path: Path | str, replace: bool = False) -> int:
     """Загрузка журнала из Excel: записи с тем же обозначением обновляются."""
     require(actor.role, Action.IMPORT_JOURNAL)

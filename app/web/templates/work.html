@@ -34,6 +34,8 @@
       <form method="post" action="/operations/{{ r.id }}/finish" class="inline">
         <input type="datetime-local" name="at" value="{{ now }}"><button>Закончил</button></form>
       {% endif %}
+      {% if can('undo_operations') and (r.status == 'in_progress' or r.seq > 1) %}
+      <a class="muted" href="/positions/{{ p.id }}#operations">отменить ошибочную отметку</a>{% endif %}
     </td>
   </tr>
   {% else %}

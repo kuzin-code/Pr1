@@ -62,3 +62,17 @@ def test_home_pages_for_specialists(login):
     assert login("technolog").get("/work").status_code == 403
     assert login("master").get("/work").status_code == 200
     assert login("master").get("/facts").headers["location"] == "/work"
+
+
+def test_master_undoes_mistaken_mark(login):
+    pid = approve(login)
+    cutter = login("zagotovitel")
+    (cut,) = op_ids(cutter.get("/work").text)
+    press(cutter, cut, "start", "2026-10-19T08:00")
+    master = login("master")
+    page = master.get(f"/positions/{pid}").text
+    assert "Отменить отметку" in page and "«Начал»: Резка заготовки" in page
+    assert "Отменить отметку" not in login("technolog").get(f"/positions/{pid}").text
+    assert login("operator").post(f"/positions/{pid}/undo", data={"reason": "x"}).status_code == 403
+    assert master.post(f"/positions/{pid}/undo", data={"reason": "не та деталь"}).status_code == 303
+    assert cut in op_ids(cutter.get("/work").text)  # снова «можно начинать»

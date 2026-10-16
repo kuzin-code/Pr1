@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
 from app.domain.enums import FactKind, Operation, PositionStatus, Role, StageGroup
+from app.domain.history import require_reason
 from app.domain.operations import (
     MACHINE_OPERATIONS,
     OPERATION_ROLES,
@@ -28,8 +29,8 @@ from app.services.actor import Actor
 from app.services.fact_service import record_fact
 from app.services.history_service import record
 from app.services.plan_service import fact_ends, notify
-from app.services.reference_service import machine_operations
-from app.storage.orm import OperationRow, PositionRow
+from app.services.reference_service import machine_operations, remove_measurements
+from app.storage.orm import FactRow, NotificationRow, OperationRow, PositionRow
 
 IN_WORK = (PositionStatus.APPROVED, PositionStatus.MACHINING, PositionStatus.BENCH, PositionStatus.INSPECTION)
 _GROUP_FACT = {StageGroup.MACHINE: FactKind.MACHINE, StageGroup.BENCH: FactKind.BENCH}
@@ -190,5 +191,78 @@ def finish(session: Session, actor: Actor, op_id: int, at: datetime | None = Non
         nxt = Operation(following.operation)
         notify(session, _specialist(nxt), f"op:{following.id}:ready", pos.id, following.operation, at,
                f"{nxt.label}: можно начинать — {_label(pos, following)}")
+    session.commit()
+    return row
+
+
+# --- отмена ошибочной отметки (мастер) ------------------------------------------------------------
+
+_FACT_ORDER = [FactKind.MACHINE, FactKind.BENCH, FactKind.INSPECTION]
+_FACT_OF_GROUP = {StageGroup.MACHINE: FactKind.MACHINE, StageGroup.BENCH: FactKind.BENCH}
+
+
+def _last_marked(rows: list[OperationRow]) -> OperationRow | None:
+    started = [r for r in rows if r.started_at is not None]
+    in_progress = [r for r in started if r.status == OpStatus.IN_PROGRESS.value]
+    if in_progress:
+        return in_progress[-1]
+    return max(started, key=lambda r: (r.finished_at or r.started_at, r.seq), default=None)
+
+
+def last_mark(session: Session, position_id: int) -> str | None:
+    """Описание последней отметки позиции — что будет отменено."""
+    row = _last_marked(position_operations(session, position_id))
+    if row is None:
+        return None
+    label = Operation(row.operation).label
+    if row.status == OpStatus.IN_PROGRESS.value:
+        return f"«Начал»: {label}, {row.started_at:%d.%m %H:%M}"
+    return f"«Закончил»: {label}, {row.finished_at:%d.%m %H:%M}"
+
+
+def _drop_facts_from(session: Session, pos: PositionRow, first: FactKind) -> None:
+    """Удаляет факт группы и последующие, вместе с их замерами в журнале калибровки."""
+    for kind in _FACT_ORDER[_FACT_ORDER.index(first):]:
+        for fact in session.scalars(select(FactRow).where(FactRow.position_id == pos.id)
+                                    .where(FactRow.kind == kind.value)):
+            group = {FactKind.MACHINE: StageGroup.MACHINE, FactKind.BENCH: StageGroup.BENCH}.get(kind)
+            if group and pos.analog_code:
+                remove_measurements(session, pos.analog_code, pos.id, group)
+            session.delete(fact)
+    session.flush()
+
+
+def undo_last(session: Session, actor: Actor, position_id: int, reason: str) -> OperationRow:
+    """Мастер отменяет последнюю отметку позиции: «Закончил» → в работе, «Начал» → можно начинать."""
+    require(actor.role, Action.UNDO_OPERATIONS)
+    reason = require_reason(reason)
+    pos = session.get(PositionRow, position_id)
+    rows = position_operations(session, position_id)
+    row = _last_marked(rows)
+    if pos is None or row is None:
+        raise OperationError("По позиции нет отметок для отмены")
+    description = last_mark(session, position_id)
+    if row.status == OpStatus.DONE.value:
+        fact = _FACT_OF_GROUP.get(group_of(Operation(row.operation)))
+        if Operation(row.operation) is Operation.INSPECTION:
+            fact = FactKind.INSPECTION
+        if fact is not None:
+            _drop_facts_from(session, pos, fact)
+        for key in (f"op:{row.id}:done", *(f"op:{r.id}:ready" for r in rows if r.seq > row.seq)):
+            session.query(NotificationRow).filter(NotificationRow.key == key).delete()
+        row.status, row.finished_at, row.finished_by, row.duration_hours = OpStatus.IN_PROGRESS.value, None, None, None
+    else:
+        row.status, row.started_at, row.started_by = OpStatus.WAITING.value, None, None
+    _refresh(rows)
+    ends = fact_ends(session, pos.id)
+    if not any(r.started_at for r in rows):
+        pos.status = PositionStatus.APPROVED.value
+    elif FactKind.BENCH in ends and FactKind.INSPECTION not in ends:
+        pos.status = PositionStatus.INSPECTION.value
+    elif FactKind.MACHINE in ends and FactKind.BENCH not in ends:
+        pos.status = PositionStatus.BENCH.value
+    elif FactKind.MACHINE not in ends:
+        pos.status = PositionStatus.MACHINING.value
+    record(session, actor, "position", pos.id, "undo", description, None, reason)
     session.commit()
     return row
