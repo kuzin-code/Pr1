@@ -34,3 +34,23 @@ def test_technologist_gets_new_order_notification(app):
 def test_bad_request_keeps_form_values(app):
     resp = login(app, "master").post("/orders", data={"customer": "ИП Петров"})
     assert resp.status_code == 400 and "ИП Петров" in resp.text
+
+
+def test_proposal_preview_and_word_download(app):
+    import re
+    client = login(app, "manager")
+    page = client.post("/orders", data={"customer": "ООО «Альфа»", "desired_date": "2030-01-15"},
+                       files=[("files", ("P-1.step", make_box_step(90, 50, 20).encode())),
+                              ("files", ("P-1.pdf", make_pdf(["Bore 10H9"])))]).text
+    order_id = re.search(r'href="/orders/(\d+)/proposal"', page).group(1)
+    preview = client.get(f"/orders/{order_id}/proposal")
+    assert preview.status_code == 200 and "Коммерческое предложение" in preview.text
+    assert "Цена операций" in preview.text and "Срок изготовления" in preview.text and "ООО «Альфа»" in preview.text
+    assert f"/orders/{order_id}/proposal.docx" in preview.text  # автоматическое скачивание
+    doc = client.get(f"/orders/{order_id}/proposal.docx")
+    assert doc.status_code == 200 and doc.content[:2] == b"PK"
+    assert "attachment" in doc.headers["content-disposition"] and ".docx" in doc.headers["content-disposition"]
+
+
+def test_operator_has_no_proposal(app):
+    assert login(app, "operator").get("/orders/1/proposal.docx").status_code == 403

@@ -6,6 +6,7 @@ sqlalchemy==2.0.36
 itsdangerous==2.2.0
 pypdf==5.1.0
 openpyxl==3.1.5
+python-docx==1.1.2
 # тесты
 pytest==8.3.4
 httpx==0.28.1

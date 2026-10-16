@@ -37,3 +37,59 @@ def check_desired(calculated: datetime | None, desired: date | None) -> DesiredC
     if finish <= desired:
         return DesiredCheck("ok", _workdays_between(finish, desired))
     return DesiredCheck("late", _workdays_between(desired, finish))
+
+
+# --- Срок для коммерческого предложения: расчётная дата ±10 % длительности изготовления ----------------
+RANGE_SHARE = 0.10
+
+
+def _shift_workdays(day: date, days: int) -> date:
+    step = 1 if days >= 0 else -1
+    for _ in range(abs(days)):
+        day += timedelta(days=step)
+        while day.weekday() >= 5:
+            day += timedelta(days=step)
+    return day
+
+
+@dataclass(frozen=True)
+class ProposalRange:
+    finish: date  # расчётная дата
+    duration: int  # рабочих дней от начала до расчётной даты включительно
+    delta: int  # ±10 % длительности, округлено вверх, не меньше 1 дня
+    earliest: date
+    latest: date
+
+    def against(self, desired: date | None) -> "RangeCheck":
+        if desired is None:
+            return RangeCheck("none")
+        if desired >= self.latest:
+            return RangeCheck("ok", _workdays_between(self.latest, desired))
+        if desired >= self.earliest:
+            return RangeCheck("range", _workdays_between(desired, self.latest))
+        return RangeCheck("late", _workdays_between(desired, self.finish))
+
+
+@dataclass(frozen=True)
+class RangeCheck:
+    status: str  # ok — успеваем с учётом диапазона; range — желаемая внутри диапазона; late — не успеваем
+    workdays: int = 0
+
+    @property
+    def label(self) -> str:
+        if self.status == "ok":
+            return "успеваем" + (f", запас {self.workdays} раб. дн." if self.workdays else "")
+        if self.status == "range":
+            return f"попадает в диапазон: возможна задержка до {self.workdays} раб. дн."
+        if self.status == "late":
+            return f"не успеваем: расчётная дата позже желаемой на {self.workdays} раб. дн."
+        return ""
+
+
+def proposal_range(start: date, finish: datetime) -> ProposalRange:
+    import math
+
+    end = finish.date()
+    duration = _workdays_between(start - timedelta(days=1), end) if end >= start else 0
+    delta = max(1, math.ceil(duration * RANGE_SHARE - 1e-9))
+    return ProposalRange(end, duration, delta, _shift_workdays(end, -delta), _shift_workdays(end, delta))

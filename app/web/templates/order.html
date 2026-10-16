@@ -2,6 +2,8 @@
 {% block title %}Заказ {{ order.number }}{% endblock %}
 {% block content %}
 <h1>Заказ {{ order.number }}</h1>
+{% if can('upload_order') %}<p><a class="btn" href="/orders/{{ order.id }}/proposal">Сформировать КП</a>
+  <span class="muted">предварительный просмотр и файл Word в «Загрузки»</span></p>{% endif %}
 {% if done %}<div class="flash ok">Заказ завершён: все позиции прошли внутренний контроль.</div>{% endif %}
 <div class="card row">
   <div><label>Дата начала</label>{{ order.start_date|dt }}</div>

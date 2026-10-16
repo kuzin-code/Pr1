@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ p.number }} — коммерческое предложение{% endblock %}
+{% block content %}
+<div class="kp-bar no-print">
+  <a href="/orders/{{ order_id }}" class="btn secondary">← К заказу {{ p.order_number }}</a>
+  <a href="/orders/{{ order_id }}/proposal.docx" class="btn" id="kp-download">Скачать Word ещё раз</a>
+  <button onclick="window.print()" class="secondary">Печать / PDF</button>
+  <span class="muted">Предварительный просмотр. Файл Word уже скачивается в «Загрузки» — в нём всё можно поправить.</span>
+</div>
+<iframe src="/orders/{{ order_id }}/proposal.docx" hidden title="Скачивание КП"></iframe>
+
+<div class="kp-sheet">
+  <div class="kp-head">
+    <div><b>{{ p.org }}</b><div class="muted">{{ p.requisites }}</div></div>
+    <div class="kp-meta">КП № {{ p.number }} от {{ p.date|dt }}<br>к заказу {{ p.order_number }}<br>
+      Действительно до {{ p.valid_until|dt }}</div>
+  </div>
+  <h2 class="kp-title">Коммерческое предложение</h2>
+  <p><span class="muted">Заказчик:</span> <b>{{ p.customer or "—" }}</b>
+    {% if p.contact_line %}<br><span class="muted">Контакты:</span> {{ p.contact_line }}{% endif %}</p>
+  <p>Благодарим за запрос. Предлагаем изготовить детали по вашей конструкторской документации на следующих условиях:</p>
+
+  <table class="kp-table">
+    <tr><th>№</th><th>Обозначение</th><th>Наименование</th><th>Материал</th><th class="num">Кол-во, шт.</th>
+      <th class="num">Цена за шт., ₽</th><th class="num">Сумма, ₽</th></tr>
+    {% for it in p.items %}
+    <tr><td>{{ loop.index }}</td><td>{{ it.designation }}</td><td>{{ it.name }}</td><td>{{ it.material }}</td>
+      <td class="num">{{ it.quantity }}</td><td class="num">{{ kp_money(it.price) }}</td><td class="num">{{ kp_money(it.batch_price) }}</td></tr>
+    {% endfor %}
+    <tr class="kp-total"><td colspan="6" class="num">Итого без НДС</td><td class="num">{{ kp_money(p.total) }}</td></tr>
+    <tr class="kp-total"><td colspan="6" class="num">НДС {{ p.vat_percent }} %</td><td class="num">{{ kp_money(p.vat) }}</td></tr>
+    <tr class="kp-total"><td colspan="6" class="num">Итого с НДС</td><td class="num">{{ kp_money(p.grand_total) }}</td></tr>
+  </table>
+
+  <h3 class="kp-sub">Цена операций (на партию)</h3>
+  <table class="kp-table">
+    <tr><th>№</th><th>Обозначение</th><th>Операция</th><th class="num">Время × ставка, ₽/ч</th><th class="num">Сумма, ₽</th></tr>
+    {% for it in p.items %}
+    {% if it.batch_price is none %}
+    <tr><td>{{ loop.index }}</td><td>{{ it.designation }}</td><td colspan="3" class="muted">цена не рассчитана</td></tr>
+    {% else %}
+    <tr><td>{{ loop.index }}</td><td>{{ it.designation }}</td><td>Станочная обработка (наладка и обработка)</td>
+      <td class="num">{{ kp_hours(it.machine_hours) }} ч × {{ kp_money(it.machine_rate) }}</td><td class="num">{{ kp_money(it.machine_price) }}</td></tr>
+    <tr><td></td><td></td><td>Слесарно-финишная обработка</td>
+      <td class="num">{{ kp_hours(it.bench_hours) }} ч × {{ kp_money(it.bench_rate) }}</td><td class="num">{{ kp_money(it.bench_price) }}</td></tr>
+    {% endif %}
+    {% endfor %}
+  </table>
+  <p class="kp-note">{{ p.price_note }}</p>
+
+  <table class="kp-terms">
+    {% if p.range %}
+    <tr><td>Расчётная дата изготовления</td><td><b>{{ p.range.finish|dt }}</b> <span class="muted">— по текущей загрузке станков с ЧПУ</span></td></tr>
+    <tr><td>Срок изготовления</td><td><span class="kp-range">с {{ p.range.earliest|dt }} по {{ p.range.latest|dt }}</span>
+      <div class="kp-note">±10 % от длительности изготовления ({{ p.range.duration }} раб. дн.), округлено вверх: ±{{ p.range.delta }} раб. дн.</div></td></tr>
+    {% else %}<tr><td>Срок изготовления</td><td><b>уточняется</b></td></tr>{% endif %}
+    {% if p.desired %}
+    <tr><td>Желаемая дата заказчика</td><td><b>{{ p.desired|dt }}</b>
+      <span class="badge {{ {'ok': 'ok', 'range': 'warn', 'late': 'err'}.get(p.desired_check.status, '') }}">{{ p.desired_check.label }}</span></td></tr>
+    {% endif %}
+    <tr><td>Начало изготовления</td><td>{{ p.start|dt }}; после согласования КП и предоплаты, при более позднем подтверждении срок пересчитывается</td></tr>
+    <tr><td>Условия оплаты</td><td>{{ p.payment }}</td></tr>
+    <tr><td>Доставка</td><td>{{ p.delivery }}</td></tr>
+  </table>
+  {% for note in p.notes %}<p class="kp-note" style="color:var(--err)">{{ note }}</p>{% endfor %}
+  <p class="kp-note">{{ p.disclaimer }}</p>
+  <div class="kp-sign"><div>Менеджер производства / Ф. И. О. / подпись</div><div>Начальник участка / Ф. И. О. / подпись</div></div>
+</div>
+{% endblock %}

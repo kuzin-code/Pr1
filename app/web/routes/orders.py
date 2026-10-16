@@ -1,4 +1,5 @@
 """Заказы: список, приём, карточка заказа (ФТ-01, ФТ-02, ФТ-16)."""
+import re
 import tempfile
 from datetime import date, datetime
 from pathlib import Path
@@ -11,7 +12,9 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, require
 from app.domain.enums import PositionStatus
 from app.domain.status import order_done
-from app.services import approval_service, fact_service, intake_service, order_service, plan_service, tech_service
+from app.services import (approval_service, fact_service, intake_service, order_service, plan_service,
+                          proposal_service, tech_service)
+from app.services.proposal_docx import write_docx
 from app.services.actor import ServiceError
 from app.domain.order_intake import IntakeError
 from app.parsers.order_list import write_template
@@ -88,6 +91,30 @@ async def order_create(request: Request, start_date: str = Form(""), number: str
     for warning in getattr(order, "intake_warnings", []):
         flash(request, warning, "error")
     return redirect(f"/orders/{order.id}")
+
+
+@router.get("/orders/{order_id}/proposal")
+def proposal_page(request: Request, order_id: int, db: Session = Depends(get_db)):
+    """Предварительный просмотр КП (лист А4); файл Word скачивается автоматически."""
+    actor = current_actor(request)
+    try:
+        proposal = proposal_service.build_proposal(db, actor, order_id)
+    except ServiceError as err:
+        flash(request, str(err), "error")
+        return redirect("/orders")
+    return render(request, "proposal.html", p=proposal, order_id=order_id)
+
+
+@router.get("/orders/{order_id}/proposal.docx")
+def proposal_file(request: Request, order_id: int, db: Session = Depends(get_db)):
+    actor = current_actor(request)
+    proposal = proposal_service.build_proposal(db, actor, order_id, record_history=True)
+    tmp = Path(tempfile.mkdtemp()) / "kp.docx"
+    write_docx(proposal, tmp)
+    name = re.sub(r'[\\/:*?"<>|]+', "-", f"{proposal.number} {proposal.customer}".strip())
+    return FileResponse(tmp, filename=f"{name}.docx",
+                        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        background=BackgroundTask(lambda: tmp.unlink(missing_ok=True)))
 
 
 @router.get("/orders/{order_id}")

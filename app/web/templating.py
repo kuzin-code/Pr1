@@ -59,6 +59,8 @@ def dims(values) -> str:
 templates.env.filters.update(money=money, hours=hours, dt=dt, short=short, dims=dims,
                              role_label=lambda v: Role(v).label)
 templates.env.globals.update(check_desired=check_desired)
+from app.services.proposal_docx import hours as kp_hours, money as kp_money  # noqa: E402
+templates.env.globals.update(kp_money=kp_money, kp_hours=kp_hours)
 templates.env.globals.update(
     Stage=Stage, CountMode=CountMode, FactKind=FactKind, PositionStatus=PositionStatus,
     STAGE_LABELS=STAGE_LABELS, STATUS_LABELS=STATUS_LABELS,
