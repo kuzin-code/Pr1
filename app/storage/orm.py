@@ -70,6 +70,8 @@ class JournalRow(Base):  # Д-4
     step_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     pdf_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     pdf_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # False — время операций предложено системой и ещё не проверено технологом
+    confirmed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class OrderRow(Base):  # Д-1

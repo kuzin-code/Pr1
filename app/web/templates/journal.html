@@ -2,6 +2,7 @@
 {% block title %}Журнал калибровки{% endblock %}
 {% block content %}
 <h1>Журнал калибровки <span class="badge">версия {{ version }}</span></h1>
+{% if unconfirmed %}<div class="flash error">Время операций не подтверждено технологом у {{ unconfirmed }} дет. — оно предложено системой; проверьте его в карточках деталей.</div>{% endif %}
 {% if missing %}<div class="flash error">В журнале без исправных файлов: {{ missing }} дет. — откройте деталь и прикрепите её STEP и PDF.</div>{% endif %}
 <div class="grid">
 {% if can('edit_journal') %}
@@ -10,6 +11,10 @@
   <form method="post" action="/journal/new" enctype="multipart/form-data" class="inline">
     <input type="file" name="files" multiple required accept=".step,.stp,.pdf">
     <button>Добавить по STEP + PDF</button>
+  </form>
+  <form method="post" action="/journal/import-folder" class="inline" style="margin-top:10px">
+    <button class="secondary">Подхватить чертежи из папки КД</button>
+    <span class="muted">{{ drawings_dir }}</span>
   </form>
   <p class="muted">Габариты, материал и квалитет прочитаются из файлов, время операций будет предложено по ближайшему аналогу — затем проверьте и поправьте его в карточке детали.</p>
 </div>
@@ -35,7 +40,8 @@
   <tr><th>Деталь</th><th>Станок</th><th>Материал</th><th>Габариты, мм</th><th class="num">IT</th><th class="num">Сложн.</th>
     <th>Операции (время на ед. счёта)</th><th>k станочная</th><th>k слес.-финишная</th><th>Файлы</th></tr>
   {% for e in entries %}{% set k = ks[e.part_code] %}{% set row = rows.get(e.part_code) %}
-  <tr><td><a href="/journal/{{ row.id }}"><b>{{ e.part_code }}</b></a><br><span class="muted">{{ e.name }} · {{ e.technology }}</span></td>
+  <tr><td><a href="/journal/{{ row.id }}"><b>{{ e.part_code }}</b></a><br><span class="muted">{{ e.name }} · {{ e.technology }}</span>
+    {% if row.confirmed is sameas false %}<br><span class="badge warn">время не подтверждено</span>{% endif %}</td>
     <td>{{ e.machine_code }}</td><td>{{ e.material }}</td><td>{{ e.dims.as_list()|dims }}</td>
     <td class="num">{{ e.tolerance_grade }}</td><td class="num">{{ e.complexity }}</td>
     <td>{% for s in e.stages %}<span class="badge">{{ s.stage.label }}: {{ s.hours }} ч / {{ s.count_mode.label }}</span>{% endfor %}</td>

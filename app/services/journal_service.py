@@ -81,6 +81,7 @@ def add_to_journal(session: Session, actor: Actor, position_id: int) -> Calibrat
     )
     row = entry_to_row(entry)
     row.step_name, row.step_path, row.pdf_name, row.pdf_path = pos.step_name, pos.step_path, pos.pdf_name, pos.pdf_path
+    row.confirmed = False
     session.add(row)
     _save(session, actor, row, "add", None, pos.id, f"внесена из позиции {pos.id} (заказ {pos.order.number})")
     return entry
@@ -145,6 +146,7 @@ def create_entry_from_files(session: Session, actor: Actor, files: list[Uploaded
         stages=analog.route if analog else list(MANUAL_ROUTE), technology=features.technology,
     )
     row = entry_to_row(entry)
+    row.confirmed = False
     session.add(row)
     session.flush()
     _store_files(row, files, storage_dir)
@@ -211,6 +213,7 @@ def set_stage_times(session: Session, actor: Actor, entry_id: int,
             raise ServiceError(f"{Stage(stage).label}: {err}") from None
     old = row.stages
     row.stages = [s.to_dict() for s in route_from_list([s.to_dict() for s in current.values()])]
+    row.confirmed = True  # время сохранено технологом
     _save(session, actor, row, "stages", old, row.stages, reason)
     return row
 
@@ -293,3 +296,74 @@ def import_journal_with_files(session: Session, actor: Actor, xlsx: Path | str, 
     record(session, actor, "journal", "*", "files", None, report.attached, "файлы загружены вместе с журналом")
     session.commit()
     return report
+
+
+# --- чертежи из папки проекта (КД) ---------------------------------------------------------------
+
+DRAWING_SUFFIXES = {".pdf", ".step", ".stp"}
+
+
+@dataclass
+class FolderReport:
+    created: list[str] = field(default_factory=list)
+    files_attached: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    unpaired: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+
+
+def _existing(rows: list[JournalRow], code: str) -> JournalRow | None:
+    low = code.casefold()
+    return next((r for r in rows if r.part_code.casefold() == low or low.startswith(r.part_code.casefold() + " ")),
+                None)
+
+
+def import_folder(session: Session, actor: Actor, folder: Path | str, storage_dir: Path | str) -> FolderReport:
+    """Пары STEP+PDF из папки (с подпапками) → журнал калибровки. Новые детали получают время по аналогу
+    с пометкой «не подтверждено»; известным деталям без файлов прикрепляются файлы; проверенные не трогаются."""
+    require(actor.role, Action.EDIT_JOURNAL)
+    report, folder = FolderReport(), Path(folder)
+    if not folder.is_dir():
+        report.errors.append(f"Папка «{folder}» не найдена")
+        return report
+    groups: dict[str, dict[str, Path]] = {}
+    for path in sorted(folder.rglob("*")):
+        if path.is_file() and path.suffix.lower() in DRAWING_SUFFIXES:
+            kind = "pdf" if path.suffix.lower() == ".pdf" else "step"
+            pair = groups.setdefault(path.stem.strip().casefold(), {})
+            if kind in pair:
+                report.errors.append(f"Два файла {kind.upper()} с одним именем: «{pair[kind]}» и «{path}»")
+                continue
+            pair[kind] = path
+    for pair in groups.values():
+        if len(pair) < 2:
+            report.unpaired.append(next(iter(pair.values())).name)
+            continue
+        code = journal_code(pair["pdf"].stem)
+        uploads = [UploadedFile(p.name, p.read_bytes()) for p in pair.values()]
+        row = _existing(journal_rows(session), code)
+        try:
+            if row is None:
+                create_entry_from_files(session, actor, uploads, storage_dir)
+                report.created.append(code)
+            elif all(s.ok for s in check_entry_files(row)):
+                report.skipped.append(row.part_code)
+            else:
+                _store_files(row, uploads, storage_dir)
+                _save(session, actor, row, "files", None, {"step": row.step_name, "pdf": row.pdf_name},
+                      "файлы из папки КД")
+                report.files_attached.append(row.part_code)
+        except ValueError as err:
+            session.rollback()
+            report.errors.append(f"{code}: {err}")
+    return report
+
+
+def confirm_times(session: Session, actor: Actor, entry_id: int) -> JournalRow:
+    """Технолог подтверждает, что время операций детали проверено."""
+    require(actor.role, Action.EDIT_JOURNAL)
+    row = entry_row(session, entry_id)
+    if row.confirmed is not True:
+        row.confirmed = True
+        _save(session, actor, row, "confirmed", False, True, "время операций проверено технологом")
+    return row

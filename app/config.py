@@ -29,6 +29,8 @@ class Settings:
     secret_key: str = field(default_factory=_secret_key)
     demo_journal: bool = field(default_factory=lambda: os.environ.get("APP_DEMO_JOURNAL", "1") == "1")
     backups_dir: Path = field(default_factory=lambda: Path(os.environ.get("APP_BACKUPS_DIR", DATA_DIR / "backups")))
+    # Папка с чертежами и моделями деталей для журнала калибровки (в git не попадает)
+    drawings_dir: Path = field(default_factory=lambda: Path(os.environ.get("APP_DRAWINGS_DIR", ROOT / "КД")))
 
     @property
     def db_path(self) -> Path | None:

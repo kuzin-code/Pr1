@@ -4,6 +4,11 @@
 {% block content %}
 <p class="muted"><a href="/journal">← Журнал калибровки</a></p>
 <h1>{{ entry.part_code }}</h1>
+{% if row.confirmed is sameas false %}
+<div class="flash error row">Время операций предложено системой и ещё не проверено технологом.
+  {% if edit %}<form method="post" action="/journal/{{ row.id }}/confirm" class="inline" style="margin-left:auto">
+    <button class="secondary">Время проверено</button></form>{% endif %}</div>
+{% endif %}
 
 <div class="grid">
 <div class="card">

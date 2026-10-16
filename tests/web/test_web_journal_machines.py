@@ -103,3 +103,21 @@ def test_journal_template_and_import_with_files(login, tmp_path):
     assert tech.post("/journal/import", files=files).status_code == 303
     page = tech.get("/journal").text
     assert "деталей 1, файлов прикреплено 2" in page and "KPU.300.001" in page
+
+
+def test_import_folder_button_and_confirmation(app, login, tmp_path):
+    kd = tmp_path / "КД"
+    kd.mkdir()
+    (kd / "KPU.600.001 Скоба.stp").write_text(make_box_step(80, 40, 10))
+    (kd / "KPU.600.001 Скоба.pdf").write_bytes(make_pdf(["KPU.600.001", "Material: D16T"]))
+    app.state.settings.drawings_dir = kd
+    tech = login("technolog")
+    assert tech.post("/journal/import-folder").status_code == 303
+    page = tech.get("/journal").text
+    assert "новых деталей 1" in page and "время не подтверждено" in page
+    import re
+    entry = re.search(r'href="(/journal/\d+)"><b>KPU.600.001 Скоба', page).group(1)
+    assert "Время проверено" in tech.get(entry).text
+    tech.post(f"{entry}/confirm")
+    assert "время не подтверждено" not in tech.get("/journal").text
+    assert login("head").post("/journal/import-folder").status_code == 403

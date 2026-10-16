@@ -36,7 +36,9 @@ def journal_page(request: Request, db: Session = Depends(get_db)):
     ks = {e.part_code: {g: k_for(e, g) for g in (StageGroup.MACHINE, StageGroup.BENCH)} for e in entries}
     files = {code: check_entry_files(row) for code, row in rows.items()}
     missing = sum(1 for status in files.values() if not all(s.ok for s in status))
+    unconfirmed = sum(1 for r in rows.values() if r.confirmed is False)
     return render(request, "journal.html", entries=entries, rows=rows, ks=ks, version=ref.journal_version(db),
+                  unconfirmed=unconfirmed, drawings_dir=request.app.state.settings.drawings_dir,
                   files=files, missing=missing,
                   machine_group=StageGroup.MACHINE, bench_group=StageGroup.BENCH)
 
@@ -98,6 +100,35 @@ async def journal_new(request: Request, files: list[UploadFile] = File(...), db:
         return redirect("/journal")
     flash(request, "Деталь добавлена: проверьте характеристики и время операций")
     return redirect(f"/journal/{row.id}")
+
+
+@router.post("/journal/import-folder")
+def journal_import_folder(request: Request, db: Session = Depends(get_db)):
+    """Подхватить пары STEP+PDF из папки КД проекта."""
+    actor = current_actor(request)
+    require(actor.role, Action.EDIT_JOURNAL)
+    folder = request.app.state.settings.drawings_dir
+
+    def run():
+        report = js.import_folder(db, actor, folder, _storage(request))
+        flash(request, f"Папка КД: новых деталей {len(report.created)}, прикреплены файлы {len(report.files_attached)}, "
+                       f"уже в журнале {len(report.skipped)}")
+        if report.created:
+            flash(request, "Время новых деталей предложено системой — проверьте и сохраните его в карточках", "error")
+        for name in report.unpaired:
+            flash(request, f"Нет пары STEP+PDF: {name}", "error")
+        for err in report.errors:
+            flash(request, err, "error")
+
+    return act(request, db, "/journal", run)
+
+
+@router.post("/journal/{entry_id:int}/confirm")
+def entry_confirm(request: Request, entry_id: int, db: Session = Depends(get_db)):
+    actor = current_actor(request)
+    require(actor.role, Action.EDIT_JOURNAL)
+    return act(request, db, f"/journal/{entry_id}", lambda: js.confirm_times(db, actor, entry_id),
+               "Время операций отмечено как проверенное")
 
 
 @router.get("/journal/{entry_id:int}")
