@@ -71,7 +71,7 @@ def test_title_block_fields():
 def test_sortament_fraction_material():
     d = parse_eskd(STEEL)
     assert d.sortament == "Круг 30-В ГОСТ 2590-2006"
-    assert d.material == "45-2б-ТВ ГОСТ 1050-2013"
+    assert d.material == "45-2б-ТВ"  # графа 3 — только марка, без стандарта
     assert d.blank == "круг"
 
 

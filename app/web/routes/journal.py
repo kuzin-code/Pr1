@@ -117,6 +117,8 @@ def journal_import_folder(request: Request, db: Session = Depends(get_db)):
             flash(request, "Время новых деталей предложено системой — проверьте и сохраните его в карточках", "error")
         for name in report.unpaired:
             flash(request, f"Нет пары STEP+PDF: {name}", "error")
+        for note in report.solidworks:
+            flash(request, note, "error")
         for err in report.errors:
             flash(request, err, "error")
 

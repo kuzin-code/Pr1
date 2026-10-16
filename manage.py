@@ -50,6 +50,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Уже в журнале ({len(report.skipped)}): {', '.join(report.skipped) or '—'}")
         for name in report.unpaired:
             print(f"Нет пары STEP+PDF: {name}")
+        for note in report.solidworks:
+            print(note)
         for err in report.errors:
             print(f"Ошибка: {err}")
     elif args.command == "backup":

@@ -13,7 +13,7 @@ from app.domain.calibration import add_measurement
 from app.domain.complexity import estimate_complexity
 from app.domain.enums import CountMode, Stage, StageGroup
 from app.domain.models import CalibrationEntry, Dimensions, PartFeatures, StageNorm
-from app.domain.order_intake import designation, file_kind, pair_files
+from app.domain.order_intake import file_kind, pair_files
 from app.domain.route import route_from_list
 from app.services.actor import Actor, ServiceError
 from app.services.auto_service import MANUAL_ROUTE
@@ -141,7 +141,7 @@ def create_entry_from_files(session: Session, actor: Actor, files: list[Uploaded
     analog = pick_analog(features, journal_entries(session))
     machine = preferred_machines(session).get(features.technology, "")
     entry = CalibrationEntry(
-        part_code=code, name=designation(code), machine_code=machine, material=features.material,
+        part_code=code, name=(data.get("drawing") or {}).get("name") or code, machine_code=machine, material=features.material,
         dims=features.dims, tolerance_grade=grade, complexity=features.complexity,
         stages=analog.route if analog else list(MANUAL_ROUTE), technology=features.technology,
     )
@@ -309,6 +309,7 @@ class FolderReport:
     files_attached: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     unpaired: list[str] = field(default_factory=list)
+    solidworks: list[str] = field(default_factory=list)  # модели SolidWorks — нужен STEP
     errors: list[str] = field(default_factory=list)
 
 
@@ -328,9 +329,11 @@ def import_folder(session: Session, actor: Actor, folder: Path | str, storage_di
         return report
     groups: dict[str, dict[str, Path]] = {}
     for path in sorted(folder.rglob("*")):
+        if path.is_file() and path.suffix.lower() in (".sldprt", ".sldasm"):
+            report.solidworks.append(f"{path.name} — формат SolidWorks: сохраните модель как STEP (AP214)")
         if path.is_file() and path.suffix.lower() in DRAWING_SUFFIXES:
             kind = "pdf" if path.suffix.lower() == ".pdf" else "step"
-            pair = groups.setdefault(path.stem.strip().casefold(), {})
+            pair = groups.setdefault(journal_code(path.stem).casefold(), {})  # «(1)», «(2)» не мешают
             if kind in pair:
                 report.errors.append(f"Два файла {kind.upper()} с одним именем: «{pair[kind]}» и «{path}»")
                 continue
@@ -340,7 +343,8 @@ def import_folder(session: Session, actor: Actor, folder: Path | str, storage_di
             report.unpaired.append(next(iter(pair.values())).name)
             continue
         code = journal_code(pair["pdf"].stem)
-        uploads = [UploadedFile(p.name, p.read_bytes()) for p in pair.values()]
+        # Имена без приписок копий браузера — «КПУ.123 Деталь.pdf», «КПУ.123 Деталь.stp»
+        uploads = [UploadedFile(f"{code}{p.suffix.lower()}", p.read_bytes()) for p in pair.values()]
         row = _existing(journal_rows(session), code)
         try:
             if row is None:

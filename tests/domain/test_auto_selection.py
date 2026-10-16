@@ -102,3 +102,7 @@ def test_same_part_in_journal_is_analog_by_designation():
     assert choice.entry.part_code == "КПУ.741645.001 Корпус" and not choice.approximate
     assert choice.route == journal[0].stages
     assert same_part(journal, "Другая деталь", "АБВГ.000.001") is None
+
+
+def test_aw_alloys_are_aluminium():
+    assert material_group("AW 6082 T6") == "aluminium" and material_group("EN AW-5083") == "aluminium"

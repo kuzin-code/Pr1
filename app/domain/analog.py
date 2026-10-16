@@ -19,7 +19,11 @@ class AnalogMatch:
 
 
 def normalize_material(material: str) -> str:
-    return "".join(material.split()).casefold()
+    """Марка без стандарта и пробелов: «Сталь 45 ГОСТ 1050» = «Сталь 45»."""
+    import re
+
+    brand = re.split(r"\s(?:ГОСТ|ТУ|ОСТ|GOST)(?![А-ЯA-Z])", material, maxsplit=1)[0]
+    return "".join(brand.split()).casefold()
 
 
 def _match(part: PartFeatures, entry: CalibrationEntry) -> AnalogMatch | None:

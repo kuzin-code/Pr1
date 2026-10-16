@@ -61,7 +61,7 @@ def _find_material(text: str, known: list[str]) -> str | None:
         value = _MATERIAL_CUT.split(label.group(1), maxsplit=1)[0].strip()
         if value:
             return value
-    material = parse_eskd(text).material
+    material = parse_eskd(text).material  # уже без стандарта
     if material:
         return material
     for name in sorted(known, key=len, reverse=True):
@@ -83,22 +83,15 @@ def _normalize_thread(m: re.Match) -> str:
     return result
 
 
-def parse_drawing_text(text: str, known_materials: list[str] | tuple = ()) -> DrawingData:
+def parse_drawing_text(text: str, known_materials: list[str] | tuple = (), file_stem: str | None = None
+                       ) -> DrawingData:
     data = DrawingData()
-    data.eskd = parse_eskd(text)
+    data.eskd = parse_eskd(text, file_stem)
     data.material = _find_material(text, list(known_materials))
     data.mass_kg = data.eskd.mass_kg
-    data.threads = list(dict.fromkeys(_normalize_thread(m) for m in _THREAD.finditer(text)))
-
-    rest = _THREAD.sub(" ", text)
-    if data.material:
-        rest = rest.replace(data.material, " ")
-    data.fits = list(dict.fromkeys(f"{m.group(1)}{m.group(2)}" for m in _FIT.finditer(rest)
-                                   if 1 <= int(m.group(2)) <= 18))
-    grades = [int(m.group(2)) for m in _FIT.finditer(rest) if 1 <= int(m.group(2)) <= 18]
-    grades += [int(g) for g in _IT.findall(rest)]
-    data.tolerance_grade = min(grades) if grades else data.eskd.general_grade
-    data.threads = data.eskd.threads or data.threads
+    data.threads = data.eskd.threads or list(dict.fromkeys(_normalize_thread(m) for m in _THREAD.finditer(text)))
+    # Посадки и квалитет — по ЕСКД: без допусков резьбы «6H/6g», трубной резьбы «G1/4» и марки материала.
+    data.fits, data.tolerance_grade = list(data.eskd.fits), data.eskd.tolerance_grade
     data.tolerances = [t.replace(" ", "") for t in _TOLERANCE.findall(text)]
     return data
 
@@ -123,4 +116,4 @@ def read_pdf(path: Path | str, known_materials: list[str] | tuple = ()) -> Drawi
         return DrawingData(errors=["Файл PDF не читается или повреждён: введите данные вручную"])
     if not text.strip():
         return DrawingData(errors=["В PDF нет текстового слоя (скан?): введите данные вручную"])
-    return parse_drawing_text(text, known_materials)
+    return parse_drawing_text(text, known_materials, Path(path).stem)

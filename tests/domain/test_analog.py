@@ -59,3 +59,9 @@ def test_nine_part_journal_suggestion_is_within_conditions():
     matches = find_analogs(features(dims=(100, 60, 20)), journal)
     assert matches[0].entry.part_code == "J4"
     assert all(m.max_dim_deviation <= 10 for m in matches)
+
+
+def test_material_standard_ignored_in_comparison():
+    from app.domain.analog import normalize_material
+    assert normalize_material("Сталь 45 ГОСТ 1050-2013") == normalize_material("Сталь 45")
+    assert normalize_material("Д16Т ГОСТ 4784-2019") == normalize_material("д16т")

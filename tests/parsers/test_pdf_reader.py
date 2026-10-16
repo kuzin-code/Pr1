@@ -21,7 +21,7 @@ def test_material_by_known_list_when_no_label():
 
 
 def test_material_by_pattern():
-    assert parse_drawing_text("Сталь 45 ГОСТ 1050").material == "Сталь 45"
+    assert parse_drawing_text("Сталь 45 ГОСТ 1050").material == "Сталь 45"  # стандарт в графе 3 не читаем
 
 
 def test_fits_and_best_grade():
