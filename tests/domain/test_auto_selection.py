@@ -106,3 +106,20 @@ def test_same_part_in_journal_is_analog_by_designation():
 
 def test_aw_alloys_are_aluminium():
     assert material_group("AW 6082 T6") == "aluminium" and material_group("EN AW-5083") == "aluminium"
+
+
+def test_without_strict_analog_time_is_mean_of_three_nearest():
+    from app.domain.analog import NEAREST_COUNT
+    journal = [make_entry(f"n{i}", dims=(90 + i, 80, 26), grade=11, material="Полиацеталь ПОМ-С белый")
+               for i in range(4)]
+    choice = pick_analog(features(), journal)
+    assert NEAREST_COUNT == 3 and choice.approximate
+    assert "среднее по 3" in " ".join(choice.reasons)
+
+
+def test_size_effect_limited_to_twice():
+    small = make_entry("small", dims=(10, 10, 5), material="Полиацеталь ПОМ-С белый")
+    choice = pick_analog(features(dims=(200, 200, 100)), [small])
+    by = {s.stage: s.hours for s in choice.route}
+    base = {s.stage: s.hours for s in small.stages}
+    assert by[Stage.MACHINING] <= base[Stage.MACHINING] * 2 + 1e-9

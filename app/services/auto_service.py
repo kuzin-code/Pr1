@@ -118,6 +118,8 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
         pos.analog_code, pos.no_analog = (picked.entry.part_code, False) if picked else (None, True)
     if same and pos.analog_code == same.entry.part_code:
         choice = same
+    elif auto["analog"] and picked:
+        choice = picked  # выбор системы: при приближённом аналоге — среднее по ближайшим
     else:
         choice = evaluate_analog(features, journal_entry(session, pos.analog_code)) if pos.analog_code else None
     if choice:

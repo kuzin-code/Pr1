@@ -67,7 +67,13 @@ class AnalogChoice:
 # Этапы, время которых пересчитывается при приближённом аналоге.
 _SIZE_STAGES = {Stage.CUTTING, Stage.MACHINING, Stage.LOCKSMITH, Stage.FINISHING}
 _COMPLEXITY_STAGES = {Stage.PROGRAMMING, Stage.MACHINING, Stage.LOCKSMITH, Stage.FINISHING}
-COMPLEXITY_STEP = 0.25
+# Подобрано по проверенным серийным деталям журнала (19.10.2026, проверка «по одной», 25 деталей):
+# время слабо зависит от размера — кубический корень из отношения объёмов, не более чем в 2 раза;
+# сложность — 10 % за балл; без строгого аналога — среднее по 3 ближайшим деталям той же технологии.
+COMPLEXITY_STEP = 0.10
+SIZE_EXPONENT = 1 / 3
+SIZE_LIMIT = 2.0
+NEAREST_COUNT = 3
 
 
 def _volume(dims) -> float:
@@ -87,7 +93,8 @@ def _score(part: PartFeatures, entry: CalibrationEntry) -> float:
 
 def scale_route(part: PartFeatures, entry: CalibrationEntry) -> list[StageNorm]:
     """Время аналога, пересчитанное на габарит, материал и сложность новой детали."""
-    size = (_volume(part.dims) / _volume(entry.dims)) ** (2 / 3)
+    size = (_volume(part.dims) / _volume(entry.dims)) ** SIZE_EXPONENT
+    size = min(max(size, 1 / SIZE_LIMIT), SIZE_LIMIT)
     material = machinability(part.material) / machinability(entry.material)
     complexity = max(0.5, 1 + COMPLEXITY_STEP * (part.complexity - entry.complexity))
     route = []
@@ -120,6 +127,19 @@ def evaluate_analog(part: PartFeatures, entry: CalibrationEntry) -> AnalogChoice
     return AnalogChoice(entry, True, scale_route(part, entry), reasons)
 
 
+def _mean_route(routes: list[list[StageNorm]]) -> list[StageNorm]:
+    """Среднее время этапов по нескольким аналогам; способ счёта — как у ближайшего."""
+    modes: dict = {}
+    totals: dict = {}
+    for route in routes:
+        for norm in route:
+            modes.setdefault(norm.stage, norm.count_mode)
+            totals[norm.stage] = totals.get(norm.stage, 0.0) + norm.hours
+    order = [n.stage for route in routes for n in route]
+    stages = list(dict.fromkeys(order))
+    return [StageNorm(st, round(totals[st] / len(routes), 2), modes[st]) for st in stages if totals[st] > 0]
+
+
 def pick_analog(part: PartFeatures, journal: list[CalibrationEntry]) -> AnalogChoice | None:
     """Аналог выбирает система; в первую очередь — по технологии обработки."""
     strict = find_analogs(part, journal)
@@ -128,7 +148,14 @@ def pick_analog(part: PartFeatures, journal: list[CalibrationEntry]) -> AnalogCh
     same_tech = [e for e in journal if e.technology == part.technology]
     if not same_tech:
         return None
-    return evaluate_analog(part, min(same_tech, key=lambda e: (_score(part, e), e.part_code)))
+    nearest = sorted(same_tech, key=lambda e: (_score(part, e), e.part_code))[:NEAREST_COUNT]
+    first = evaluate_analog(part, nearest[0])
+    if len(nearest) == 1:
+        return first
+    route = _mean_route([scale_route(part, e) for e in nearest])
+    reasons = first.reasons + (f"время — среднее по {len(nearest)} ближайшим деталям: "
+                               + ", ".join(e.part_code for e in nearest),)
+    return AnalogChoice(nearest[0], True, route, reasons)
 
 
 def same_part(journal: list[CalibrationEntry], designation: str, drawing_designation: str | None = None
