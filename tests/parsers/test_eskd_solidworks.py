@@ -126,3 +126,25 @@ def test_pdf_reader_uses_eskd_fits_not_thread_tolerances():
     d = parse_drawing_text(HOLDER)
     assert d.tolerance_grade == 14 and "g4" not in d.fits
     assert parse_drawing_text(RADIATOR).tolerance_grade == 12
+
+
+def test_designation_letters_are_not_fits():
+    text = "MBIS.AI.P3.45100.04\nОбщие допуски по ГОСТ 30893.1: H14, h14, ±IT14/22.\nMBIS.AI.P3.45100.04\n"
+    d = parse_eskd(text)
+    assert "P3" not in d.fits and d.tolerance_grade == 14
+
+
+def test_material_with_tu_sto_number():
+    assert parse_eskd("POM-C ТУ СТО-002-17152852-2011\nЛист 1\n").material == "POM-C"
+
+
+def test_roughness_glued_with_item_number_uses_standard_series():
+    d = parse_eskd("Резьбовые поверхности выполнить по 6H/6g, шероховатость Ra1,254.\nRa 3,2\n")
+    assert d.ra_min == 1.25
+
+
+def test_cp1251_mojibake_repaired():
+    from app.parsers.pdf_reader import repair_text
+    broken = "Ñïëàâ 6061 ÃÎÑÒ 4784-97\n3 îòâ 5,5õ90\nИзм. Лист"
+    fixed = repair_text(broken)
+    assert "Сплав 6061 ГОСТ 4784-97" in fixed and "3 отв 5,5х90" in fixed and "Изм. Лист" in fixed

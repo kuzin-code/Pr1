@@ -25,7 +25,7 @@ _TT_WORDS = re.compile(r"допуск|отклонен|кромк|размер|�
 _TRAILING_ITEM = re.compile(rf"^(.*?(?:[{_LET}.)*]|IT\d{{1,2}}/2))(\d{{1,2}})\.?$")
 _SORTAMENT = re.compile(r"^(Круг|Пруток|Шестигранник|Квадрат|Полоса|Лист|Плита|Труба|Лента|Уголок|Проволока)\b", re.I)
 _DESIGNATION = re.compile(r"(?<![\w.])([A-ZА-ЯЁ]{2,6}(?:\.[A-ZА-ЯЁ0-9]{1,10}){2,}(?:-\d{1,3})?)(?![\w.])")
-_GOST_MATERIAL = re.compile(r"^[A-ZА-ЯЁ][^:;]{0,40}?\s(?:ГОСТ|ТУ|OCT|ОСТ)\s?[\d.\-–]+")
+_GOST_MATERIAL = re.compile(r"^[A-ZА-ЯЁ][^:;]{0,40}?\s(?:ГОСТ|ТУ|OCT|ОСТ)\s?(?:[А-ЯA-Z]{2,4}-)?[\d.\-–]+")
 _BRAND = re.compile(r"\bAW[- ]?\d{4}(?:\s?T\d+)?|\bAISI\s?\d{3}[A-Z]?|\bEN\s?AW[- ]?\d{4}")
 _NAME = re.compile(rf"^[A-ZА-ЯЁ][а-яёa-z]+(?:[ \-][{_LET}]+){{0,4}}$")
 _STAMP_WORDS = {"копировал", "формат", "масштаб", "масса", "лист", "листов", "шифр", "файл", "версия", "чертил",
@@ -36,6 +36,10 @@ _IT = re.compile(r"\bIT\s?(\d{1,2})\b")
 _GENERAL_CLASS = re.compile(r"30893\.1\s*[-–—]\s*([fmcv])\b", re.I)
 GENERAL_CLASS_GRADE = {"f": 12, "m": 14, "c": 16, "v": 17}  # приближённое соответствие классов ГОСТ 30893.1
 _RA = re.compile(r"\bRa\s*(\d+(?:[.,]\d+)?)")
+# ГОСТ 2.309: ряд значений Ra, мкм (предпочтительные и дополнительные).
+RA_SERIES = {0.012, 0.025, 0.032, 0.04, 0.05, 0.063, 0.08, 0.1, 0.125, 0.16, 0.2, 0.25, 0.32, 0.4, 0.5, 0.63, 0.8,
+             1.0, 1.25, 1.6, 2.0, 2.5, 3.2, 4.0, 5.0, 6.3, 8.0, 10.0, 12.5, 16.0, 20.0, 25.0, 32.0, 40.0, 50.0, 63.0,
+             80.0, 100.0}
 _COUNT = r"(?<![\d.,хx/])(\d{1,2})\s*отв"  # «1х453 отв.» — склейка «1х45» и «3 отв.», не 453
 _THREAD = re.compile(
     rf"(?:{_COUNT}\.?\s*)?(?<![{_LET}])[MМ](\d+(?:[.,]\d+)?)(?:\s*[x×хX]\s*(\d+(?:[.,]\d+)?))?"
@@ -177,6 +181,18 @@ def _title_block_any(lines: list[str], data: EskdData, file_stem: str | None) ->
         data.scale = next((_scale(m.group(1)) for m in map(_SCALE.match, lines) if m and _scale(m.group(1))), None)
 
 
+def _ra_value(raw: str) -> float | None:
+    """«1,254» — «Ra 1,25» и номер пункта 4: отбрасываем лишние цифры, пока не получится значение ряда."""
+    raw = raw.replace(",", ".")
+    while raw and raw[-1].isdigit():
+        if float(raw) in RA_SERIES:
+            return float(raw)
+        if "." not in raw:
+            return None
+        raw = raw[:-1].rstrip(".")
+    return None
+
+
 def _clean_requirement(line: str) -> str:
     """«Острые кромки притупить5» → «Острые кромки притупить» (номер пункта SolidWorks приклеен в конце)."""
     line = " ".join(line.split())
@@ -252,13 +268,13 @@ def parse_eskd(text: str, file_stem: str | None = None) -> EskdData:
 
     # Посадки — без резьб (допуски резьбы «6H/6g»), трубных резьб «G1/4» и марки материала.
     rest = "\n".join(x for x in lines if not re.search("резьб", x, re.I))
-    rest = _PIPE_THREAD.sub(" ", _THREAD.sub(" ", rest))
+    rest = _PIPE_THREAD.sub(" ", _THREAD.sub(" ", _DESIGNATION.sub(" ", rest)))  # «MBIS.AI.P3…» — не посадка P3
     for value in filter(None, (data.material, data.sortament)):
         rest = rest.replace(value, " ")
     data.fits = list(dict.fromkeys(f"{a}{b}" for a, b in _FIT.findall(rest) if 1 <= int(b) <= 18))
     grades = [int(b) for _, b in _FIT.findall(rest) if 1 <= int(b) <= 18] + [int(g) for g in _IT.findall(rest)]
     data.tolerance_grade = min(grades) if grades else data.general_grade
-    roughness = [_num(v) for v in _RA.findall(text)]
+    roughness = [v for v in map(_ra_value, _RA.findall(text)) if v is not None]
     data.ra_min = min(roughness) if roughness else None
     data.has_form_tolerances = bool(_GDT_SYMBOLS.search(text)) or any(_GDT_TEXT.match(x) for x in lines)
     return data

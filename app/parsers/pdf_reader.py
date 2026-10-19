@@ -96,12 +96,23 @@ def parse_drawing_text(text: str, known_materials: list[str] | tuple = (), file_
     return data
 
 
+_MOJIBAKE = re.compile("[¨¸¹À-ÿ]")  # байты 1251, прочитанные как Latin-1
+_MOJIBAKE_WORD = re.compile("[À-ÿ]{3,}")
+
+
+def repair_text(text: str) -> str:
+    """Русский текст, записанный в PDF в кодировке 1251 без таблицы символов: «Ñïëàâ» → «Сплав»."""
+    if len(_MOJIBAKE_WORD.findall(text)) < 3:
+        return text
+    return _MOJIBAKE.sub(lambda m: m.group(0).encode("latin-1").decode("cp1251"), text)
+
+
 def pdf_text(path: Path | str) -> str:
     """Текстовый слой PDF; пустая строка, если файл не читается или это скан."""
     try:
         from pypdf import PdfReader
 
-        return "\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
+        return repair_text("\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages))
     except Exception:  # noqa: BLE001
         return ""
 
@@ -111,7 +122,7 @@ def read_pdf(path: Path | str, known_materials: list[str] | tuple = ()) -> Drawi
         from pypdf import PdfReader
 
         reader = PdfReader(str(path))
-        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        text = repair_text("\n".join(page.extract_text() or "" for page in reader.pages))
     except Exception:  # noqa: BLE001 — любой сбой чтения: ручной ввод (О-1)
         return DrawingData(errors=["Файл PDF не читается или повреждён: введите данные вручную"])
     if not text.strip():
