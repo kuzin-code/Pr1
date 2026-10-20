@@ -1,48 +1,106 @@
 {% extends "base.html" %}
 {% block title %}Мои операции{% endblock %}
 {% block content %}
+<link rel="stylesheet" href="/static/work.css?v={{ static_version }}">
+{% set running = rows|selectattr('status', 'equalto', 'in_progress')|list %}
+{% set ready = rows|selectattr('status', 'equalto', 'ready')|list %}
+{% set waiting = rows|rejectattr('status', 'in', ['in_progress', 'ready'])|list %}
+
+{% macro op_card(r, kind) %}{% set p = positions[r.position_id] %}
+<article class="w-op {{ kind }}">
+  <div class="w-op-top">
+    <div><div class="w-part">{{ p.designation }}</div>
+      <div class="w-order">Заказ {{ p.order.number }}{% if p.order.customer %} · {{ p.order.customer }}{% endif %}</div></div>
+    <div class="w-qty">{{ p.quantity }}<small>шт.</small></div>
+  </div>
+  <div class="w-what">{{ operation_label(r.operation) }}
+    <span>· {{ r.resource or 'рабочее место' }} · план {{ r.planned_hours|hours }}</span></div>
+  <div>{% if kind == 'run' %}<span class="w-pill run">в работе с {{ r.started_at|dt }}</span>
+    <span class="w-timer" data-started="{{ r.started_at.isoformat() if r.started_at else '' }}"></span>
+    {% else %}<span class="w-pill ready">можно начинать</span>{% endif %}</div>
+  {% if p.pdf_path or p.step_path %}<div class="w-docs">
+    {% if p.pdf_path %}<a href="/positions/{{ p.id }}/file/pdf" target="_blank">Чертёж PDF</a>{% endif %}
+    {% if p.step_path %}<a href="/positions/{{ p.id }}/model">3D-модель</a>{% endif %}</div>{% endif %}
+  <form method="post" action="/operations/{{ r.id }}/{{ 'finish' if kind == 'run' else 'start' }}" class="w-form">
+    <details class="w-when"><summary>Указать другое время</summary>
+      <input type="datetime-local" name="at" aria-label="Время отметки">
+      <span class="w-hint">Пусто — отметится текущее время.</span></details>
+    {% if kind == 'run' %}<button class="w-big finish">Закончил</button>
+    {% else %}<button class="w-big start">Начал</button>{% endif %}
+  </form>
+  {% if can('undo_operations') and (r.status == 'in_progress' or r.seq > 1) %}
+  <a class="w-undo" href="/positions/{{ p.id }}#operations">отменить ошибочную отметку</a>{% endif %}
+</article>
+{% endmacro %}
+
+<div class="w-page">
 <h1 data-auto-refresh="60">Мои операции <span class="badge">{{ role.label }}</span></h1>
+
 {% if show_machine_filter %}
-<form method="get" action="/work" class="inline" style="margin-bottom:12px">
-  <label>Мой станок</label>
-  <select name="machine" onchange="this.form.submit()">
-    <option value="">все станки</option>
-    {% for m in machines %}<option value="{{ m.code }}" {{ 'selected' if m.code == selected }}>{{ m.model }}</option>{% endfor %}
-  </select>
-</form>
+<nav class="w-machines" aria-label="Мой станок">
+  <a class="w-chip {{ 'on' if not selected }}" href="/work?machine=">Все станки</a>
+  {% for m in machines %}<a class="w-chip {{ 'on' if m.code == selected }}" href="/work?machine={{ m.code }}">{{ m.model }}</a>{% endfor %}
+</nav>
 {% endif %}
-<div class="card scroll">
-<table>
-  <tr><th>Позиция</th><th>Заказ</th><th class="num">Кол-во</th><th>Операция</th><th>Оборудование</th>
-    <th class="num">План, ч</th><th>Статус</th><th>Отметка</th></tr>
-  {% for r in rows %}{% set p = positions[r.position_id] %}
-  <tr>
-    <td><b>{{ p.designation }}</b>
-      {% if p.pdf_path %}<br><a href="/positions/{{ p.id }}/file/pdf" target="_blank">чертёж</a>{% endif %}
-      {% if p.step_path %} · <a href="/positions/{{ p.id }}/model">3D</a>{% endif %}</td>
-    <td>{{ p.order.number }}</td><td class="num">{{ p.quantity }}</td>
-    <td>{{ operation_label(r.operation) }}</td><td>{{ r.resource or 'рабочее место' }}</td>
-    <td class="num">{{ r.planned_hours|hours }}</td>
-    <td>{% if r.status == 'in_progress' %}<span class="badge warn">в работе с {{ r.started_at|dt }}</span>
-        {% elif r.status == 'ready' %}<span class="badge ok">можно начинать</span>
-        {% else %}<span class="badge">ожидает предыдущую операцию</span>{% endif %}</td>
-    <td>
-      {% if r.status == 'ready' %}
-      <form method="post" action="/operations/{{ r.id }}/start" class="inline">
-        <input type="datetime-local" name="at" value="{{ now }}"><button>Начал</button></form>
-      {% elif r.status == 'in_progress' %}
-      <form method="post" action="/operations/{{ r.id }}/finish" class="inline">
-        <input type="datetime-local" name="at" value="{{ now }}"><button>Закончил</button></form>
-      {% endif %}
-      {% if can('undo_operations') and (r.status == 'in_progress' or r.seq > 1) %}
-      <a class="muted" href="/positions/{{ p.id }}#operations">отменить ошибочную отметку</a>{% endif %}
-    </td>
-  </tr>
-  {% else %}
-  <tr><td colspan="8" class="muted">Операций в очереди нет</td></tr>
+
+{% if running %}
+<h2 class="w-sec">В работе · {{ running|length }}</h2>
+<div class="w-grid">{% for r in running %}{{ op_card(r, 'run') }}{% endfor %}</div>
+{% endif %}
+
+{% if ready %}
+<h2 class="w-sec">Можно начинать · {{ ready|length }}</h2>
+<div class="w-grid">{% for r in ready %}{{ op_card(r, 'ready') }}{% endfor %}</div>
+{% endif %}
+
+{% if waiting %}
+<h2 class="w-sec">Дальше по очереди</h2>
+<details class="w-wait">
+  <summary>Ожидают предыдущую операцию — {{ waiting|length }}</summary>
+  {% for r in waiting %}{% set p = positions[r.position_id] %}
+  <div class="w-wait-row"><span><b>{{ p.designation }}</b> · {{ operation_label(r.operation) }}
+    <span class="w-muted">· заказ {{ p.order.number }} · {{ p.quantity }} шт.</span></span>
+    <span class="badge">ожидает предыдущую операцию</span></div>
   {% endfor %}
-</table>
+</details>
+{% endif %}
+
+{% if not rows %}
+<div class="w-empty"><b>Операций в очереди нет</b>
+  Новые появятся сами — страница обновляется каждую минуту.
+  {% if show_machine_filter and selected %}<br><a href="/work?machine=">Показать все станки</a>{% endif %}</div>
+{% endif %}
+
+<p class="w-foot">Операции идут по маршруту: следующая открывается, когда закончена предыдущая.
+  {% if not can('undo_operations') %}Ошибочную отметку отменяет мастер.{% endif %}</p>
 </div>
-<p class="muted">Время по умолчанию — текущее; при необходимости его можно поправить перед нажатием.
-  Операции идут по маршруту: следующая открывается, когда закончена предыдущая.</p>
+
+<script>
+(function () {
+  // «идёт N мин» у операций в работе — по часам устройства, обновляется раз в 30 с.
+  function tick() {
+    document.querySelectorAll('.w-timer[data-started]').forEach(function (el) {
+      var t = Date.parse(el.dataset.started); if (!t) return;
+      var m = Math.max(0, Math.floor((Date.now() - t) / 60000));
+      el.textContent = '· идёт ' + (m >= 60 ? Math.floor(m / 60) + ' ч ' : '') + (m % 60) + ' мин';
+    });
+  }
+  tick(); setInterval(tick, 30000);
+  // «Указать другое время»: подставляем текущее время и держим фокус в поле, чтобы автообновление не сбросило ввод.
+  document.querySelectorAll('.w-when').forEach(function (d) {
+    d.addEventListener('toggle', function () {
+      var input = d.querySelector('input');
+      if (d.open) {
+        if (!input.value) { var n = new Date(); n.setMinutes(n.getMinutes() - n.getTimezoneOffset());
+          input.value = n.toISOString().slice(0, 16); }
+        input.focus();
+      } else { input.value = ''; }
+    });
+  });
+  // Защита от двойного нажатия.
+  document.querySelectorAll('.w-form').forEach(function (f) {
+    f.addEventListener('submit', function () { var b = f.querySelector('.w-big'); setTimeout(function () { b.disabled = true; }, 0); });
+  });
+})();
+</script>
 {% endblock %}

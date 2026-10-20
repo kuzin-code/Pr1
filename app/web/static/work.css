@@ -1,0 +1,60 @@
+/* Окно «Мои операции» у станка: карточки, крупные кнопки для планшета и телефона.
+   Подключается только в work.html; общие стили — style.css. */
+:root { --work-brand:#993556; --work-brand-dark:#7a2945; --work-start:#1d7a45; --work-start-dark:#155c34;
+        --work-run:#d97706; --work-run-bg:#fffaf2; --work-run-text:#a15c00; --work-run-soft:#fff4e5;
+        --work-ready-soft:#e8f5ee; --work-line:#e3e6eb; --work-muted:#667085; --work-chip-line:#c6ccd6; }
+
+.w-page { max-width:1280px; }
+.w-page h1 { margin-bottom:10px; }
+/* Сообщения «Операция начата / выполнена» и ошибки — крупно, чтобы было видно с расстояния. */
+main > .flash { font-size:17px; font-weight:600; padding:14px 16px; border-radius:10px; }
+
+.w-machines { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin:0 0 6px; }
+.w-chip { flex:0 0 auto; display:inline-flex; align-items:center; min-height:44px; padding:8px 16px; border-radius:22px;
+          border:2px solid var(--work-chip-line); background:#fff; color:inherit; font-size:15px; font-weight:600;
+          text-decoration:none; white-space:nowrap; }
+.w-chip.on { background:var(--work-brand); border-color:var(--work-brand); color:#fff; }
+
+.w-sec { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--work-muted); margin:18px 2px 8px; }
+.w-grid { display:grid; grid-template-columns:1fr; gap:12px; }
+@media (min-width:760px) { .w-grid { grid-template-columns:repeat(2, 1fr); } }
+@media (min-width:1200px) { .w-grid { grid-template-columns:repeat(3, 1fr); } }
+
+.w-op { display:flex; flex-direction:column; gap:10px; background:#fff; border:1px solid var(--work-line);
+        border-left:8px solid var(--work-line); border-radius:14px; padding:14px; }
+.w-op.ready { border-left-color:var(--work-start); }
+.w-op.run { border-left-color:var(--work-run); background:var(--work-run-bg); }
+.w-op-top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.w-part { font-size:20px; font-weight:800; line-height:1.15; word-break:break-word; }
+.w-order, .w-muted { color:var(--work-muted); font-size:13px; }
+.w-qty { font-size:22px; font-weight:800; text-align:right; white-space:nowrap; }
+.w-qty small { display:block; font-size:12px; font-weight:600; color:var(--work-muted); }
+.w-what { font-size:16px; font-weight:600; }
+.w-what span { color:var(--work-muted); font-weight:400; }
+.w-pill { display:inline-block; padding:3px 10px; border-radius:12px; font-size:13px; font-weight:700; }
+.w-pill.ready { background:var(--work-ready-soft); color:var(--work-start); }
+.w-pill.run { background:var(--work-run-soft); color:var(--work-run-text); }
+.w-timer { font-weight:700; font-variant-numeric:tabular-nums; }
+
+.w-docs { display:flex; gap:8px; }
+.w-docs a { flex:1; text-align:center; min-height:44px; padding:10px 8px; border:2px solid var(--work-chip-line);
+            border-radius:10px; background:#fff; color:inherit; text-decoration:none; font-weight:600; }
+
+.w-form { display:flex; flex-direction:column; gap:8px; margin:0; }
+.w-when summary { cursor:pointer; color:var(--work-muted); padding:6px 0; }
+.w-when input { width:100%; font-size:16px; padding:10px; margin-top:4px; }
+.w-hint { display:block; color:var(--work-muted); font-size:12px; margin-top:4px; }
+.w-big { width:100%; min-height:64px; border:0; border-radius:12px; font-size:22px; font-weight:800; letter-spacing:.02em; color:#fff; }
+.w-big.start { background:var(--work-start); } .w-big.start:active { background:var(--work-start-dark); }
+.w-big.finish { background:var(--work-brand); } .w-big.finish:active { background:var(--work-brand-dark); }
+.w-big:disabled { opacity:.6; cursor:wait; }
+.w-undo { color:var(--work-muted); font-size:13px; }
+
+.w-wait { background:#fff; border:1px solid var(--work-line); border-radius:14px; }
+.w-wait summary { padding:14px; cursor:pointer; font-size:15px; font-weight:600; }
+.w-wait-row { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+              padding:10px 14px; border-top:1px solid var(--work-line); }
+.w-empty { text-align:center; background:#fff; border:2px dashed var(--work-chip-line); border-radius:14px;
+           padding:28px 16px; color:var(--work-muted); }
+.w-empty b { display:block; font-size:18px; color:inherit; margin-bottom:4px; }
+.w-foot { color:var(--work-muted); font-size:13px; margin-top:16px; }
