@@ -14,7 +14,7 @@ from app.services import (approval_service, fact_service, journal_service, opera
 from app.services.actor import ServiceError
 from app.services.history_service import list_history
 from app.services.reference_service import complexity_scale, domain_machines, journal_entries
-from app.web.deps import act, current_actor, get_db, redirect
+from app.web.deps import act, current_actor, flash, get_db, redirect
 from app.web.templating import render
 
 router = APIRouter()
@@ -176,6 +176,25 @@ def extra_machine_time(request: Request, position_id: int, code: str, setup: str
 def remove_machine(request: Request, position_id: int, code: str, db: Session = Depends(get_db)):
     actor = current_actor(request)
     return act(request, db, _back(position_id), lambda: tech_service.remove_machine(db, actor, position_id, code))
+
+
+@router.post("/positions/{position_id}/delete")
+def delete_position(request: Request, position_id: int, reason: str = Form(""), back: str = Form(""),
+                    db: Session = Depends(get_db)):
+    """Удалить расчёт позиции до утверждения (с причиной)."""
+    actor = current_actor(request)
+    try:
+        pos = order_service.get_position(db, position_id)
+        name = pos.designation
+        order_id = order_service.delete_position(db, actor, position_id, reason)
+    except ValueError as err:
+        db.rollback()
+        flash(request, str(err), "error")
+        return redirect(back or _back(position_id))
+    flash(request, f"Расчёт «{name}» удалён" + ("" if order_id else "; в заказе не осталось позиций — заказ удалён"))
+    if back.startswith("/dashboard"):
+        return redirect(back)
+    return redirect(f"/orders/{order_id}" if order_id else "/orders")
 
 
 @router.post("/positions/{position_id}/calculate")

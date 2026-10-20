@@ -220,6 +220,11 @@
       <input name="reason" placeholder="причина возврата"><button class="danger">Вернуть на пересчёт</button></form>
   {% endif %}
   </div>
+  {% if pos.status in ('calculation', 'tech_review', 'awaiting_approval') and (can('upload_order') or can('edit_tech_data')) %}
+  <form method="post" action="/positions/{{ pos.id }}/delete" class="inline js-delete" data-what="расчёт «{{ pos.designation }}»"
+        style="margin-top:8px"><input type="hidden" name="reason">
+    <button class="secondary danger-text">Удалить расчёт позиции</button></form>
+  {% endif %}
   {% if not editable %}<p class="muted">Позиция передана на утверждение или утверждена: ручная правка недоступна, план меняется только по факту.</p>{% endif %}
 </div>
 </div>

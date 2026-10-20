@@ -75,3 +75,24 @@ def test_similar_proposal_shown_in_quick_calc(app):
 def test_operator_has_no_proposal(app):
     operator = login(app, "operator")
     assert operator.get("/proposals").status_code == 403 and operator.post("/orders/1/proposal").status_code == 403
+
+
+def test_delete_calculation_from_dashboard_and_order(app):
+    import re
+    manager = login(app, "manager")
+    page = manager.post("/orders", files=[("files", ("D-1.step", make_box_step(90, 50, 20).encode())),
+                                          ("files", ("D-1.pdf", make_pdf(["Bore 10H9"]))),
+                                          ("files", ("D-2.step", make_box_step(80, 40, 20).encode())),
+                                          ("files", ("D-2.pdf", make_pdf(["Bore 10H9"])))]).text
+    order_id = re.search(r'action="/orders/(\d+)/proposal"', page).group(1)
+    tech = login(app, "technolog")
+    dash = tech.get("/dashboard").text
+    assert "Расчёты на проверку" in dash and "/delete" in dash
+    pid = re.search(r'action="/positions/(\d+)/delete"', dash).group(1)
+    page = tech.post(f"/positions/{pid}/delete", data={"reason": "дубль", "back": "/dashboard"}).text
+    assert "удалён" in page
+    assert "Причина" not in page
+    page = tech.post(f"/orders/{order_id}/delete", data={"reason": ""}).text
+    assert "причину" in page  # без причины не удаляется
+    page = tech.post(f"/orders/{order_id}/delete", data={"reason": "заказчик отказался"}).text
+    assert "удалён" in page and "Заказов нет" in tech.get("/orders").text

@@ -33,7 +33,15 @@
         <div class="dash-task-title">{% if t.link and (t.position_id is none or can('view_orders')) %}<a href="{{ t.link }}">{{ t.title }}</a>{% else %}{{ t.title }}{% endif %}</div>
         <div class="muted">{{ t.detail }}{% if t.cost is not none %} · {{ t.cost|money }}{% endif %}</div>
       </div>
+      <div class="row" style="gap:6px">
       {% if t.link and (t.position_id is none or can('view_orders')) %}<a class="btn secondary" href="{{ t.link }}">{{ t.action }}</a>{% endif %}
+      {% if t.position_id and (can('upload_order') or can('edit_tech_data')) %}
+      <form method="post" action="/positions/{{ t.position_id }}/delete" class="inline js-delete"
+            data-what="расчёт «{{ t.title }}»">
+        <input type="hidden" name="reason"><input type="hidden" name="back" value="/dashboard">
+        <button class="secondary danger-text" title="Удалить расчёт">Удалить</button></form>
+      {% endif %}
+      </div>
     </div>
     {% else %}
     <p class="dash-empty">Всё сделано — новых задач нет.</p>

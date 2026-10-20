@@ -104,6 +104,21 @@ def proposal_create(request: Request, order_id: int, db: Session = Depends(get_d
     return redirect(f"/proposals/{row.id}?new=1")
 
 
+@router.post("/orders/{order_id}/delete")
+def order_delete(request: Request, order_id: int, reason: str = Form(""), db: Session = Depends(get_db)):
+    """Удалить заказ целиком до утверждения позиций (с причиной)."""
+    actor = current_actor(request)
+    try:
+        number = order_service.get_order(db, order_id).number
+        order_service.delete_order(db, actor, order_id, reason)
+    except ValueError as err:
+        db.rollback()
+        flash(request, str(err), "error")
+        return redirect(f"/orders/{order_id}")
+    flash(request, f"Заказ {number} удалён")
+    return redirect("/orders")
+
+
 @router.get("/orders/{order_id}")
 def order_page(request: Request, order_id: int, db: Session = Depends(get_db)):
     actor = current_actor(request)

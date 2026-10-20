@@ -46,5 +46,15 @@
     }, seconds * 1000);
   })();
 </script>
+<script>
+  // Удаление расчёта: подтверждение и обязательная причина (уходит в историю).
+  document.querySelectorAll('form.js-delete').forEach(function (f) {
+    f.addEventListener('submit', function (e) {
+      var reason = window.prompt('Удалить ' + f.dataset.what + '? Укажите причину:', '');
+      if (!reason || !reason.trim()) { e.preventDefault(); return; }
+      f.querySelector('input[name=reason]').value = reason.trim();
+    });
+  });
+</script>
 </body>
 </html>

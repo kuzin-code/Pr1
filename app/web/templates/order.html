@@ -6,6 +6,10 @@
   <form method="post" action="/orders/{{ order.id }}/proposal" class="inline"><button>Сформировать КП</button></form>
   <span class="muted">сохраняется в истории КП; просмотр и файл Word в «Загрузки»</span>
   {% for kp in proposals %}<a href="/proposals/{{ kp.id }}" class="badge">{{ kp.number }} от {{ kp.created_at|dt }}</a>{% endfor %}
+  {% if order.positions and order.positions|rejectattr('status', 'in', ['calculation', 'tech_review', 'awaiting_approval'])|list|length == 0 %}
+  <form method="post" action="/orders/{{ order.id }}/delete" class="inline js-delete" data-what="заказ {{ order.number }} целиком"
+        style="margin-left:auto"><input type="hidden" name="reason">
+    <button class="secondary danger-text">Удалить заказ</button></form>{% endif %}
 </div>{% endif %}
 {% if done %}<div class="flash ok">Заказ завершён: все позиции прошли внутренний контроль.</div>{% endif %}
 <div class="card row">

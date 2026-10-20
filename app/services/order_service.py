@@ -283,3 +283,85 @@ def attach_position_files(session: Session, actor: Actor, position_id: int, file
     auto_prepare(session, pos)
     session.commit()
     return pos
+
+
+# --- удаление расчёта до утверждения ----------------------------------------------------------------
+
+DELETABLE = {PositionStatus.CALCULATION.value, PositionStatus.TECH_REVIEW.value, PositionStatus.AWAITING_APPROVAL.value}
+
+
+def _can_delete(actor: Actor) -> None:
+    if not (can(actor.role, Action.UPLOAD_ORDER) or can(actor.role, Action.EDIT_TECH_DATA)):
+        require(actor.role, Action.UPLOAD_ORDER)
+
+
+def _check_deletable(pos: PositionRow) -> None:
+    if pos.status not in DELETABLE:
+        raise ServiceError(f"Позиция «{pos.designation}» утверждена или в работе — удалить нельзя, план меняется "
+                           "только по факту")
+
+
+def _drop_position(session: Session, pos: PositionRow, keep_files: set[str]) -> None:
+    from app.storage.orm import NotificationRow
+
+    for row in session.scalars(select(NotificationRow).where(NotificationRow.position_id == pos.id)):
+        session.delete(row)
+    for path in (pos.step_path, pos.pdf_path):
+        if path and path not in keep_files:
+            Path(path).unlink(missing_ok=True)
+    session.delete(pos)
+
+
+def delete_position(session: Session, actor: Actor, position_id: int, reason: str) -> int | None:
+    """Удалить позицию (расчёт) до утверждения: с причиной, в историю. Последняя позиция — удаляется и заказ.
+    Возвращает номер заказа, если заказ остался."""
+    from app.domain.history import require_reason
+
+    _can_delete(actor)
+    reason = require_reason(reason)
+    pos = get_position(session, position_id)
+    _check_deletable(pos)
+    order = pos.order
+    record(session, actor, "position", pos.id, "delete", {"designation": pos.designation, "order": order.number,
+                                                          "quantity": pos.quantity}, None, reason)
+    others = [p for p in order.positions if p.id != pos.id]
+    keep = {f for p in others for f in (p.step_path, p.pdf_path) if f}
+    order.positions.remove(pos)
+    _drop_position(session, pos, keep)
+    if not others:
+        _drop_order(session, actor, order, reason)
+        session.commit()
+        return None
+    session.commit()
+    return order.id
+
+
+def _drop_order(session: Session, actor: Actor, order: OrderRow, reason: str) -> None:
+    import shutil
+
+    from app.storage.orm import NotificationRow
+
+    record(session, actor, "order", order.id, "delete", {"number": order.number, "customer": order.customer}, None,
+           reason)
+    for row in session.scalars(select(NotificationRow).where(NotificationRow.key.like(f"new_order:{order.id}:%"))):
+        session.delete(row)
+    folder = None
+    for pos in list(order.positions):
+        folder = folder or (Path(pos.step_path or pos.pdf_path).parent if (pos.step_path or pos.pdf_path) else None)
+        _drop_position(session, pos, set())
+    session.delete(order)
+    if folder and folder.name == f"order_{order.id}":
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+def delete_order(session: Session, actor: Actor, order_id: int, reason: str) -> None:
+    """Удалить заказ целиком до утверждения: все позиции должны быть не утверждены."""
+    from app.domain.history import require_reason
+
+    _can_delete(actor)
+    reason = require_reason(reason)
+    order = get_order(session, order_id)
+    for pos in order.positions:
+        _check_deletable(pos)
+    _drop_order(session, actor, order, reason)
+    session.commit()
