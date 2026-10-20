@@ -1,4 +1,5 @@
 """Структуры данных предметной области (ТЗ 1.0, раздел 4.3)."""
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -45,6 +46,8 @@ class StageNorm:
     count_mode: CountMode = CountMode.PER_PIECE
 
     def __post_init__(self):
+        if not math.isfinite(self.hours):
+            raise ValueError("Время этапа должно быть числом")
         if self.hours < 0:
             raise ValueError("Время этапа не может быть отрицательным")
         if self.stage is Stage.SETUP and self.count_mode is CountMode.PER_PIECE:

@@ -1,6 +1,6 @@
 """История коммерческих предложений: каждое КП сохраняется (снимок данных и файл Word) — по заказу или по
 быстрому расчёту. Поиск по заказчику, номеру и обозначению детали; аналогичные заказы — КП с теми же деталями."""
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -39,8 +39,14 @@ def from_dict(data: dict) -> Proposal:
     d["range"] = ProposalRange(date.fromisoformat(r["finish"]), r["duration"], r["delta"],
                                date.fromisoformat(r["earliest"]), date.fromisoformat(r["latest"])) if r else None
     d["desired_check"] = RangeCheck(**d["desired_check"])
-    d["items"] = [ProposalItem(**i) for i in d["items"]]
-    return Proposal(**d)
+    d["items"] = [ProposalItem(**_known(ProposalItem, i)) for i in d["items"]]
+    return Proposal(**_known(Proposal, d))
+
+
+def _known(cls, data: dict) -> dict:
+    """Только поля текущей версии: КП, сохранённые другой версией приложения, открываются без ошибки."""
+    names = {f.name for f in fields(cls)}
+    return {k: v for k, v in data.items() if k in names}
 
 
 def proposal_of(row: ProposalRow) -> Proposal:

@@ -1,4 +1,5 @@
 """Работа технолога с позицией: данные, сложность, аналог, маршрут, станок, расчёт (ФТ-05…ФТ-14)."""
+import math
 from dataclasses import replace
 
 from sqlalchemy.orm import Session
@@ -212,6 +213,8 @@ def add_machine(session: Session, actor: Actor, position_id: int, code: str) -> 
 def set_extra_machine_time(session: Session, actor: Actor, position_id: int, code: str, setup: float,
                            machining: float, reason: str = "") -> PositionRow:
     pos = _editable(session, actor, position_id, Action.ASSIGN_MACHINE)
+    if not (math.isfinite(setup) and math.isfinite(machining)):
+        raise ServiceError("Время должно быть числом")
     if setup < 0 or machining < 0:
         raise ServiceError("Время не может быть отрицательным")
     extras = _extras(pos)

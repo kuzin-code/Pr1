@@ -166,3 +166,5 @@ button.big { font-size:16px; padding:9px 26px; margin-right:14px; }
 .quick-grid input, .quick-grid select { width:100%; box-sizing:border-box; }
 .quick-dims { display:flex; gap:4px; } .quick-grid .quick-dims input { width:auto; min-width:0; flex:1; }
 .danger-text { color:var(--err) !important; border-color:#f3c4bf !important; }
+/* ступень количества, по которой посчитан расчёт */
+tr.quick-break-current td { background:#eef4ff; font-weight:600; }

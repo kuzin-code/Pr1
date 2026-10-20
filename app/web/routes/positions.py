@@ -24,6 +24,11 @@ def _back(position_id: int) -> str:
     return f"/positions/{position_id}"
 
 
+def _local(url: str) -> bool:
+    """Переход после действия — только на страницу этого приложения (не «//сайт» и не адрес другого сайта)."""
+    return url.startswith("/") and not url.startswith(("//", "/\\"))
+
+
 @router.get("/positions/{position_id}")
 def position_page(request: Request, position_id: int, db: Session = Depends(get_db)):
     actor = current_actor(request)
@@ -193,7 +198,7 @@ def delete_position(request: Request, position_id: int, reason: str = Form(""), 
     except ValueError as err:
         db.rollback()
         flash(request, str(err), "error")
-        return redirect(back or _back(position_id))
+        return redirect(back if _local(back) else _back(position_id))
     flash(request, f"Расчёт «{name}» удалён" + ("" if order_id else "; в заказе не осталось позиций — заказ удалён"))
     if back.startswith("/dashboard"):
         return redirect(back)

@@ -86,10 +86,13 @@ class RangeCheck:
         return ""
 
 
-def proposal_range(start: date, finish: datetime) -> ProposalRange:
+def proposal_range(start: date, finish: datetime, not_before: date | None = None) -> ProposalRange:
+    """Нижняя граница срока — не раньше даты начала и not_before (дня КП): срок не начинается в прошлом."""
     import math
 
     end = finish.date()
     duration = _workdays_between(start - timedelta(days=1), end) if end >= start else 0
     delta = max(1, math.ceil(duration * RANGE_SHARE - 1e-9))
-    return ProposalRange(end, duration, delta, _shift_workdays(end, -delta), _shift_workdays(end, delta))
+    floor = max(d for d in (start, not_before) if d is not None)
+    earliest = max(_shift_workdays(end, -delta), min(floor, end))
+    return ProposalRange(end, duration, delta, earliest, _shift_workdays(end, delta))

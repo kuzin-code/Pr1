@@ -14,6 +14,7 @@ from app.domain.timing import ExtraMachine, batch_times
 from app.domain.work_calendar import MACHINE_CALENDAR
 
 MAX_BREAKS = 4
+MAX_BREAK_QUANTITY = 100_000  # защита от опечатки: 10⁹ шт. считались бы по календарю минутами
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,8 @@ def parse_quantities(value) -> list[int]:
         raise ValueError("Ступени количества должны быть не меньше 1")
     if len(quantities) > MAX_BREAKS:
         raise ValueError(f"Не больше {MAX_BREAKS} ступеней количества")
+    if any(q > MAX_BREAK_QUANTITY for q in quantities):
+        raise ValueError(f"Ступень количества — не больше {MAX_BREAK_QUANTITY:,} шт.".replace(",", " "))
     return quantities
 
 

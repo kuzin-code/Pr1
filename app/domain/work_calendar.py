@@ -3,6 +3,7 @@
 Станок: 6 ч на наладку и обработку; резка, слесарные этапы, контроль: 8 ч (ФТ-16).
 Смена начинается в DAY_START_HOUR; рабочее окно дня — [начало, начало + N ч).
 """
+import math
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
@@ -54,6 +55,8 @@ class WorkCalendar:
 
     def add_hours(self, start: datetime, hours: float) -> datetime:
         """Момент окончания работы длительностью hours рабочих часов."""
+        if not math.isfinite(hours):
+            raise ValueError("hours должно быть конечным числом")
         if hours < 0:
             raise ValueError("hours не может быть отрицательным")
         current = self.normalize(start)

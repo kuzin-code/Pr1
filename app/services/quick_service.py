@@ -134,7 +134,9 @@ def _alternatives(copy: Session, order, plan, positions: list[dict]) -> None:
     from app.services.reference_service import domain_machines, get_rates, journal_entries
 
     busy: dict[str, datetime] = {m.code: m.busy_until for m in copy.query(MachineRow) if m.busy_until}
-    base = MACHINE_CALENDAR.normalize(max(datetime.combine(order.start_date, time(8)), datetime.now()))
+    # точка отсчёта — как у плана (начало смены в дату начала заказа), иначе «где быстрее» и «Занятость станков»
+    # на одной странице расходятся
+    base = MACHINE_CALENDAR.normalize(datetime.combine(order.start_date, time(8)))
     machines = [m for m in domain_machines(copy) if m.is_cnc]
     ids = sorted(p.id for p in order.positions)
     later = {pid: {x for x in ids if x >= pid} for pid in ids}  # сама позиция и стоящие после неё

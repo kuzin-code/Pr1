@@ -14,7 +14,7 @@
 <div class="kp-sheet">
   <div class="kp-head">
     <div><b>{{ p.org }}</b><div class="muted">{{ p.requisites }}</div></div>
-    <div class="kp-meta">КП № {{ p.number }} от {{ p.date|dt }}<br>к заказу {{ p.order_number }}<br>
+    <div class="kp-meta">КП № {{ p.number }} от {{ p.date|dt }}<br>{% if p.order_number %}к заказу {{ p.order_number }}<br>{% endif %}
       Действительно до {{ p.valid_until|dt }}</div>
   </div>
   <h2 class="kp-title">Коммерческое предложение</h2>

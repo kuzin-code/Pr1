@@ -131,7 +131,7 @@ def build_proposal(session: Session, actor: Actor, order_id: int, today: date | 
         items.append(item)
 
     deadline = plan_service.order_deadline(session, order.id, plan)
-    span = proposal_range(order.start_date, deadline) if deadline else None
+    span = proposal_range(order.start_date, deadline, not_before=today) if deadline else None
     check = span.against(order.desired_date) if span else RangeCheck("none")
     if not span:
         notes.append("Расчётная дата не определена: срок укажите вручную")

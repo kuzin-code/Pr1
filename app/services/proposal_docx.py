@@ -119,8 +119,9 @@ def write_docx(p: Proposal, path: Path) -> Path:
     left, right = head.rows[0].cells
     _cell(left, p.org, bold=True, size=12)
     _run(left.add_paragraph(), p.requisites, size=9, color=MUTED)
-    for i, line in enumerate((f"КП № {p.number} от {p.date:%d.%m.%Y}", f"к заказу {p.order_number}",
-                              f"Действительно до {p.valid_until:%d.%m.%Y}")):
+    lines = (f"КП № {p.number} от {p.date:%d.%m.%Y}", f"к заказу {p.order_number}" if p.order_number else None,
+             f"Действительно до {p.valid_until:%d.%m.%Y}")
+    for i, line in enumerate(line for line in lines if line):
         par = right.paragraphs[0] if i == 0 else right.add_paragraph()
         par.alignment, par.paragraph_format.space_after = RIGHT, Pt(0)
         _run(par, line, size=9, color=MUTED)
