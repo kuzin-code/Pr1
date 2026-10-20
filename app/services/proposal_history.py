@@ -73,8 +73,10 @@ def _save(session: Session, actor: Actor, p: Proposal, storage_dir: Path | str, 
     return row
 
 
-def create_from_order(session: Session, actor: Actor, order_id: int, storage_dir: Path | str) -> ProposalRow:
-    p = build_proposal(session, actor, order_id)
+def create_from_order(session: Session, actor: Actor, order_id: int, storage_dir: Path | str,
+                      quantities: list[int] | None = None) -> ProposalRow:
+    """КП по заказу; quantities — ступени количества (цена и срок для 1 / 10 / 50 шт.), если заданы."""
+    p = build_proposal(session, actor, order_id, quantities=quantities)
     return _save(session, actor, p, storage_dir, "order", order_id)
 
 
@@ -89,7 +91,8 @@ def create_from_quick(session: Session, actor: Actor, work_dir: Path | str, toke
                          date.fromisoformat(r["earliest"]), date.fromisoformat(r["latest"])) if r else None
     desired = date.fromisoformat(s["desired"]) if s.get("desired") else None
     items = [ProposalItem(i["designation"], i["name"], i["material"], i["quantity"], i["machine_hours"],
-                          i["bench_hours"], i["machine_rate"], i["bench_rate"], i["batch_price"]) for i in s["items"]]
+                          i["bench_hours"], i["machine_rate"], i["bench_rate"], i["batch_price"],
+                          list(i.get("breaks") or [])) for i in s["items"]]
     p = Proposal(number="КП-Б", date=today, valid_until=today + timedelta(days=VALID_DAYS), order_number="",
                  customer=s.get("customer") or "", contacts={}, items=items,
                  start=date.fromisoformat(s["start"]),

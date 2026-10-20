@@ -34,6 +34,8 @@
     <tr class="kp-total"><td colspan="6" class="num">Итого с НДС</td><td class="num">{{ kp_money(p.grand_total) }}</td></tr>
   </table>
 
+  {% if p.has_breaks %}{% include "_proposal_breaks.html" %}{% endif %}
+
   <h3 class="kp-sub">Цена операций (на партию)</h3>
   <table class="kp-table">
     <tr><th>№</th><th>Обозначение</th><th>Операция</th><th class="num">Время × ставка, ₽/ч</th><th class="num">Сумма, ₽</th></tr>

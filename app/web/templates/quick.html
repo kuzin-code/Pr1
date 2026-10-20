@@ -16,6 +16,8 @@
   <div class="intake-fields" id="qty_row">
     <div><label for="quantity">Количество, шт. (если без списка — для всех деталей)</label>
       <input id="quantity" type="number" name="quantity" min="1" value="{{ form.quantity or 1 }}"></div>
+    <div><label for="quantities">Ступени количества (необязательно, до 4)</label>
+      <input id="quantities" name="quantities" value="{{ form.quantities or '' }}" placeholder="1, 10, 50, 100"></div>
   </div>
   <p><button class="big" data-busy="Считаем по текущей загрузке…">Рассчитать</button></p>
 </form>

@@ -28,16 +28,16 @@ def quick_form(request: Request):
 
 @router.post("/quick")
 async def quick_calc(request: Request, quantity: str = Form("1"), desired_date: str = Form(""),
-                     customer: str = Form(""), files: list[UploadFile] = File(default=[]),
-                     db: Session = Depends(get_db)):
+                     customer: str = Form(""), quantities: str = Form(""),
+                     files: list[UploadFile] = File(default=[]), db: Session = Depends(get_db)):
     actor = current_actor(request)
     require(actor.role, Action.UPLOAD_ORDER)
     uploaded = [UploadedFile(f.filename or "", await f.read()) for f in files if f.filename]
-    form = {"quantity": quantity, "desired_date": desired_date, "customer": customer}
+    form = {"quantity": quantity, "desired_date": desired_date, "customer": customer, "quantities": quantities}
     try:
         result = quick_service.calculate(db, actor, uploaded, _work_dir(request), quantity=int(quantity or 1),
                                          desired_date=date.fromisoformat(desired_date) if desired_date else None,
-                                         customer=customer.strip())
+                                         customer=customer.strip(), quantities=quantities)
     except (IntakeError, ServiceError, ValueError) as err:
         return render(request, "quick.html", status_code=400, error=str(err), today=date.today().isoformat(),
                       form=form)
@@ -128,6 +128,21 @@ async def quick_position(request: Request, token: str, db: Session = Depends(get
     else:
         flash(request, f"{designation}: пересчитано")
     return redirect(f"/quick/{token}?edit={designation}")
+
+
+@router.post("/quick/{token}/quantities")
+def quick_quantities(request: Request, token: str, quantities: str = Form(""), db: Session = Depends(get_db)):
+    """Ступени количества (1 / 10 / 50 шт.) — цена и срок по каждой позиции, пересчёт без записи в базу."""
+    actor = current_actor(request)
+    require(actor.role, Action.UPLOAD_ORDER)
+    try:
+        s = quick_service.set_quantities(db, actor, _work_dir(request), token, quantities)
+    except (IntakeError, ServiceError, ValueError) as err:
+        flash(request, str(err), "error")
+    else:
+        text = ", ".join(map(str, s["quantities"]))
+        flash(request, f"Ступени количества: {text} — пересчитано" if text else "Ступени количества убраны")
+    return redirect(f"/quick/{token}")
 
 
 @router.post("/quick/{token}/discard")

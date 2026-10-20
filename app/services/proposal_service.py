@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, require
 from app.domain.desired_date import ProposalRange, RangeCheck, proposal_range
 from app.services import order_service, plan_service
+from app.services.quantity_service import position_breaks
 from app.services.actor import Actor
 from app.services.history_service import record
 
@@ -22,6 +23,9 @@ DELIVERY = "самовывоз"
 PRICE_NOTE = ("Цена — по операциям механической обработки: станочная (наладка и обработка) и слесарно-финишная, "
               "время × ставка участка. Материал, резка, программирование, покрытие и термообработка не включены "
               "и уточняются отдельно.")
+BREAKS_NOTE = ("Наладка станка распределяется на всю партию, поэтому с ростом количества цена за штуку снижается. "
+               "Готовность на станке — окончание станочной обработки партии по текущей загрузке; "
+               "итог КП — по количеству, указанному в таблице выше.")
 DISCLAIMER = "Срок рассчитан по фактической загрузке производства на дату КП и носит ориентировочный характер."
 
 
@@ -36,6 +40,7 @@ class ProposalItem:
     machine_rate: float = 0.0
     bench_rate: float = 0.0
     batch_price: float | None = None
+    breaks: list[dict] = field(default_factory=list)  # ступени количества: цена и срок для 1 / 10 / 50 шт.
 
     @property
     def price(self) -> float | None:
@@ -70,6 +75,7 @@ class Proposal:
     payment: str = PAYMENT
     delivery: str = DELIVERY
     price_note: str = PRICE_NOTE
+    breaks_note: str = BREAKS_NOTE
     disclaimer: str = DISCLAIMER
     notes: list[str] = field(default_factory=list)
 
@@ -86,6 +92,10 @@ class Proposal:
         return self.total + self.vat
 
     @property
+    def has_breaks(self) -> bool:
+        return any(i.breaks for i in self.items)
+
+    @property
     def contact_line(self) -> str:
         return ", ".join(v for v in (self.contacts or {}).values() if v)
 
@@ -99,10 +109,11 @@ def _split(designation: str, data: dict) -> tuple[str, str]:
 
 
 def build_proposal(session: Session, actor: Actor, order_id: int, today: date | None = None,
-                   record_history: bool = False) -> Proposal:
+                   record_history: bool = False, quantities: list[int] | None = None) -> Proposal:
     require(actor.role, Action.UPLOAD_ORDER)
     order = order_service.get_order(session, order_id)
     today = today or date.today()
+    plan = plan_service.current_plan(session)
     items, notes = [], []
     for pos in order.positions:
         data = pos.data or {}
@@ -114,11 +125,12 @@ def build_proposal(session: Session, actor: Actor, order_id: int, today: date | 
             item.machine_hours, item.bench_hours = cost["machine_hours"], cost["bench_hours"]
             item.machine_rate, item.bench_rate = cost["rates"]["machine"], cost["rates"]["bench"]
             item.batch_price = cost["batch_cost"]
+            item.breaks = position_breaks(pos, plan, quantities or [])
         else:
             notes.append(f"{pos.designation}: цена не рассчитана (нет пары STEP+PDF или расчёта) — уточните вручную")
         items.append(item)
 
-    deadline = plan_service.order_deadline(session, order.id)
+    deadline = plan_service.order_deadline(session, order.id, plan)
     span = proposal_range(order.start_date, deadline) if deadline else None
     check = span.against(order.desired_date) if span else RangeCheck("none")
     if not span:
@@ -135,7 +147,8 @@ def build_proposal(session: Session, actor: Actor, order_id: int, today: date | 
     return proposal
 
 
-def proposal_docx(session: Session, actor: Actor, order_id: int, path: Path | str) -> Path:
+def proposal_docx(session: Session, actor: Actor, order_id: int, path: Path | str,
+                  quantities: list[int] | None = None) -> Path:
     from app.services.proposal_docx import write_docx
 
-    return write_docx(build_proposal(session, actor, order_id), Path(path))
+    return write_docx(build_proposal(session, actor, order_id, quantities=quantities), Path(path))

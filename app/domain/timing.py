@@ -1,5 +1,5 @@
 """Расчётное и плановое время этапов (ФТ-11): плановое = расчётное × k группы."""
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from app.domain.enums import CountMode, Stage, StageGroup
 from app.domain.models import StageNorm
@@ -48,6 +48,36 @@ def compute_stage_times(route: list[StageNorm], quantity: int, k_machine: float,
         k = k_by_group[norm.stage.group]
         result.append(StageTime(norm.stage, norm.hours, norm.count_mode, calc, k, calc * k))
     return result
+
+
+@dataclass(frozen=True)
+class ExtraMachine:
+    """Второй (и следующий) станок техпроцесса: своя наладка и обработка."""
+    machine: str
+    norms: tuple[StageNorm, ...]
+    technology: str | None = None
+
+
+def extra_from_list(items: list[dict] | None) -> list[ExtraMachine]:
+    """Второй станок из данных позиции или снимка расчёта: наладка ч/партия, обработка ч/шт."""
+    result = []
+    for e in items or []:
+        norms = (StageNorm(Stage.SETUP, float(e.get("setup") or 0), CountMode.PER_BATCH),
+                 StageNorm(Stage.MACHINING, float(e.get("machining") or 0), CountMode.PER_PIECE))
+        result.append(ExtraMachine(e["machine"], tuple(n for n in norms if n.hours > 0), e.get("technology")))
+    return result
+
+
+def batch_times(route: list[StageNorm], quantity: int, k_machine: float, k_bench: float,
+                extra: list[ExtraMachine] = ()) -> list[StageTime]:
+    """Время этапов партии; второй станок — сразу после станочных этапов основного станка."""
+    times = compute_stage_times(route, quantity, k_machine, k_bench)
+    added = [replace(t, machine=e.machine, technology=e.technology) for e in extra
+             for t in compute_stage_times(list(e.norms), quantity, k_machine, k_bench)]
+    if added:
+        last = max((i for i, t in enumerate(times) if t.group is StageGroup.MACHINE), default=len(times) - 1)
+        times = times[:last + 1] + added + times[last + 1:]
+    return times
 
 
 def group_calc_hours(times: list[StageTime], group: StageGroup) -> float:

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
 from app.domain.enums import PositionStatus
+from app.domain.quantity_breaks import parse_quantities
 from app.domain.status import order_done
 from app.services import (approval_service, fact_service, intake_service, order_service, plan_service,
                           proposal_history, tech_service)
@@ -93,11 +94,17 @@ async def order_create(request: Request, start_date: str = Form(""), number: str
 
 
 @router.post("/orders/{order_id}/proposal")
-def proposal_create(request: Request, order_id: int, db: Session = Depends(get_db)):
-    """Сформировать КП: сохраняется в истории (данные и файл Word), открывается просмотр и скачивается файл."""
+def proposal_create(request: Request, order_id: int, quantities: str = Form(""), db: Session = Depends(get_db)):
+    """Сформировать КП: сохраняется в истории (данные и файл Word), открывается просмотр и скачивается файл.
+    Ступени количества (1 / 10 / 50 шт.), если заданы, — отдельной таблицей цены и срока."""
     actor = current_actor(request)
     try:
-        row = proposal_history.create_from_order(db, actor, order_id, proposals_storage(request))
+        steps = parse_quantities(quantities)
+    except ValueError as err:
+        flash(request, str(err), "error")
+        return redirect(f"/orders/{order_id}")
+    try:
+        row = proposal_history.create_from_order(db, actor, order_id, proposals_storage(request), quantities=steps)
     except ServiceError as err:
         flash(request, str(err), "error")
         return redirect(f"/orders/{order_id}")

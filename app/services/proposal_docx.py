@@ -1,4 +1,5 @@
 """Коммерческое предложение в Word, лист А4 (поля 20 / 15 / 15 / 15 мм): текст правится в Word."""
+from datetime import datetime
 from pathlib import Path
 
 from docx import Document
@@ -25,6 +26,10 @@ def money(value: float | None) -> str:
 
 def hours(value: float) -> str:
     return f"{value:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def ready(value: str | None) -> str:
+    return datetime.fromisoformat(value).strftime("%d.%m.%Y") if value else "—"
 
 
 def _shade(cell, color: str) -> None:
@@ -85,6 +90,22 @@ def _table(doc, heads, rows, widths, right_from):
     return t
 
 
+def _breaks(doc, p: Proposal) -> None:
+    """Ступени количества: цена за штуку и за партию, готовность на станке для 1 / 10 / 50 шт."""
+    sub = doc.add_paragraph()
+    sub.paragraph_format.space_before = Pt(8)
+    _run(sub, "Цена в зависимости от количества", bold=True)
+    rows = []
+    for i, it in enumerate(p.items, start=1):
+        for n, b in enumerate(it.breaks):
+            rows.append([str(i) if n == 0 else "", it.designation if n == 0 else "", str(b["quantity"]),
+                         money(b["piece_price"]), money(b["batch_price"]), ready(b.get("ready"))])
+    widths = [8, 52, 22, 28, 30, 35]
+    _widths(_table(doc, ["№", "Обозначение", "Кол-во, шт.", "Цена за шт., ₽", "Сумма за партию, ₽",
+                         "Готовность на станке"], rows, widths, right_from=2), widths)
+    _run(doc.add_paragraph(), p.breaks_note, size=8.5, color=MUTED)
+
+
 def write_docx(p: Proposal, path: Path) -> Path:
     doc = Document()
     sec = doc.sections[0]
@@ -127,6 +148,9 @@ def write_docx(p: Proposal, path: Path) -> Path:
         _cell(merged, label, bold=True, align=RIGHT)
         _cell(cells[6], money(value), bold=True, align=RIGHT)
     _widths(t, [8, 42, 34, 26, 17, 23, 25])
+
+    if p.has_breaks:
+        _breaks(doc, p)
 
     sub = doc.add_paragraph()
     sub.paragraph_format.space_before = Pt(8)

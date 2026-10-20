@@ -3,7 +3,8 @@
 {% block content %}
 <h1>Заказ {{ order.number }}</h1>
 {% if can('upload_order') %}<div class="row" style="gap:10px;align-items:center;margin-bottom:12px">
-  <form method="post" action="/orders/{{ order.id }}/proposal" class="inline"><button>Сформировать КП</button></form>
+  <form method="post" action="/orders/{{ order.id }}/proposal" class="inline"><button>Сформировать КП</button>
+    <input name="quantities" size="14" placeholder="1, 10, 50" title="Ступени количества (до 4, через запятую): цена и срок для каждого количества"></form>
   <span class="muted">сохраняется в истории КП; просмотр и файл Word в «Загрузки»</span>
   {% for kp in proposals %}<a href="/proposals/{{ kp.id }}" class="badge">{{ kp.number }} от {{ kp.created_at|dt }}</a>{% endfor %}
   {% if order.positions and order.positions|rejectattr('status', 'in', ['calculation', 'tech_review', 'awaiting_approval'])|list|length == 0 %}

@@ -57,8 +57,8 @@ def _copy_database(session: Session, target: Path) -> None:
         source.backup(copy)
 
 
-def _summary(copy: Session, actor: Actor, order) -> dict:
-    proposal = proposal_service.build_proposal(copy, actor, order.id)
+def _summary(copy: Session, actor: Actor, order, quantities: list[int] | None = None) -> dict:
+    proposal = proposal_service.build_proposal(copy, actor, order.id, quantities=quantities)
     plan = plan_service.current_plan(copy)
     ids = {p.id for p in order.positions}
     names = {m.code: m.model for m in copy.query(MachineRow)}
@@ -104,7 +104,9 @@ def _summary(copy: Session, actor: Actor, order) -> dict:
         "items": [{"designation": i.designation, "name": i.name, "material": i.material, "quantity": i.quantity,
                    "price": i.price, "batch_price": i.batch_price, "machine_hours": i.machine_hours,
                    "bench_hours": i.bench_hours, "machine_rate": i.machine_rate, "bench_rate": i.bench_rate,
-                   "machine_price": i.machine_price, "bench_price": i.bench_price} for i in proposal.items],
+                   "machine_price": i.machine_price, "bench_price": i.bench_price, "breaks": i.breaks}
+                  for i in proposal.items],
+        "quantities": list(quantities or []),
         "total": proposal.total, "vat_percent": proposal.vat_percent, "vat": proposal.vat,
         "grand_total": proposal.grand_total,
         "calc_date": proposal.calc_date.isoformat() if proposal.calc_date else None,
@@ -184,8 +186,11 @@ def _alternatives(copy: Session, order, plan, positions: list[dict]) -> None:
 
 
 def calculate(session: Session, actor: Actor, files: list[UploadedFile], work_dir: Path | str, quantity: int = 1,
-              desired_date: date | None = None, start_date: date | None = None, customer: str = "") -> QuickResult:
+              desired_date: date | None = None, start_date: date | None = None, customer: str = "",
+              quantities: list[int] | str | None = None) -> QuickResult:
+    """quantities — ступени количества (до 4): цена и срок по каждой позиции для 1 / 10 / 50 шт."""
     require(actor.role, Action.UPLOAD_ORDER)
+    quantities = _quantities(quantities)
     _cleanup(work_dir)
     token = uuid.uuid4().hex
     folder = _folder(work_dir, token)
@@ -194,7 +199,7 @@ def calculate(session: Session, actor: Actor, files: list[UploadedFile], work_di
         if f.filename:
             (folder / "files" / Path(f.filename.replace("\\", "/")).name).write_bytes(f.content)
     params = {"quantity": quantity, "desired_date": desired_date.isoformat() if desired_date else None,
-              "start_date": (start_date or date.today()).isoformat(), "customer": customer}
+              "start_date": (start_date or date.today()).isoformat(), "customer": customer, "quantities": quantities}
     (folder / "params.json").write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
 
     try:
@@ -227,7 +232,7 @@ def _run(session: Session, actor: Actor, folder: Path, params: dict) -> dict:
                                                 start_date=date.fromisoformat(params["start_date"]),
                                                 quantity=int(params.get("quantity") or 1))
             apply_overrides(copy, order, params.get("overrides") or {})
-            return _summary(copy, actor, order)
+            return _summary(copy, actor, order, params.get("quantities"))
     finally:
         if engine is not None:
             engine.dispose()
@@ -308,6 +313,24 @@ def update_position(session: Session, actor: Actor, work_dir: Path | str, token:
     params["overrides"] = {**(params.get("overrides") or {}), designation: changes}
     new_summary = _run(session, actor, folder, params)
     _save(folder, params, new_summary)
+    return new_summary
+
+
+def _quantities(value) -> list[int]:
+    from app.domain.quantity_breaks import parse_quantities
+    try:
+        return parse_quantities(value)
+    except ValueError as err:
+        raise ServiceError(str(err)) from None
+
+
+def set_quantities(session: Session, actor: Actor, work_dir: Path | str, token: str, value) -> dict:
+    """Ступени количества быстрого расчёта: пересчёт на копии базы; ошибка — расчёт остаётся прежним."""
+    require(actor.role, Action.UPLOAD_ORDER)
+    summary = load(work_dir, token)
+    params = {**summary["params"], "quantities": _quantities(value)}
+    new_summary = _run(session, actor, _folder(work_dir, token), params)
+    _save(_folder(work_dir, token), params, new_summary)
     return new_summary
 
 
