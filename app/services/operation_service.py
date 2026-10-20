@@ -9,7 +9,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.access import Action, require
+from app.domain.access import AccessDenied, Action, can, require
 from app.domain.enums import FactKind, Operation, PositionStatus, Role, StageGroup
 from app.domain.history import require_reason
 from app.domain.operations import (
@@ -92,13 +92,27 @@ def queue(session: Session, actor: Actor, machine: str | None = None) -> list[Op
     return list(session.scalars(query))
 
 
+def require_position_files(session: Session, actor: Actor, position_id: int) -> None:
+    """Чертёж PDF, STEP и 3D-модель: кто видит заказы — любой позиции; специалист — только утверждённой
+    позиции в работе, где есть его операции (карточка позиции специалисту по-прежнему недоступна)."""
+    require(actor.role, Action.VIEW_POSITION_FILES)
+    if can(actor.role, Action.VIEW_ORDERS):
+        return
+    allowed = {op.value for op in operations_for_role(actor.role)}
+    found = session.scalar(select(OperationRow.id).join(PositionRow, PositionRow.id == OperationRow.position_id)
+                           .where(OperationRow.position_id == position_id)
+                           .where(PositionRow.status.in_([s.value for s in IN_WORK]))
+                           .where(OperationRow.operation.in_(allowed)).limit(1))
+    if found is None:
+        raise AccessDenied("Чертёж и модель доступны только по позициям с вашими операциями")
+
+
 def _get(session: Session, actor: Actor, op_id: int) -> tuple[OperationRow, list[OperationRow], PositionRow]:
     row = session.get(OperationRow, op_id)
     if row is None:
         raise OperationError("Операция не найдена")
     require(actor.role, Action.DO_OPERATIONS)
     if not can_press(actor.role, Operation(row.operation)):
-        from app.domain.access import AccessDenied
         raise AccessDenied(f"Операцию «{Operation(row.operation).label}» отмечает другой специалист")
     pos = session.get(PositionRow, row.position_id)
     return row, position_operations(session, pos.id), pos

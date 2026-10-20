@@ -62,6 +62,9 @@ MATRIX = {
                                    Role.LOCKSMITH, Role.INSPECTOR},
     Action.DO_OPERATIONS: {Role.MASTER, Role.OPERATOR, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR},
     Action.VIEW_HISTORY: {Role.TECHNOLOGIST, Role.MASTER, Role.HEAD},
+    # Чертёж и модель: кто видит заказы — любой позиции, специалисты — только позиций со своими операциями.
+    Action.VIEW_POSITION_FILES: {Role.TECHNOLOGIST, Role.MASTER, Role.HEAD, Role.MANAGER, Role.OPERATOR,
+                                 Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR},
 }
 
 

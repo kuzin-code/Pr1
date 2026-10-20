@@ -20,8 +20,13 @@ from app.domain.enums import (
 from app.web.deps import pop_flashes
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-# Версия статики: меняется при изменении style.css, чтобы браузер не брал старый файл из кэша.
-STATIC_VERSION = str(int((Path(__file__).parent / "static" / "style.css").stat().st_mtime))
+def static_version(folder: Path) -> str:
+    """Версия статики — по самому свежему *.css (style.css, work.css…), чтобы браузер не брал старый файл
+    из кэша."""
+    return str(int(max((p.stat().st_mtime for p in Path(folder).glob("*.css")), default=0)))
+
+
+STATIC_VERSION = static_version(Path(__file__).parent / "static")
 
 
 def money(value) -> str:

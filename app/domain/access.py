@@ -30,6 +30,7 @@ class Action(str, Enum):
     MANAGE_USERS = "manage_users"  # учётные записи и пароли
     DO_OPERATIONS = "do_operations"
     UNDO_OPERATIONS = "undo_operations"  # отмена ошибочной отметки «Начал» / «Закончил»  # окно специалиста: очередь операций, «Начал» / «Закончил»
+    VIEW_POSITION_FILES = "view_position_files"  # чертёж PDF, STEP и 3D-модель позиции
 
 
 PERMISSIONS: dict[Action, frozenset[Role]] = {
@@ -61,6 +62,9 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.DO_OPERATIONS: frozenset({M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
     Action.UNDO_OPERATIONS: frozenset({M}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),
+    # Чертёж и модель: кто видит заказы — любой позиции; специалисты из «Моих операций» — только позиций
+    # со своими операциями (проверка в operation_service.require_position_files).
+    Action.VIEW_POSITION_FILES: frozenset({T, M, H, MGR, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
 }
 
 

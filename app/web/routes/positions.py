@@ -53,8 +53,8 @@ def position_page(request: Request, position_id: int, db: Session = Depends(get_
 
 @router.get("/positions/{position_id}/file/{kind}")
 def position_file(request: Request, position_id: int, kind: str, db: Session = Depends(get_db)):
-    """Открыть чертёж PDF или модель STEP позиции (ФТ-03, ФТ-04)."""
-    require(current_actor(request).role, Action.VIEW_ORDERS)
+    """Открыть чертёж PDF или модель STEP позиции (ФТ-03, ФТ-04); специалисту — по своим операциям."""
+    operation_service.require_position_files(db, current_actor(request), position_id)
     pos = order_service.get_position(db, position_id)
     path, name = (pos.pdf_path, pos.pdf_name) if kind == "pdf" else (pos.step_path, pos.step_name)
     if kind not in ("pdf", "step") or not path or not Path(path).exists():
@@ -66,12 +66,15 @@ def position_file(request: Request, position_id: int, kind: str, db: Session = D
 
 @router.get("/positions/{position_id}/model")
 def position_model(request: Request, position_id: int, db: Session = Depends(get_db)):
-    """3D-просмотр модели STEP позиции заказа (ФТ-03: технолог смотрит нюансы детали)."""
-    require(current_actor(request).role, Action.VIEW_ORDERS)
+    """3D-просмотр модели STEP позиции заказа (ФТ-03: технолог смотрит нюансы детали; специалист — у станка)."""
+    actor = current_actor(request)
+    operation_service.require_position_files(db, actor, position_id)
     pos = order_service.get_position(db, position_id)
+    back = ((f"/positions/{position_id}", "Карточка позиции") if can(actor.role, Action.VIEW_ORDERS)
+            else ("/work", "Мои операции"))
     return render(request, "model.html", title=pos.designation, step_url=f"/positions/{position_id}/file/step",
                   pdf_url=f"/positions/{position_id}/file/pdf" if pos.pdf_path else None,
-                  back_url=f"/positions/{position_id}", back_label="Карточка позиции")
+                  back_url=back[0], back_label=back[1])
 
 
 @router.post("/positions/{position_id}/files")
