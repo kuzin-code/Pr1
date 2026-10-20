@@ -3,12 +3,12 @@
 {% block content %}
 <h1>Уведомления</h1>
 <div class="card">
-<table>
+<table class="cards">
   <tr><th>Время</th><th>Событие</th><th></th></tr>
   {% for n in rows %}
-  <tr><td>{{ n.planned_at|dt }}</td><td>{% if n.kind == 'new_order' %}<span class="badge ok">новый заказ</span> {% endif %}{{ n.text }}
+  <tr><td data-label="Время">{{ n.planned_at|dt }}{% if not n.read %} <span class="badge warn hide-desk">новое</span>{% endif %}</td><td data-label="Событие">{% if n.kind == 'new_order' %}<span class="badge ok">новый заказ</span> {% endif %}{{ n.text }}
     {% if n.position_id and can('view_orders') %}<a href="/positions/{{ n.position_id }}">открыть</a>
-    {% elif n.position_id and can('do_operations') %}<a href="/work">открыть</a>{% endif %}</td><td>{% if not n.read %}<span class="badge warn">новое</span>{% endif %}</td></tr>
+    {% elif n.position_id and can('do_operations') %}<a href="/work">открыть</a>{% endif %}</td><td class="hide-phone">{% if not n.read %}<span class="badge warn">новое</span>{% endif %}</td></tr>
   {% else %}<tr><td colspan="3" class="muted">Уведомлений нет</td></tr>{% endfor %}
 </table>
 </div>

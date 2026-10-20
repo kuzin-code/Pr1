@@ -14,14 +14,14 @@
   <p class="muted">Пользователь сменит временный пароль при первом входе. Для специалистов участка достаточно одной общей учётной записи на специальность.</p>
 </div>
 <div class="card scroll">
-<table>
+<table class="cards">
   <tr><th>Учётная запись</th><th>Имя</th><th>Роль</th><th>Состояние</th><th>Временный пароль</th><th></th></tr>
   {% for u in users %}
   {% set off = u.active is sameas false %}
-  <tr><td><b>{{ u.username }}</b></td><td>{{ u.full_name }}</td><td>{{ u.role|role_label }}</td>
-    <td>{% if off %}<span class="badge err">отключена</span>{% else %}<span class="badge ok">активна</span>{% endif %}
+  <tr><td class="cell-title"><b>{{ u.username }}</b></td><td data-label="Имя">{{ u.full_name }}</td><td data-label="Роль">{{ u.role|role_label }}</td>
+    <td data-label="Состояние">{% if off %}<span class="badge err">отключена</span>{% else %}<span class="badge ok">активна</span>{% endif %}
       {% if u.must_change_password %}<span class="badge warn">ждёт смены пароля</span>{% endif %}</td>
-    <td><form method="post" action="/users/{{ u.username }}/reset" class="inline">
+    <td data-label="Временный пароль"><form method="post" action="/users/{{ u.username }}/reset" class="inline">
       <input type="password" name="password" placeholder="новый временный" minlength="8" required style="width:150px">
       <button class="secondary">Задать</button></form></td>
     <td>{% if u.username != user.username %}<form method="post" action="/users/{{ u.username }}/active" class="inline">

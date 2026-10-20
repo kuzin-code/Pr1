@@ -41,7 +41,7 @@
 </div>
 {% else %}
 <div class="card scroll">
-<table>
+<table class="sticky-first">
   <tr><th>Станок</th>{% for c in columns %}<th class="num">{% if view == 'week' %}{{ c[0] }}-Н{{ c[1] }}{% else %}{{ c.strftime('%d.%m') }}{% endif %}</th>{% endfor %}</tr>
   {% for m in machines %}
   <tr><td>{{ m.model }}</td>
@@ -58,11 +58,11 @@
 <div class="grid">
 <div class="card">
   <h2>Дата окончания текущих работ на станках</h2>
-  <table>
+  <table class="cards">
     <tr><th>Станок</th><th>Занят до</th>{% if can('set_machine_busy') %}<th></th>{% endif %}</tr>
     {% for m in machines %}
-    <tr><td>{{ m.model }}</td><td>{{ m.busy_until|dt }}</td>
-      {% if can('set_machine_busy') %}<td><form method="post" action="/machines/{{ m.code }}/busy" class="inline">
+    <tr><td class="cell-title">{{ m.model }}</td><td data-label="Занят до">{{ m.busy_until|dt }}</td>
+      {% if can('set_machine_busy') %}<td data-label="Изменить"><form method="post" action="/machines/{{ m.code }}/busy" class="inline">
         <input type="datetime-local" name="busy_until" value="{{ m.busy_until.strftime('%Y-%m-%dT%H:%M') if m.busy_until else '' }}">
         <button class="secondary">Сохранить</button></form></td>{% endif %}</tr>
     {% endfor %}
@@ -70,12 +70,12 @@
 </div>
 <div class="card">
   <h2>Отклонения плана от факта</h2>
-  <table>
+  <table class="cards">
     <tr><th>Позиция</th><th>Было</th><th>Стало</th><th class="num">Сдвиг</th></tr>
     {% for d in deviations %}{% set p = positions[d.position_id] %}
-    <tr><td>{% if can('view_orders') %}<a href="/positions/{{ p.id }}">{{ p.designation }}</a>{% else %}{{ p.designation }}{% endif %} <span class="muted">{{ p.order.number }}</span></td>
-      <td>{{ d.baseline|dt }}</td><td>{{ d.current|dt }}</td>
-      <td class="num"><span class="badge {{ 'err' if d.shift_hours > 0 else 'ok' }}">{{ '%+.1f'|format(d.shift_hours) }} раб. ч</span></td></tr>
+    <tr><td class="cell-title">{% if can('view_orders') %}<a href="/positions/{{ p.id }}">{{ p.designation }}</a>{% else %}{{ p.designation }}{% endif %} <span class="muted">{{ p.order.number }}</span></td>
+      <td data-label="Было">{{ d.baseline|dt }}</td><td data-label="Стало">{{ d.current|dt }}</td>
+      <td class="num" data-label="Сдвиг"><span class="badge {{ 'err' if d.shift_hours > 0 else 'ok' }}">{{ '%+.1f'|format(d.shift_hours) }} раб. ч</span></td></tr>
     {% else %}<tr><td colspan="4" class="muted">Отклонений нет</td></tr>{% endfor %}
   </table>
 </div>
@@ -83,12 +83,12 @@
 
 <div class="card scroll">
   <h2>Очередь по станкам и сроки позиций</h2>
-  <table>
-    <tr><th>Станок</th><th>Позиция</th><th>Заказ</th><th>Станок: начало — окончание</th><th>Срок позиции</th></tr>
+  <table class="cards">
+    <tr><th>Позиция</th><th>Станок</th><th>Заказ</th><th>Станок: начало — окончание</th><th>Срок позиции</th></tr>
     {% for s in plan.slots|sort(attribute='machine_code,start') %}{% set p = positions[s.position_id] %}{% set pp = plan.positions[s.position_id] %}
-    <tr><td>{{ s.machine_code }}</td><td>{{ p.designation }} <span class="muted">{{ p.quantity }} шт.</span></td><td>{{ p.order.number }}</td>
-      <td>{{ s.start|dt }} — {{ s.end|dt }}</td>
-      <td>{{ pp.finish|dt }} {% if pp.preliminary %}<span class="badge">предварительный</span>{% endif %}<span class="badge warn">ориентировочно</span></td></tr>
+    <tr><td class="cell-title">{{ p.designation }} <span class="muted">{{ p.quantity }} шт.</span></td><td data-label="Станок">{{ s.machine_code }}</td><td data-label="Заказ">{{ p.order.number }}</td>
+      <td data-label="Станок: начало — окончание">{{ s.start|dt }} — {{ s.end|dt }}</td>
+      <td data-label="Срок позиции">{{ pp.finish|dt }} {% if pp.preliminary %}<span class="badge">предварительный</span>{% endif %}<span class="badge warn">ориентировочно</span></td></tr>
     {% endfor %}
   </table>
 </div>

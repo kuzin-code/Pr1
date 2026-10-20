@@ -1,14 +1,14 @@
-<table>
+<table class="cards">
   <tr><th>Когда</th><th>Кто</th><th>Объект</th><th>Что</th><th>Было</th><th>Стало</th><th>Причина</th></tr>
   {% for h in history %}
   {% set hidden = h.entity == 'parameters' and not can('view_cost') %}
-  <tr><td>{{ h.ts|dt }}</td><td>{{ h.username }}</td>
-    <td>{% if h.entity == 'position' %}<a href="/positions/{{ h.entity_id }}">позиция {{ h.entity_id }}</a>{% else %}{{ h.entity }} {{ h.entity_id }}{% endif %}</td>
-    <td>{{ h.field }}</td>
+  <tr><td data-label="Когда">{{ h.ts|dt }}</td><td data-label="Кто">{{ h.username }}</td>
+    <td data-label="Объект">{% if h.entity == 'position' %}<a href="/positions/{{ h.entity_id }}">позиция {{ h.entity_id }}</a>{% else %}{{ h.entity }} {{ h.entity_id }}{% endif %}</td>
+    <td data-label="Что">{{ h.field }}</td>
     {% if h.field == 'calculation' %}<td colspan="2" class="muted">снимок расчёта сохранён</td>
     {% elif hidden %}<td colspan="2" class="muted">скрыто</td>
-    {% else %}<td class="muted">{{ h.old|short }}</td><td>{{ h.new|short }}</td>{% endif %}
-    <td>{{ h.reason }}</td></tr>
+    {% else %}<td class="muted" data-label="Было">{{ h.old|short }}</td><td data-label="Стало">{{ h.new|short }}</td>{% endif %}
+    <td data-label="Причина">{{ h.reason }}</td></tr>
   {% else %}
   <tr><td colspan="7" class="muted">Записей нет</td></tr>
   {% endfor %}

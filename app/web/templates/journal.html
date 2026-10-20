@@ -36,20 +36,20 @@
 </div>
 </div>
 <div class="card scroll">
-<table>
+<table class="cards">
   <tr><th>Деталь</th><th>Станок</th><th>Материал</th><th>Габариты, мм</th><th class="num">IT</th><th class="num">Сложн.</th>
     <th>Операции (время на ед. счёта)</th><th>k станочная</th><th>k слес.-финишная</th><th>Файлы</th></tr>
   {% for e in entries %}{% set k = ks[e.part_code] %}{% set row = rows.get(e.part_code) %}
-  <tr><td><a href="/journal/{{ row.id }}"><b>{{ e.part_code }}</b></a><br><span class="muted">{{ e.name }} · {{ e.technology }}</span>
+  <tr><td class="cell-title"><a href="/journal/{{ row.id }}"><b>{{ e.part_code }}</b></a><br><span class="muted">{{ e.name }} · {{ e.technology }}</span>
     {% if row.confirmed is sameas false %}<br><span class="badge warn">время не подтверждено</span>{% endif %}</td>
-    <td>{{ e.machine_code }}</td><td>{{ e.material }}</td><td>{{ e.dims.as_list()|dims }}</td>
-    <td class="num">{{ e.tolerance_grade }}</td><td class="num">{{ e.complexity }}</td>
-    <td>{% for s in e.stages %}<span class="badge">{{ s.stage.label }}: {{ s.hours }} ч / {{ s.count_mode.label }}</span>{% endfor %}</td>
+    <td data-label="Станок">{{ e.machine_code }}</td><td data-label="Материал">{{ e.material }}</td><td data-label="Габариты, мм">{{ e.dims.as_list()|dims }}</td>
+    <td class="num" data-label="IT">{{ e.tolerance_grade }}</td><td class="num" data-label="Сложн.">{{ e.complexity }}</td>
+    <td data-label="Операции">{% for s in e.stages %}<span class="badge">{{ s.stage.label }}: {{ s.hours }} ч / {{ s.count_mode.label }}</span>{% endfor %}</td>
     {% for g in (machine_group, bench_group) %}
-    <td>{{ '%.3f'|format(k[g].value) }} <span class="muted">({{ k[g].count }} зам.)</span>
+    <td data-label="{{ 'k станочная' if g == machine_group else 'k слес.-финишная' }}">{{ '%.3f'|format(k[g].value) }} <span class="muted">({{ k[g].count }} зам.)</span>
       {% if k[g].approximate %}<span class="badge warn">ориентировочно</span>{% endif %}</td>
     {% endfor %}
-    <td style="min-width:190px">{% set pdf, step = files[e.part_code] %}
+    <td class="cell-files" data-label="Файлы">{% set pdf, step = files[e.part_code] %}
       {% if pdf.ok %}<a class="btn secondary" href="/journal/{{ row.id }}/file/pdf" target="_blank">Открыть чертёж</a>{% else %}<span class="badge err">{{ pdf.message }}</span>{% endif %}
       {% if step.ok %}<a class="btn secondary" href="/journal/{{ row.id }}/model">3D-модель</a>{% else %}<span class="badge err">{{ step.message }}</span>{% endif %}
       {% for s in (pdf, step) %}{% if s.warning %}<br><span class="badge warn">{{ s.warning }}</span>{% endif %}{% endfor %}</td></tr>

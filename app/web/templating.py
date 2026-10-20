@@ -104,5 +104,6 @@ def render(request: Request, name: str, status_code: int = 200, **context):
         unread=unread,
         can=lambda action: role is not None and can(role, Action(action)),
         flashes=pop_flashes(request),
+        path=request.url.path,  # для подсветки текущего раздела в меню
     )
     return templates.TemplateResponse(request, name, context, status_code=status_code)

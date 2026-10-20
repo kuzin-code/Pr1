@@ -1,12 +1,10 @@
 :root { --bg:#f5f6f8; --card:#fff; --text:#1d2330; --muted:#667085; --line:#e3e6eb; --accent:#1f5fbf;
-        --ok:#1d7a45; --warn:#a15c00; --err:#b42318; }
+        --ok:#1d7a45; --warn:#a15c00; --err:#b42318;
+        --brand:#993556; --brand-dark:#7a2945; --brand-light:#e8a3b8; --head:#1d2330; --head-text:#cfd6e4;
+        --ok-soft:#e8f5ee; --warn-soft:#fff4e5; --err-soft:#fdecea; }
 * { box-sizing:border-box; }
 body { margin:0; font:14px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
-header { background:#1d2330; color:#fff; padding:0 16px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
-header .brand { font-weight:600; padding:12px 0; }
-header nav a { color:#cfd6e4; text-decoration:none; padding:12px 6px; display:inline-block; }
-header nav a:hover { color:#fff; }
-header .me { margin-left:auto; display:flex; gap:10px; align-items:center; color:#cfd6e4; }
+/* Шапка и меню — в конце файла (раздел «Шапка»). */
 main { max-width:1280px; margin:0 auto; padding:16px; }
 h1 { font-size:22px; margin:8px 0 14px; } h2 { font-size:17px; margin:0 0 10px; }
 .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin-bottom:14px; }
@@ -26,6 +24,7 @@ label { color:var(--muted); font-size:12px; display:block; }
 .badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; background:#eef2f7; color:#344054; margin:1px 2px; }
 .badge.warn { background:#fff4e5; color:var(--warn); } .badge.ok { background:#e8f5ee; color:var(--ok); } .badge.err { background:#fdecea; color:var(--err); }
 .flash { padding:8px 12px; border-radius:6px; margin-bottom:10px; } .flash.ok { background:#e8f5ee; color:var(--ok); } .flash.error { background:#fdecea; color:var(--err); }
+.flash.warn { background:var(--warn-soft); color:var(--warn); }
 .muted { color:var(--muted); } .err { color:var(--err); }
 .load { min-width:56px; text-align:center; } .load.l0 { background:#fff; } .load.l1 { background:#e6f0ff; } .load.l2 { background:#c4dbff; } .load.l3 { background:#ffd8b0; } .load.l4 { background:#ffb4a8; }
 
@@ -168,3 +167,79 @@ button.big { font-size:16px; padding:9px 26px; margin-right:14px; }
 .danger-text { color:var(--err) !important; border-color:#f3c4bf !important; }
 /* ступень количества, по которой посчитан расчёт */
 tr.quick-break-current td { background:#eef4ff; font-weight:600; }
+
+/* Шапка: на ПК — меню в строку с подсветкой раздела и группами; до 760 px — одна строка и кнопка «Меню». */
+header.top { background:var(--head); color:#fff; padding:0 16px; display:flex; align-items:center; gap:4px 14px;
+  border-bottom:3px solid var(--brand); position:relative; z-index:20; }
+header .brand { color:#fff; text-decoration:none; font-weight:600; padding:12px 0; white-space:nowrap; }
+header .brand-short, header .bell, header .nav-toggle, header .nav-check, header .nav-me { display:none; }
+header .nav { display:flex; flex-wrap:wrap; align-items:center; }
+header .nav a, .nav-group-title { color:var(--head-text); text-decoration:none; padding:12px 7px; display:inline-block; cursor:pointer; }
+header .nav a:hover, .nav-group:hover .nav-group-title { color:#fff; }
+header .nav a.on, .nav-group.on > .nav-group-title { color:#fff; box-shadow:inset 0 -3px 0 var(--brand-light); }
+.nav-group { position:relative; outline:none; }
+.nav-group-title::after { content:" ▾"; font-size:11px; }
+.nav-sub { display:none; position:absolute; top:100%; left:0; min-width:210px; padding:6px 0; background:#fff;
+  border:1px solid var(--line); border-radius:8px; box-shadow:0 10px 24px rgba(0,0,0,.15); }
+.nav-group:hover .nav-sub, .nav-group:focus-within .nav-sub { display:block; }
+header .nav-sub a { display:block; color:var(--text); padding:9px 14px; }
+header .nav-sub a:hover { color:var(--brand-dark); background:#f8e9ef; }
+header .nav-sub a.on { color:var(--brand-dark); box-shadow:inset 3px 0 0 var(--brand); font-weight:600; }
+header .me { margin-left:auto; display:flex; gap:10px; align-items:center; color:var(--head-text); white-space:nowrap; }
+header .me a { color:inherit; }
+.bell-count { display:inline-block; min-width:18px; padding:0 5px; border-radius:9px; background:var(--brand); color:#fff;
+  font-size:11px; line-height:18px; text-align:center; font-weight:700; }
+@media (max-width:760px) {
+  header.top { padding:0 12px; gap:8px; flex-wrap:nowrap; }
+  header .brand-full, header .me { display:none; }
+  header .brand-short { display:inline; font-size:16px; }
+  header .bell { display:inline-flex; gap:4px; align-items:center; margin-left:auto; color:#fff; text-decoration:none;
+    padding:8px 10px; border:1px solid rgba(255,255,255,.3); border-radius:8px; }
+  header .nav-toggle { display:inline-block; color:#fff; padding:8px 12px; border:1px solid rgba(255,255,255,.3); border-radius:8px;
+    cursor:pointer; font-size:14px; user-select:none; }
+  header .brand + .nav-check + .nav-toggle { margin-left:auto; }  /* роли без уведомлений */
+  header .nav-toggle::before { content:"☰ "; }
+  .nav-check:checked + .nav-toggle { background:var(--brand); border-color:var(--brand); }
+  .nav-check:focus-visible + .nav-toggle { outline:3px solid var(--brand-light); }
+  header .nav { display:none; position:absolute; top:100%; left:0; right:0; flex-direction:column; align-items:stretch;
+    background:#fff; border-bottom:3px solid var(--brand); box-shadow:0 12px 24px rgba(0,0,0,.2); max-height:80vh; overflow-y:auto; }
+  .nav-check:checked ~ .nav { display:flex; }
+  header .nav a, .nav-group-title { color:var(--text); padding:13px 16px; border-bottom:1px solid var(--line); display:block; }
+  header .nav a.on { color:var(--brand-dark); box-shadow:inset 4px 0 0 var(--brand); background:#f8e9ef; font-weight:600; }
+  .nav-group-title { color:var(--muted) !important; font-size:12px; text-transform:uppercase; letter-spacing:.04em; padding:10px 16px 4px;
+    border-bottom:0; cursor:default; box-shadow:none !important; }
+  .nav-group-title::after { content:""; }
+  .nav-sub { display:block; position:static; box-shadow:none; border:0; border-radius:0; padding:0; min-width:0; }
+  header .nav-sub a { padding:13px 16px 13px 28px; }
+  header .nav-me { display:flex; gap:10px; align-items:center; justify-content:space-between; padding:8px 16px 8px 0; background:#fafbfc; }
+  header .nav-me a { border:0; flex:1; }
+  header .nav-me form { margin:0; }
+  main { padding:12px; }
+  h1 { font-size:20px; }
+  .flash { padding:7px 10px; font-size:13px; }
+}
+
+/* Таблицы-карточки: на узком экране строка становится карточкой, подпись ячейки — из data-label. */
+@media (max-width:700px) {
+  table.cards, table.cards tbody, table.cards tr, table.cards td { display:block; width:100%; }
+  table.cards tr:has(> th) { display:none; }
+  table.cards tr { background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin-bottom:10px; }
+  table.cards td { border:0; padding:4px 0 4px 40%; position:relative; text-align:left; min-height:24px; }
+  table.cards td::before { content:attr(data-label); position:absolute; left:0; width:38%; color:var(--muted); font-size:12px; line-height:1.3; padding-top:2px; }
+  table.cards td:not([data-label]), table.cards td.cell-title { padding-left:0; }
+  table.cards td.cell-title { font-size:16px; border-bottom:1px solid var(--line); padding-bottom:6px; margin-bottom:4px; }
+  table.cards td:empty { display:none; }
+  table.cards td.num { text-align:left; }
+  .card:has(> table.cards), .card.scroll:has(table.cards) { background:transparent; border:0; padding:0; }
+  .card:has(> table.cards) > h2 { padding:0 2px; }
+  .hide-phone { display:none !important; }
+  .gantt-names { flex-basis:110px; }
+  .gantt-name { font-size:12px; padding:5px 6px; }
+}
+/* Широкие числовые таблицы оставляем с прокруткой, первая колонка закреплена. */
+table.sticky-first th:first-child, table.sticky-first td:first-child { position:sticky; left:0; background:var(--card); z-index:1;
+  box-shadow:1px 0 0 var(--line); }
+@media (min-width:701px) { .hide-desk { display:none !important; } }
+@media (max-width:1440px) and (min-width:761px) { header .brand-full { display:none; } header .brand-short { display:inline; font-size:16px; }
+  header.top { flex-wrap:nowrap; } header .me-role { display:none; } }
+@media (max-width:1100px) and (min-width:761px) { header .nav a, .nav-group-title { padding:12px 5px; font-size:13px; } }

@@ -7,29 +7,45 @@
   <link rel="stylesheet" href="/static/style.css?v={{ static_version }}">
 </head>
 <body>
-<header>
-  <div class="brand">АС «Планирование загрузки и расчёт стоимости»</div>
+{# Текущий раздел — для подсветки пункта меню; карточки позиций и станков относятся к своим спискам. #}
+{% set nav_path = path|default('') %}
+{% set nav_section = '/orders/new' if nav_path == '/orders/new' else '/orders' if nav_path.startswith('/orders') or nav_path.startswith('/positions')
+  else '/reference' if nav_path.startswith('/machines') else '/' ~ nav_path.split('/')[1] if nav_path else '' %}
+{% macro nav_item(href, label) %}<a href="{{ href }}"{% if nav_section == href %} class="on" aria-current="page"{% endif %}>{{ label }}</a>{% endmacro %}
+<header class="top">
+  <a class="brand" href="/"><span class="brand-full">АС «Планирование загрузки и расчёт стоимости»</span><span class="brand-short">АС ПЗ</span></a>
   {% if user %}
-  <nav>
-    {% if can('view_plan') %}<a href="/dashboard">Главная</a>{% endif %}
-    {% if can('view_orders') %}<a href="/orders">Заказы</a>{% endif %}
-    {% if can('upload_order') %}<a href="/orders/new">Новый заказ</a><a href="/quick">Быстрый расчёт</a><a href="/proposals">КП</a>{% endif %}
-    {% if can('view_plan') %}<a href="/plan">Загрузка станков</a>{% endif %}
-    {% if can('do_operations') %}<a href="/work">Мои операции</a>{% endif %}
-    {% if can('receive_notifications') %}<a href="/notifications">Уведомления{% if unread %} <span class="nav-count">{{ unread }}</span>{% endif %}</a>{% endif %}
-    {% if can('view_journal') %}<a href="/journal">Журнал калибровки</a>{% endif %}
-    {% if can('view_reference') %}<a href="/reference">Справочники</a>{% endif %}
-    {% if can('view_history') %}<a href="/history">История</a>{% endif %}
-    {% if can('manage_users') %}<a href="/users">Пользователи</a>{% endif %}
+  {% if can('receive_notifications') %}<a class="bell" href="/notifications" title="Уведомления">Увед.{% if unread %} <span class="bell-count">{{ unread }}</span>{% endif %}</a>{% endif %}
+  <input type="checkbox" id="nav-open" class="nav-check" aria-label="Открыть меню">
+  <label for="nav-open" class="nav-toggle">Меню</label>
+  <nav class="nav">
+    {% if can('view_plan') %}{{ nav_item('/dashboard', 'Главная') }}{% endif %}
+    {% if can('view_orders') %}{{ nav_item('/orders', 'Заказы') }}{% endif %}
+    {% if can('upload_order') %}
+    <div class="nav-group{{ ' on' if nav_section in ('/orders/new', '/quick', '/proposals') }}" tabindex="0"><span class="nav-group-title">Расчёт и КП</span>
+      <div class="nav-sub">{{ nav_item('/orders/new', 'Новый заказ') }}{{ nav_item('/quick', 'Быстрый расчёт') }}{{ nav_item('/proposals', 'КП') }}</div></div>
+    {% endif %}
+    {% if can('view_plan') %}{{ nav_item('/plan', 'Загрузка станков') }}{% endif %}
+    {% if can('do_operations') %}{{ nav_item('/work', 'Мои операции') }}{% endif %}
+    {% if can('receive_notifications') %}<a href="/notifications"{% if nav_section == '/notifications' %} class="on" aria-current="page"{% endif %}>Уведомления{% if unread %} <span class="nav-count">{{ unread }}</span>{% endif %}</a>{% endif %}
+    {% if can('view_journal') %}{{ nav_item('/journal', 'Журнал калибровки') }}{% endif %}
+    {% set nav_more = can('view_reference') and can('view_history') %}
+    {% if nav_more %}<div class="nav-group{{ ' on' if nav_section in ('/reference', '/history') }}" tabindex="0"><span class="nav-group-title">Ещё</span><div class="nav-sub">{% endif %}
+    {% if can('view_reference') %}{{ nav_item('/reference', 'Справочники') }}{% endif %}
+    {% if can('view_history') %}{{ nav_item('/history', 'История') }}{% endif %}
+    {% if nav_more %}</div></div>{% endif %}
+    {% if can('manage_users') %}{{ nav_item('/users', 'Пользователи') }}{% endif %}
+    <div class="nav-me">{{ nav_item('/account', 'Мой пароль') }}
+      <form method="post" action="/logout"><button class="secondary">Выйти</button></form></div>
   </nav>
-  <div class="me"><a href="/account" title="Мой пароль" style="color:inherit">{{ user.name }}</a>{% if user.name != role.label %} ({{ role.label }}){% endif %}
+  <div class="me"><a href="/account" title="Мой пароль">{{ user.name }}</a>{% if user.name != role.label %} <span class="me-role">({{ role.label }})</span>{% endif %}
     <form method="post" action="/logout" class="inline"><button class="secondary">Выйти</button></form>
   </div>
   {% endif %}
 </header>
 <main>
   {% if user and user.must_change %}<div class="flash error">Задан временный пароль — придумайте свой, чтобы продолжить работу.</div>
-  {% elif user and user.weak %}<div class="flash error">Вы вошли с демо-паролем — смените его: <a href="/account">Мой пароль</a>.</div>{% endif %}
+  {% elif user and user.weak %}<div class="flash warn">Вы вошли с демо-паролем — смените его: <a href="/account">Мой пароль</a>.</div>{% endif %}
   {% for kind, message in flashes %}<div class="flash {{ kind }}">{{ message }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>

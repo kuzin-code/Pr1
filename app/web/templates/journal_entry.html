@@ -81,12 +81,12 @@
 <div class="grid">
 <div class="card scroll">
   <h2>Замеры (обучение k)</h2>
-  <table>
+  <table class="cards">
     <tr><th>Группа</th><th class="num">Расчёт, ч</th><th class="num">Факт, ч</th><th class="num">Факт ÷ расчёт</th><th>Источник</th></tr>
     {% for m in entry.measurements %}
-    <tr><td>{{ 'станочная' if m.group == machine_group else 'слесарно-финишная' }}</td><td class="num">{{ m.calc_hours }}</td>
-      <td class="num">{{ m.actual_hours }}</td><td class="num">{{ '%.3f'|format(m.ratio) if m.actual_hours > 0 else 'ошибочная отметка' }}</td>
-      <td class="muted">{{ 'позиция %s'|format(m.position_id) if m.position_id else 'вручную' }}</td></tr>
+    <tr><td data-label="Группа">{{ 'станочная' if m.group == machine_group else 'слесарно-финишная' }}</td><td class="num" data-label="Расчёт, ч">{{ m.calc_hours }}</td>
+      <td class="num" data-label="Факт, ч">{{ m.actual_hours }}</td><td class="num" data-label="Факт ÷ расчёт">{{ '%.3f'|format(m.ratio) if m.actual_hours > 0 else 'ошибочная отметка' }}</td>
+      <td class="muted" data-label="Источник">{{ 'позиция %s'|format(m.position_id) if m.position_id else 'вручную' }}</td></tr>
     {% else %}<tr><td colspan="5" class="muted">Замеров нет</td></tr>{% endfor %}
   </table>
   {% if edit %}
