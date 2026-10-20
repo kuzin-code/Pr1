@@ -95,6 +95,7 @@ def _summary(copy: Session, actor: Actor, order) -> dict:
             "extra_machines": [dict(e) for e in data.get("extra_machines") or []],
             "route": [dict(s) for s in p.route or []], "analog": p.analog_code,
         })
+    _alternatives(copy, order, plan, positions)
     return {
         "positions": positions,
         "cnc": [{"code": m.code, "model": m.model} for m in copy.query(MachineRow) if m.is_cnc],
@@ -114,6 +115,72 @@ def _summary(copy: Session, actor: Actor, order) -> dict:
         "machines": machines, "bottleneck": bottleneck, "issues": issues,
         "notes": proposal.notes + list(getattr(order, "intake_warnings", [])),
     }
+
+
+def _alternatives(copy: Session, order, plan, positions: list[dict]) -> None:
+    """Станки по позиции: время по деталям журнала с этого станка, стоимость, когда свободен и когда будет готово
+    (очередь — другие заказы, другие позиции этого расчёта и введённые даты занятости)."""
+    from dataclasses import replace as _replace
+    from datetime import time
+
+    from app.domain.enums import StageGroup
+    from app.domain.machines import allowed_machines
+    from app.domain.work_calendar import MACHINE_CALENDAR
+    from app.domain.analog import same_part
+    from app.services.auto_service import machine_route
+    from app.services.calc_service import position_features
+    from app.services.reference_service import domain_machines, get_rates, journal_entries
+
+    busy: dict[str, datetime] = {m.code: m.busy_until for m in copy.query(MachineRow) if m.busy_until}
+    base = MACHINE_CALENDAR.normalize(max(datetime.combine(order.start_date, time(8)), datetime.now()))
+    machines = [m for m in domain_machines(copy) if m.is_cnc]
+    ids = sorted(p.id for p in order.positions)
+    later = {pid: {x for x in ids if x >= pid} for pid in ids}  # сама позиция и стоящие после неё
+    journal, rates = journal_entries(copy), get_rates(copy)
+    for pos, info in zip(order.positions, positions):
+        info["alternatives"] = []
+        try:
+            features = position_features(pos)
+        except ServiceError:
+            continue
+        drawing = (pos.data or {}).get("drawing") or {}
+        # очередь станка перед этой позицией: другие заказы и позиции этого расчёта, стоящие в очереди раньше
+        free = dict(busy)
+        for slot in plan.slots:
+            if slot.position_id not in later[pos.id]:
+                free[slot.machine_code] = max(free.get(slot.machine_code) or slot.end, slot.end)
+        tech = features.technology
+        known = same_part(journal, pos.designation, drawing.get("designation"))  # эта деталь в журнале
+        for m in machines:
+            if tech not in m.technologies or not allowed_machines(features, [m]):
+                continue  # другая технология — меняется в «Параметрах позиций»
+            on_m = [e for e in journal if e.machine_code == m.code and e.technology == tech]
+            choice = same_part(on_m, pos.designation, drawing.get("designation"))
+            if choice:
+                source = "эта деталь на этом станке (журнал)"
+            elif known:
+                choice, source = known, f"время этой детали с {known.entry.machine_code} (журнал)"
+            else:
+                choice, own = machine_route(journal, features, m.code, tech, pos.designation, drawing.get("designation"))
+                if choice is None:
+                    continue
+                source = "по похожим деталям этого станка" if own else "по похожим деталям (на этом станке в журнале нет)"
+            machine_h = sum(n.batch_hours(pos.quantity) for n in choice.route if n.stage.group is StageGroup.MACHINE)
+            bench_h = sum(n.batch_hours(pos.quantity) for n in choice.route if n.stage.group is StageGroup.BENCH)
+            start = MACHINE_CALENDAR.normalize(max(base, free.get(m.code) or base))
+            end = MACHINE_CALENDAR.add_hours(start, machine_h)
+            info["alternatives"].append({
+                "machine": m.code, "model": m.model, "technology": tech, "analog": choice.entry.part_code,
+                "source": source, "machine_hours": round(machine_h, 2), "bench_hours": round(bench_h, 2),
+                "cost": round(machine_h * rates.machine + bench_h * rates.bench, 2),
+                "free_from": start.isoformat(), "ready": end.isoformat(), "current": m.code == pos.machine_code})
+        alts = info["alternatives"]
+        if len(alts) > 1:
+            fastest, cheapest = min(a["ready"] for a in alts), min(a["cost"] for a in alts)
+            for a in alts:
+                a["fastest"] = a["ready"] == fastest and any(b["ready"] != fastest for b in alts)
+                a["cheapest"] = abs(a["cost"] - cheapest) < 0.01 and any(abs(b["cost"] - cheapest) >= 0.01 for b in alts)
+        alts.sort(key=lambda a: a["ready"])
 
 
 def calculate(session: Session, actor: Actor, files: list[UploadedFile], work_dir: Path | str, quantity: int = 1,
@@ -188,6 +255,13 @@ def apply_overrides(session: Session, order, overrides: dict) -> None:
         if "complexity" in ov:
             tech_service.set_complexity(session, SYSTEM, pos.id, int(ov["complexity"]), reason)
         if ov.get("machine") and ov["machine"] != pos.machine_code:
+            from app.services.reference_service import domain_machines
+            machine = next((m for m in domain_machines(session) if m.code == ov["machine"]), None)
+            technology = (pos.data or {}).get("technology") or "milling"
+            if machine and machine.technologies and technology not in machine.technologies:
+                # токарный станок для фрезерной детали и наоборот — технология меняется вместе со станком
+                tech_service.update_data(session, SYSTEM, pos.id,
+                                         {"technology": sorted(machine.technologies)[0]}, reason)
             tech_service.assign_machine(session, SYSTEM, pos.id, ov["machine"])
         if "extra_machines" in ov:
             wanted = {e["machine"]: e for e in ov["extra_machines"]}

@@ -1,0 +1,33 @@
+{# Сравнение станков по позиции: где быстрее и дешевле с учётом очереди; выбор станка — пересчёт расчёта. #}
+{% if s.positions and s.positions|selectattr("alternatives")|list %}
+<div class="card scroll">
+  <h2>Станки: где быстрее</h2>
+  <p class="muted" style="margin-top:0">Для каждого станка с ЧПУ, куда помещается деталь: время — по деталям журнала,
+    сделанным на этом станке (если деталь уже есть в журнале — её время); «свободен с» — по очереди других заказов и позиций этого расчёта.
+    Показаны станки той же технологии; сменить технологию — в «Параметрах позиций».</p>
+  {% for p in s.positions if p.alternatives %}
+  <h3>{{ p.designation }} · {{ p.quantity }} шт.</h3>
+  <table>
+    <tr><th>Станок</th><th>Технология</th><th>Время по деталям</th><th class="num">Станок, ч на партию</th>
+      <th class="num">Слесарно-финишная, ч</th><th class="num">Себестоимость, ₽</th><th>Свободен с</th><th>Готово на станке</th><th></th></tr>
+    {% for a in p.alternatives %}
+    <tr {% if a.current %}style="background:#eef4fd"{% endif %}>
+      <td><b>{{ a.model }}</b>
+        {% if a.fastest %}<span class="badge ok">быстрее всех</span>{% endif %}
+        {% if a.cheapest %}<span class="badge">дешевле всех</span>{% endif %}</td>
+      <td>{{ "токарная" if a.technology == "turning" else "фрезерная" }}</td>
+      <td class="muted">{{ a.source }}<br>{{ a.analog }}</td>
+      <td class="num">{{ a.machine_hours|hours }}</td><td class="num">{{ a.bench_hours|hours }}</td>
+      <td class="num">{{ kp_money(a.cost) }}</td><td>{{ a.free_from|dt }}</td><td><b>{{ a.ready|dt }}</b></td>
+      <td>{% if a.current %}<span class="badge ok">выбран</span>{% else %}
+        <form method="post" action="/quick/{{ token }}/machine" class="inline">
+          <input type="hidden" name="designation" value="{{ p.designation }}"><input type="hidden" name="machine" value="{{ a.machine }}">
+          <button class="secondary">Выбрать</button></form>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endfor %}
+  <p class="muted">«Свободен с» учитывает очередь других заказов и других позиций этого расчёта; после выбора станка
+    срок и загрузка пересчитываются в сводке выше.</p>
+</div>
+{% endif %}

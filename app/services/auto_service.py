@@ -71,14 +71,20 @@ def _drawing_issues(pos: PositionRow, data: dict, drawing: dict) -> list[str]:
     return issues
 
 
-def extra_machine_norms(journal, features: PartFeatures, machine: str, technology: str,
-                        designation: str = "", drawing_designation: str | None = None) -> dict:
-    """Время наладки и обработки на втором станке: та же деталь, сделанная на этом станке, — её время из журнала;
-    иначе — по деталям журнала, сделанным на этом станке (если таких нет — по деталям той же технологии)."""
+def machine_route(journal, features: PartFeatures, machine: str, technology: str, designation: str = "",
+                  drawing_designation: str | None = None):
+    """Аналог на конкретном станке: та же деталь, сделанная на нём, — её время из журнала; иначе — по деталям
+    журнала, сделанным на этом станке (если таких нет — по деталям той же технологии)."""
     part = replace(features, technology=technology)
     pool = [e for e in journal if e.machine_code == machine and e.technology == technology]
     choice = same_part(pool, designation, drawing_designation) if designation else None
-    choice = choice or pick_analog(part, pool or journal)
+    return choice or pick_analog(part, pool or journal), bool(pool)
+
+
+def extra_machine_norms(journal, features: PartFeatures, machine: str, technology: str,
+                        designation: str = "", drawing_designation: str | None = None) -> dict:
+    """Время наладки и обработки на втором станке — см. machine_route."""
+    choice, _ = machine_route(journal, features, machine, technology, designation, drawing_designation)
     if choice is None:
         return {"setup": 0.0, "machining": 0.0, "analog": None}
     hours = {s.stage: s.hours for s in choice.route}
@@ -137,7 +143,8 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
         if made_there:
             pool, on_machine = made_there, pos.machine_code
         if same and same.entry.machine_code != pos.machine_code:
-            same = None
+            # та же деталь, сделанная на выбранном станке, — её время; иначе остаётся время этой детали из журнала
+            same = same_part(made_there, pos.designation, drawing.get("designation")) or same
     if auto["analog"]:
         picked = same or pick_analog(features, pool)
         pos.analog_code, pos.no_analog = (picked.entry.part_code, False) if picked else (None, True)

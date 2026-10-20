@@ -64,3 +64,11 @@ def test_edit_position_in_quick_calc(app):
         "extra_machine": "ST20Y"}).text
     assert "Q-1: пересчитано" in page and "Haas Super Mini Mill" in page and "Haas ST-20Y" in page
     assert "Заказов нет" in c.get("/orders").text
+
+
+def test_compare_and_choose_machine(app):
+    c = client_for(app)
+    resp, token = calc(c)
+    assert "Станки: где быстрее" in resp.text and "быстрее всех" in resp.text
+    page = c.post(f"/quick/{token}/machine", data={"designation": "Q-1", "machine": "ST20Y"}).text
+    assert "станок ST20Y — пересчитано" in page

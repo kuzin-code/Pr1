@@ -18,6 +18,8 @@
     {% else %}<div class="quick-big">—</div><div class="muted">не указана</div>{% endif %}</div>
 </div>
 
+{% include "_quick_machines.html" %}
+
 {% if s.machines %}
 <div class="card">
   <h2>Занятость станков{% if s.bottleneck %} · узкое место: {{ s.bottleneck }}{% endif %}</h2>

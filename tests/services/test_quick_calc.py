@@ -119,3 +119,19 @@ def test_launch_carries_edits_into_order(session, result, tmp_path):
     order = quick.launch(session, MANAGER, tmp_path / "work", result.token, tmp_path / "uploads")
     pos = next(p for p in order.positions if p.designation == d)
     assert pos.quantity == 7 and pos.machine_code == "SMM"
+
+
+def test_machine_alternatives_show_where_faster(session, result):
+    p = result.summary["positions"][0]
+    alts = {a["machine"]: a for a in p["alternatives"]}
+    assert {"VF2", "SMM"} <= set(alts)  # фрезерные станки, куда деталь помещается
+    assert all(a["machine_hours"] > 0 and a["cost"] > 0 and a["ready"] >= a["free_from"] for a in alts.values())
+    assert sum(a.get("fastest", False) for a in alts.values()) == 1
+    assert alts[p["machine"]]["current"]
+
+
+def test_choosing_lathe_switches_technology(session, result, tmp_path):
+    d = result.summary["positions"][0]["designation"]
+    s = quick.update_position(session, MANAGER, tmp_path / "work", result.token, d, {"machine": "ST20Y"})
+    p = next(x for x in s["positions"] if x["designation"] == d)
+    assert p["machine"] == "ST20Y" and p["technology"] == "turning"

@@ -73,6 +73,20 @@ def _num(value: str, cast=float):
     return cast(float(value)) if value else None
 
 
+@router.post("/quick/{token}/machine")
+def quick_machine(request: Request, token: str, designation: str = Form(...), machine: str = Form(...),
+                  db: Session = Depends(get_db)):
+    """Выбрать станок для позиции быстрого расчёта — пересчёт времени, стоимости и срока."""
+    actor = current_actor(request)
+    try:
+        quick_service.update_position(db, actor, _work_dir(request), token, designation, {"machine": machine})
+    except (IntakeError, ServiceError, ValueError) as err:
+        flash(request, f"{designation}: {err}", "error")
+    else:
+        flash(request, f"{designation}: станок {machine} — пересчитано")
+    return redirect(f"/quick/{token}")
+
+
 @router.post("/quick/{token}/position")
 async def quick_position(request: Request, token: str, db: Session = Depends(get_db)):
     """Правка параметров позиции быстрого расчёта и пересчёт."""
