@@ -1,0 +1,48 @@
+{# Правка параметров позиций быстрого расчёта: всё, что влияет на время и стоимость; пересчёт без записи в базу. #}
+<div class="card">
+  <h2>Параметры позиций</h2>
+  <p class="muted" style="margin-top:0">Исправьте параметры и нажмите «Пересчитать» — цена, срок и загрузка станков
+    пересчитаются. Правки сохраняются в расчёте и переносятся в заказ при запуске.</p>
+  {% set labels = {"cutting": "Резка", "programming": "Программирование", "setup": "Наладка", "machining": "Обработка",
+                   "locksmith": "Слесарная", "finishing": "Финишная", "inspection": "Контроль"} %}
+  {% set counts = {"piece": "ч/шт", "batch": "ч/партия", "once": "ч разово"} %}
+  {% for p in s.positions %}
+  <details class="quick-edit" {{ 'open' if edit == p.designation }}>
+    <summary><b>{{ p.designation }}</b> · {{ p.quantity }} шт. · {{ p.material or "материал не указан" }} ·
+      IT{{ p.tolerance_grade or "—" }} · сложн. {{ p.complexity or "—" }} · {{ cnc_names.get(p.machine, p.machine or "станок не назначен") }}
+      {% for e in p.extra_machines %} + {{ cnc_names.get(e.machine, e.machine) }}{% endfor %}</summary>
+    <form method="post" action="/quick/{{ token }}/position">
+      <input type="hidden" name="designation" value="{{ p.designation }}">
+      <div class="quick-grid">
+        <label>Количество, шт.<input name="quantity" type="number" min="1" value="{{ p.quantity }}"></label>
+        <label>Материал<input name="material" value="{{ p.material }}"></label>
+        <label>Габариты, мм
+          <span class="row" style="gap:4px">{% for i in range(3) %}<input name="dim{{ i }}" size="5" value="{{ p.dims[i] if p.dims|length > i else '' }}">{% endfor %}</span></label>
+        <label>Квалитет IT<input name="tolerance_grade" type="number" min="1" max="18" value="{{ p.tolerance_grade or '' }}"></label>
+        <label>Балл сложности<input name="complexity" type="number" min="1" max="5" value="{{ p.complexity or '' }}"></label>
+        <label>Технология<select name="technology">
+          <option value="milling" {{ 'selected' if p.technology == 'milling' }}>фрезерная</option>
+          <option value="turning" {{ 'selected' if p.technology == 'turning' }}>токарная</option></select></label>
+        <label>Станок<select name="machine">{% for m in s.cnc %}
+          <option value="{{ m.code }}" {{ 'selected' if m.code == p.machine }}>{{ m.model }}</option>{% endfor %}</select></label>
+        {% set extra = p.extra_machines[0] if p.extra_machines else none %}
+        <label>Второй станок<select name="extra_machine"><option value="">— нет —</option>{% for m in s.cnc %}
+          <option value="{{ m.code }}" {{ 'selected' if extra and extra.machine == m.code }}>{{ m.model }}</option>{% endfor %}</select></label>
+        {% if extra %}
+        <label>Второй станок: наладка, ч/партия<input name="extra_setup" value="{{ extra.setup or 0 }}"></label>
+        <label>Второй станок: обработка, ч/шт<input name="extra_machining" value="{{ extra.machining or 0 }}"></label>
+        {% endif %}
+      </div>
+      <h3>Время операций (основной станок)</h3>
+      <div class="quick-grid">
+        {% for r in p.route %}
+        <label>{{ labels.get(r.stage, r.stage) }}, {{ counts.get(r.count_mode, '') }}
+          <input name="route_{{ r.stage }}" value="{{ r.hours }}"></label>
+        {% endfor %}
+      </div>
+      <p><button>Пересчитать</button>
+        <span class="muted">При смене станка время берётся по деталям журнала, сделанным на этом станке.</span></p>
+    </form>
+  </details>
+  {% endfor %}
+</div>

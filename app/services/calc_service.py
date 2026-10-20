@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session
 
 from app.domain.calibration import NO_ANALOG_K, k_for
 from app.domain.cost import compute_cost
-from app.domain.enums import Mark, StageGroup
-from app.domain.models import Dimensions, PartFeatures
+from dataclasses import replace
+
+from app.domain.enums import CountMode, Mark, Stage, StageGroup
+from app.domain.models import Dimensions, PartFeatures, StageNorm
 from app.domain.route import route_from_list
 from app.domain.timing import compute_stage_times
 from app.services.actor import Actor, ServiceError
@@ -30,6 +32,17 @@ def position_features(pos: PositionRow) -> PartFeatures:
                         data.get("technology") or "milling")
 
 
+def extra_machine_times(pos: PositionRow, k_machine: float, k_bench: float) -> list:
+    """Наладка и обработка на втором (и следующем) станке техпроцесса."""
+    result = []
+    for e in (pos.data or {}).get("extra_machines") or []:
+        norms = [StageNorm(Stage.SETUP, float(e.get("setup") or 0), CountMode.PER_BATCH),
+                 StageNorm(Stage.MACHINING, float(e.get("machining") or 0), CountMode.PER_PIECE)]
+        for t in compute_stage_times([n for n in norms if n.hours > 0], pos.quantity, k_machine, k_bench):
+            result.append(replace(t, machine=e["machine"], technology=e.get("technology")))
+    return result
+
+
 def build_calculation(session: Session, actor: Actor, pos: PositionRow,
                       now: datetime | None = None) -> dict:
     if pos.needs_link:
@@ -45,6 +58,10 @@ def build_calculation(session: Session, actor: Actor, pos: PositionRow,
     k_machine = k_for(analog, StageGroup.MACHINE) if analog else NO_ANALOG_K
     k_bench = k_for(analog, StageGroup.BENCH) if analog else NO_ANALOG_K
     times = compute_stage_times(route, pos.quantity, k_machine.value, k_bench.value)
+    extra = extra_machine_times(pos, k_machine.value, k_bench.value)
+    if extra:
+        last = max((i for i, t in enumerate(times) if t.group is StageGroup.MACHINE), default=len(times) - 1)
+        times = times[:last + 1] + extra + times[last + 1:]
     rates = get_rates(session)
     cost = compute_cost(times, pos.quantity, rates)
 
@@ -67,6 +84,7 @@ def build_calculation(session: Session, actor: Actor, pos: PositionRow,
         "journal_version": journal_version(session),
         "quantity": pos.quantity,
         "machine_code": pos.machine_code,
+        "extra_machines": [dict(e) for e in (pos.data or {}).get("extra_machines") or []],
         "route": [s.to_dict() for s in route],
         "k": {"machine": k_machine.to_dict(), "bench": k_bench.to_dict()},
         "rates": rates.to_dict(),

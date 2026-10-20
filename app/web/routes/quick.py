@@ -51,7 +51,56 @@ def quick_result(request: Request, token: str):
     except ServiceError as err:
         flash(request, str(err), "error")
         return redirect("/quick")
-    return render(request, "quick_result.html", s=summary, token=token)
+    return render(request, "quick_result.html", s=summary, token=token, edit=request.query_params.get("edit"),
+                  cnc_names={m["code"]: m["model"] for m in summary.get("cnc", [])})
+
+
+def _num(value: str, cast=float):
+    value = (value or "").strip().replace(",", ".")
+    return cast(float(value)) if value else None
+
+
+@router.post("/quick/{token}/position")
+async def quick_position(request: Request, token: str, db: Session = Depends(get_db)):
+    """Правка параметров позиции быстрого расчёта и пересчёт."""
+    actor = current_actor(request)
+    require(actor.role, Action.UPLOAD_ORDER)
+    form = await request.form()
+    designation = form.get("designation", "")
+    try:
+        summary = quick_service.load(_work_dir(request), token)
+        current = next(p for p in summary["positions"] if p["designation"] == designation)
+        values = {"quantity": _num(form.get("quantity"), int), "material": (form.get("material") or "").strip(),
+                  "tolerance_grade": _num(form.get("tolerance_grade"), int),
+                  "complexity": _num(form.get("complexity"), int), "technology": form.get("technology"),
+                  "machine": form.get("machine")}
+        dims = [_num(form.get(f"dim{i}")) for i in range(3)]
+        if all(dims):
+            values["dims"] = dims
+        values = {k: v for k, v in values.items() if v not in (None, "")}
+        code = form.get("extra_machine") or ""
+        old = current["extra_machines"][0] if current["extra_machines"] else None
+        if code and old and old["machine"] == code:
+            extra = {"machine": code}
+            for key in ("setup", "machining"):
+                value = _num(form.get(f"extra_{key}"))
+                if value is not None and abs(value - float(old.get(key) or 0)) > 1e-9:
+                    extra[key] = value
+            values["extra_machines"] = [extra]
+        else:
+            values["extra_machines"] = [{"machine": code}] if code else []
+        if not old and not code:
+            values.pop("extra_machines")
+        values["route"] = {r["stage"]: _num(form.get(f"route_{r['stage']}")) for r in current["route"]
+                           if _num(form.get(f"route_{r['stage']}")) is not None}
+        quick_service.update_position(db, actor, _work_dir(request), token, designation, values)
+    except (StopIteration, KeyError):
+        flash(request, "Позиция расчёта не найдена", "error")
+    except (IntakeError, ServiceError, ValueError) as err:
+        flash(request, f"{designation}: {err}", "error")
+    else:
+        flash(request, f"{designation}: пересчитано")
+    return redirect(f"/quick/{token}?edit={designation}")
 
 
 @router.post("/quick/{token}/discard")

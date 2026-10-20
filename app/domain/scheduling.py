@@ -22,6 +22,7 @@ class PlanInput:
     bench_hours: float
     inspection_hours: float
     approved_seq: int | None = None
+    extra_machines: tuple = ()  # ((код станка, часы), …) — второй станок техпроцесса после основного
     fact_machine_end: datetime | None = None
     fact_bench_end: datetime | None = None
     fact_inspection_end: datetime | None = None
@@ -72,7 +73,22 @@ def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime]) 
         free = machine_free.get(it.machine_code)
         possible_start = max(start, free) if free else start
         machine_start = MACHINE_CALENDAR.normalize(max(cutting_end, possible_start))
-        machine_end = it.fact_machine_end or MACHINE_CALENDAR.add_hours(machine_start, it.machine_hours)
+        machine_end = MACHINE_CALENDAR.add_hours(machine_start, it.machine_hours)
+        slots = [MachineSlot(it.machine_code, it.position_id, machine_start, machine_end, it.approved_seq is None)]
+        for code, hours in it.extra_machines:
+            busy = machine_free.get(code)
+            extra_start = MACHINE_CALENDAR.normalize(max(machine_end, busy) if busy else machine_end)
+            extra_end = MACHINE_CALENDAR.add_hours(extra_start, hours)
+            slots.append(MachineSlot(code, it.position_id, extra_start, extra_end, it.approved_seq is None))
+            machine_free[code] = extra_end
+            machine_end = extra_end
+        if it.fact_machine_end:  # факт окончания станочной группы — по последнему станку
+            last = slots[-1]
+            slots[-1] = MachineSlot(last.machine_code, last.position_id, last.start, it.fact_machine_end,
+                                    last.preliminary)
+            machine_end = it.fact_machine_end
+            if len(slots) > 1:
+                machine_free[last.machine_code] = it.fact_machine_end
         bench_end = it.fact_bench_end or BENCH_CALENDAR.add_hours(machine_end, it.bench_hours)
         finish = it.fact_inspection_end or BENCH_CALENDAR.add_hours(bench_end, it.inspection_hours)
         preliminary = it.approved_seq is None
@@ -80,9 +96,9 @@ def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime]) 
             it.position_id, it.order_id, it.machine_code, cutting_end, possible_start,
             machine_start, machine_end, bench_end, finish, preliminary,
         )
-        plan.slots.append(MachineSlot(it.machine_code, it.position_id, machine_start, machine_end,
-                                      preliminary))
-        machine_free[it.machine_code] = max(machine_end, free) if free else machine_end
+        plan.slots.extend(slots)
+        first_end = slots[0].end
+        machine_free[it.machine_code] = max(first_end, free) if free else first_end
     return plan
 
 

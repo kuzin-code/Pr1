@@ -78,3 +78,44 @@ def test_operator_cannot_calculate(session, tmp_path):
 def test_bad_token_rejected(tmp_path):
     with pytest.raises(ServiceError):
         quick.load(tmp_path / "work", "../../etc")
+
+
+def test_edit_parameters_and_recalculate_without_touching_database(session, result, tmp_path):
+    before = counts(session)
+    pos = result.summary["positions"][0]
+    s = quick.update_position(session, MANAGER, tmp_path / "work", result.token, pos["designation"],
+                              {"quantity": 20, "material": "12Х18Н10Т", "machine": "SMM"})
+    p = next(x for x in s["positions"] if x["designation"] == pos["designation"])
+    assert p["quantity"] == 20 and p["material"] == "12Х18Н10Т" and p["machine"] == "SMM"
+    assert s["total"] != result.summary["total"]
+    assert any(m["model"] == "Haas Super Mini Mill" for m in s["machines"])
+    assert counts(session) == before
+    assert quick.load(tmp_path / "work", result.token)["positions"][0]["quantity"] == 20  # сохранено
+
+
+def test_second_machine_and_route_edit_in_quick_calc(session, result, tmp_path):
+    d = result.summary["positions"][0]["designation"]
+    s = quick.update_position(session, MANAGER, tmp_path / "work", result.token, d,
+                              {"extra_machines": [{"machine": "ST20Y"}]})
+    p = next(x for x in s["positions"] if x["designation"] == d)
+    assert [e["machine"] for e in p["extra_machines"]] == ["ST20Y"]
+    assert any(m["model"] == "Haas ST-20Y" for m in s["machines"])
+    s2 = quick.update_position(session, MANAGER, tmp_path / "work", result.token, d, {"route": {"setup": 3.0}})
+    p2 = next(x for x in s2["positions"] if x["designation"] == d)
+    assert next(r["hours"] for r in p2["route"] if r["stage"] == "setup") == 3.0
+    assert [e["machine"] for e in p2["extra_machines"]] == ["ST20Y"]  # прежние правки сохраняются
+
+
+def test_bad_edit_keeps_previous_result(session, result, tmp_path):
+    d = result.summary["positions"][0]["designation"]
+    with pytest.raises(ServiceError):
+        quick.update_position(session, MANAGER, tmp_path / "work", result.token, d, {"machine": "BS275"})
+    assert quick.load(tmp_path / "work", result.token)["total"] == result.summary["total"]
+
+
+def test_launch_carries_edits_into_order(session, result, tmp_path):
+    d = result.summary["positions"][0]["designation"]
+    quick.update_position(session, MANAGER, tmp_path / "work", result.token, d, {"quantity": 7, "machine": "SMM"})
+    order = quick.launch(session, MANAGER, tmp_path / "work", result.token, tmp_path / "uploads")
+    pos = next(p for p in order.positions if p.designation == d)
+    assert pos.quantity == 7 and pos.machine_code == "SMM"

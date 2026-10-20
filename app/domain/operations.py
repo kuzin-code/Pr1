@@ -86,11 +86,11 @@ def plan_operations(times: list[StageTime], technology: str, machine_code: str |
                     machine_ops: dict[str, list[str]]) -> list[PlannedOperation]:
     result = []
     for t in times:
-        operation = operation_for_stage(t.stage, technology)
+        operation = operation_for_stage(t.stage, t.technology or technology)
         if operation is None or t.planned_hours <= 0:
             continue
         if operation in MACHINE_OPERATIONS:
-            resource = machine_code
+            resource = t.machine or machine_code
         else:
             resource = next((code for code, ops in machine_ops.items() if operation.value in ops), None)
         result.append(PlannedOperation(len(result) + 1, t.stage, operation, resource, t.planned_hours))

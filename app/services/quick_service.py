@@ -62,7 +62,12 @@ def _summary(copy: Session, actor: Actor, order) -> dict:
     plan = plan_service.current_plan(copy)
     ids = {p.id for p in order.positions}
     names = {m.code: m.model for m in copy.query(MachineRow)}
-    hours = {p.id: (plan_service.plan_calc(p) or {}).get("cost", {}).get("machine_hours", 0) for p in order.positions}
+    hours = {}
+    for p in order.positions:
+        for t in (plan_service.plan_calc(p) or {}).get("stage_times", []):
+            if t["stage"] in ("setup", "machining"):
+                key = (p.id, t.get("machine") or p.machine_code)
+                hours[key] = hours.get(key, 0.0) + t["planned_hours"]
     busy = defaultdict(lambda: {"start": None, "end": None, "hours": 0.0, "positions": set()})
     for slot in plan.slots:
         if slot.position_id not in ids:
@@ -71,7 +76,7 @@ def _summary(copy: Session, actor: Actor, order) -> dict:
         m["start"] = min(filter(None, (m["start"], slot.start)))
         m["end"] = max(filter(None, (m["end"], slot.end)))
         if slot.position_id not in m["positions"]:
-            m["hours"] += hours.get(slot.position_id, 0)
+            m["hours"] += hours.get((slot.position_id, slot.machine_code), 0)
             m["positions"].add(slot.position_id)
     machines = [{"model": model, "start": v["start"].isoformat(), "end": v["end"].isoformat(),
                  "hours": round(v["hours"], 2), "positions": len(v["positions"])}
@@ -80,7 +85,19 @@ def _summary(copy: Session, actor: Actor, order) -> dict:
     issues = [{"designation": p.designation, "issues": list((p.data or {}).get("auto_issues") or [])}
               for p in order.positions if (p.data or {}).get("auto_issues")]
     r = proposal.range
+    positions = []
+    for p in order.positions:
+        data = p.data or {}
+        positions.append({
+            "designation": p.designation, "quantity": p.quantity, "material": data.get("material") or "",
+            "dims": data.get("dims") or [], "tolerance_grade": data.get("tolerance_grade"),
+            "complexity": p.complexity, "technology": data.get("technology") or "milling", "machine": p.machine_code,
+            "extra_machines": [dict(e) for e in data.get("extra_machines") or []],
+            "route": [dict(s) for s in p.route or []], "analog": p.analog_code,
+        })
     return {
+        "positions": positions,
+        "cnc": [{"code": m.code, "model": m.model} for m in copy.query(MachineRow) if m.is_cnc],
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "customer": order.customer or "", "start": order.start_date.isoformat(),
         "items": [{"designation": i.designation, "name": i.name, "material": i.material, "quantity": i.quantity,
@@ -113,26 +130,111 @@ def calculate(session: Session, actor: Actor, files: list[UploadedFile], work_di
               "start_date": (start_date or date.today()).isoformat(), "customer": customer}
     (folder / "params.json").write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
 
+    try:
+        summary = _run(session, actor, folder, params)
+    except Exception:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+    _save(folder, params, summary)
+    return QuickResult(token, summary)
+
+
+def _save(folder: Path, params: dict, summary: dict) -> None:
+    summary["params"] = params
+    (folder / "params.json").write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
+    (folder / "summary.json").write_text(json.dumps(summary, ensure_ascii=False), encoding="utf-8")
+
+
+def _run(session: Session, actor: Actor, folder: Path, params: dict) -> dict:
+    """Приём заказа и правки пользователя на временной копии базы; рабочая база не меняется."""
     tmp = Path(tempfile.mkdtemp(prefix="quick_"))
     engine = None
     try:
         _copy_database(session, tmp / "copy.db")
         engine = make_engine(f"sqlite:///{(tmp / 'copy.db').as_posix()}")
         with sessionmaker(bind=engine)() as copy:
+            desired = params.get("desired_date")
             order = intake_service.quick_intake(copy, actor, _stored_files(folder), tmp / "uploads",
-                                                customer=customer, desired_date=desired_date,
-                                                start_date=start_date or date.today(), quantity=quantity)
-            summary = _summary(copy, actor, order)
-    except Exception:
-        shutil.rmtree(folder, ignore_errors=True)
-        raise
+                                                customer=params.get("customer") or "",
+                                                desired_date=date.fromisoformat(desired) if desired else None,
+                                                start_date=date.fromisoformat(params["start_date"]),
+                                                quantity=int(params.get("quantity") or 1))
+            apply_overrides(copy, order, params.get("overrides") or {})
+            return _summary(copy, actor, order)
     finally:
         if engine is not None:
             engine.dispose()
         shutil.rmtree(tmp, ignore_errors=True)
-    summary["params"] = params
-    (folder / "summary.json").write_text(json.dumps(summary, ensure_ascii=False), encoding="utf-8")
-    return QuickResult(token, summary)
+
+
+EDITABLE = ("quantity", "material", "dims", "tolerance_grade", "complexity", "technology", "machine",
+            "extra_machines", "route")
+
+
+def apply_overrides(session: Session, order, overrides: dict) -> None:
+    """Правки параметров позиций (быстрый расчёт или запуск его как заказа): те же действия, что у технолога."""
+    from app.domain.enums import CountMode, Stage
+    from app.services import order_service, tech_service
+    from app.services.auto_service import SYSTEM
+
+    reason = "правка в быстром расчёте"
+    for pos in order.positions:
+        ov = overrides.get(pos.designation) or {}
+        if "quantity" in ov:
+            order_service.set_quantity(session, SYSTEM, pos.id, int(ov["quantity"]))
+        data = {k: ov[k] for k in ("material", "dims", "tolerance_grade", "technology") if k in ov}
+        if data:
+            tech_service.update_data(session, SYSTEM, pos.id, data, reason)
+        if "complexity" in ov:
+            tech_service.set_complexity(session, SYSTEM, pos.id, int(ov["complexity"]), reason)
+        if ov.get("machine") and ov["machine"] != pos.machine_code:
+            tech_service.assign_machine(session, SYSTEM, pos.id, ov["machine"])
+        if "extra_machines" in ov:
+            wanted = {e["machine"]: e for e in ov["extra_machines"]}
+            for e in (pos.data or {}).get("extra_machines") or []:
+                if e["machine"] not in wanted:
+                    tech_service.remove_machine(session, SYSTEM, pos.id, e["machine"])
+            for code, e in wanted.items():
+                if code not in {x["machine"] for x in (pos.data or {}).get("extra_machines") or []}:
+                    tech_service.add_machine(session, SYSTEM, pos.id, code)
+                if e.get("setup") is not None or e.get("machining") is not None:
+                    current = next(x for x in pos.data["extra_machines"] if x["machine"] == code)
+                    tech_service.set_extra_machine_time(
+                        session, SYSTEM, pos.id, code, float(e.get("setup", current.get("setup") or 0)),
+                        float(e.get("machining", current.get("machining") or 0)), reason)
+        for stage, hours in (ov.get("route") or {}).items():
+            mode = next((s["count_mode"] for s in pos.route if s["stage"] == stage), None)
+            mode = mode or (CountMode.PER_BATCH.value if stage in ("setup", "inspection")
+                            else CountMode.ONCE.value if stage == "programming" else CountMode.PER_PIECE.value)
+            tech_service.edit_route_stage(session, SYSTEM, pos.id, Stage(stage), float(hours), mode, reason)
+
+
+def update_position(session: Session, actor: Actor, work_dir: Path | str, token: str, designation: str,
+                    values: dict) -> dict:
+    """Правка параметров позиции быстрого расчёта и пересчёт (ничего не записывается в рабочую базу).
+    Сохраняются только изменённые значения; ошибка правки — расчёт остаётся прежним."""
+    require(actor.role, Action.UPLOAD_ORDER)
+    summary = load(work_dir, token)
+    folder, params = _folder(work_dir, token), dict(summary["params"])
+    current = next((p for p in summary.get("positions", []) if p["designation"] == designation), None)
+    if current is None:
+        raise ServiceError("Позиция расчёта не найдена")
+    changes = dict((params.get("overrides") or {}).get(designation) or {})
+    for key in EDITABLE:
+        if key not in values:
+            continue
+        value = values[key]
+        if key == "route":
+            route = {s["stage"]: s["hours"] for s in current["route"]}
+            changed = {st: h for st, h in value.items() if abs(float(h) - float(route.get(st, 0))) > 1e-9}
+            if changed:
+                changes["route"] = {**changes.get("route", {}), **changed}
+        elif value != current.get(key):
+            changes[key] = value
+    params["overrides"] = {**(params.get("overrides") or {}), designation: changes}
+    new_summary = _run(session, actor, folder, params)
+    _save(folder, params, new_summary)
+    return new_summary
 
 
 def _stored_files(folder: Path) -> list[UploadedFile]:
@@ -159,6 +261,12 @@ def launch(session: Session, actor: Actor, work_dir: Path | str, token: str, upl
                                         customer=params.get("customer") or "",
                                         desired_date=date.fromisoformat(desired) if desired else None,
                                         quantity=int(params.get("quantity") or 1))
+    if params.get("overrides"):
+        apply_overrides(session, order, params["overrides"])
+        from app.services.history_service import record
+        record(session, actor, "order", order.id, "quick_overrides", None, params["overrides"],
+               "правки из быстрого расчёта")
+        session.commit()
     discard(work_dir, token)
     return order
 

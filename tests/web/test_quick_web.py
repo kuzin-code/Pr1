@@ -52,3 +52,15 @@ def test_notify_head(app):
 
 def test_operator_no_access(app):
     assert client_for(app, "operator").get("/quick").status_code == 403
+
+
+def test_edit_position_in_quick_calc(app):
+    c = client_for(app)
+    resp, token = calc(c)
+    assert "Параметры позиций" in resp.text and "Пересчитать" in resp.text
+    page = c.post(f"/quick/{token}/position", data={
+        "designation": "Q-1", "quantity": "5", "material": "Д16Т", "dim0": "90", "dim1": "50", "dim2": "20",
+        "tolerance_grade": "9", "complexity": "2", "technology": "milling", "machine": "SMM",
+        "extra_machine": "ST20Y"}).text
+    assert "Q-1: пересчитано" in page and "Haas Super Mini Mill" in page and "Haas ST-20Y" in page
+    assert "Заказов нет" in c.get("/orders").text

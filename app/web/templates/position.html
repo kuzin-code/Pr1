@@ -170,6 +170,37 @@
     <button class="secondary">Назначить</button>
   </form>
   {% if not allowed %}<p class="muted">Нет допустимых станков: ситуацию разбирает технолог (О-8).</p>{% endif %}
+  <p class="muted">При смене станка время берётся по деталям журнала, сделанным на этом станке; стоимость и срок
+    пересчитываются.</p>
+  {% endif %}
+  {% set extras = (pos.data or {}).get('extra_machines') or [] %}
+  {% if extras or (tech and cnc_machines) %}
+  <h3>Второй станок в техпроцессе</h3>
+  {% for e in extras %}
+  <div class="row" style="gap:8px;align-items:center;margin-bottom:6px">
+    <b>{{ machine_names.get(e.machine, e.machine) }}</b>
+    <span class="muted">{{ 'токарная' if e.technology == 'turning' else 'фрезерная' }}</span>
+    {% if e.get('auto', True) %}<span class="badge">время по журналу{% if e.analog %}: {{ e.analog }}{% endif %}</span>
+    {% else %}<span class="badge ok">время технолога</span>{% endif %}
+    {% if tech %}
+    <form method="post" action="/positions/{{ pos.id }}/extra-machine/{{ e.machine }}/time" class="inline">
+      наладка, ч/партия <input name="setup" value="{{ e.setup or 0 }}" size="4">
+      обработка, ч/шт <input name="machining" value="{{ e.machining or 0 }}" size="4">
+      <input name="reason" placeholder="причина" size="10"><button class="secondary">OK</button></form>
+    <form method="post" action="/positions/{{ pos.id }}/extra-machine/{{ e.machine }}/remove" class="inline">
+      <button class="secondary">Убрать</button></form>
+    {% else %}наладка {{ e.setup|hours }}, обработка {{ e.machining|hours }}/шт{% endif %}
+  </div>
+  {% endfor %}
+  {% if tech %}
+  <form method="post" action="/positions/{{ pos.id }}/extra-machine" class="inline">
+    <select name="code">{% for m in cnc_machines if m.code != pos.machine_code and m.code not in extras|map(attribute='machine')|list %}
+      <option value="{{ m.code }}">{{ m.model }}</option>{% endfor %}</select>
+    <button class="secondary">Добавить станок</button>
+  </form>
+  <p class="muted">Например, токарная на ST-20Y, затем фрезерная на VF-2: время второго станка — по деталям журнала,
+    сделанным на нём; в плане он идёт сразу после основного.</p>
+  {% endif %}
   {% endif %}
 </div>
 
@@ -203,7 +234,7 @@
   <table>
     <tr><th>Этап</th><th class="num">На ед. счёта</th><th>Счёт</th><th class="num">Расчётное на партию</th><th class="num">k</th><th class="num">Плановое на партию</th></tr>
     {% for t in calc.stage_times %}
-    <tr><td>{{ stage_label(t.stage) }}</td><td class="num">{{ t.unit_hours|hours }}</td><td>{{ count_label(t.count_mode) }}</td>
+    <tr><td>{{ stage_label(t.stage) }}{% if t.machine %} — {{ machine_names.get(t.machine, t.machine) }}{% endif %}</td><td class="num">{{ t.unit_hours|hours }}</td><td>{{ count_label(t.count_mode) }}</td>
       <td class="num">{{ t.calc_hours|hours }}</td><td class="num">{{ '%.3f'|format(t.k) }}</td><td class="num">{{ t.planned_hours|hours }}</td></tr>
     {% endfor %}
   </table>

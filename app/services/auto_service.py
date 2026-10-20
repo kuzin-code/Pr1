@@ -3,6 +3,8 @@
 Система выполняет все шаги сама; технолог проверяет и исправляет. Ручные решения технолога
 помечаются в data["auto"] (False) и при пересчёте не перезаписываются.
 """
+from dataclasses import replace
+
 from sqlalchemy.orm import Session
 
 from app.domain.analog import evaluate_analog, pick_analog, same_part
@@ -69,6 +71,19 @@ def _drawing_issues(pos: PositionRow, data: dict, drawing: dict) -> list[str]:
     return issues
 
 
+def extra_machine_norms(journal, features: PartFeatures, machine: str, technology: str) -> dict:
+    """Время наладки и обработки на втором станке — по деталям журнала, сделанным на этом станке
+    (если таких нет — по деталям той же технологии)."""
+    part = replace(features, technology=technology)
+    pool = [e for e in journal if e.machine_code == machine and e.technology == technology]
+    choice = pick_analog(part, pool or journal)
+    if choice is None:
+        return {"setup": 0.0, "machining": 0.0, "analog": None}
+    hours = {s.stage: s.hours for s in choice.route}
+    return {"setup": round(hours.get(Stage.SETUP, 0.0), 2), "machining": round(hours.get(Stage.MACHINING, 0.0), 2),
+            "analog": choice.entry.part_code}
+
+
 def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> list[str]:
     """Подготовить и рассчитать позицию. Возвращает замечания для технолога."""
     if not is_editable(PositionStatus(pos.status)):
@@ -113,8 +128,16 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
     technology = data.get("technology") or "milling"
     features = PartFeatures(Dimensions.from_list(data["dims"]), data.get("material") or "",
                             int(grade) if grade is not None else DEFAULT_GRADE, pos.complexity, technology)
+    # Станок назначил технолог — время по деталям журнала, сделанным на этом станке.
+    pool, on_machine = journal, None
+    if not auto["machine"] and pos.machine_code:
+        made_there = [e for e in journal if e.machine_code == pos.machine_code and e.technology == technology]
+        if made_there:
+            pool, on_machine = made_there, pos.machine_code
+        if same and same.entry.machine_code != pos.machine_code:
+            same = None
     if auto["analog"]:
-        picked = same or pick_analog(features, journal)
+        picked = same or pick_analog(features, pool)
         pos.analog_code, pos.no_analog = (picked.entry.part_code, False) if picked else (None, True)
     if same and pos.analog_code == same.entry.part_code:
         choice = same
@@ -124,6 +147,9 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
         choice = evaluate_analog(features, journal_entry(session, pos.analog_code)) if pos.analog_code else None
     if choice:
         data["analog_approximate"], data["analog_reasons"] = choice.approximate, list(choice.reasons)
+        if on_machine and auto["analog"]:
+            data["analog_reasons"].append(f"станок {on_machine} назначен технологом: время — по деталям журнала, "
+                                          f"сделанным на {on_machine}")
     else:
         data["analog_approximate"], data["analog_reasons"] = False, []
         issues.append(f"В журнале нет деталей с технологией «{TECHNOLOGY_LABELS.get(technology, technology)}»: "
@@ -137,6 +163,16 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
         pos.machine_code = machine.code if machine else None
         if machine is None:
             issues.append("Ни один станок не вмещает деталь: ситуацию разбирает технолог (О-8)")
+
+    extras = []
+    for extra in data.get("extra_machines") or []:
+        if extra.get("auto", True):
+            extra = {**extra, **extra_machine_norms(journal, features, extra["machine"], extra["technology"])}
+            if not extra["setup"] and not extra["machining"]:
+                issues.append(f"Для станка {extra['machine']} нет деталей журнала: введите время вручную")
+        extras.append(extra)
+    if extras:
+        data["extra_machines"] = extras
 
     finish()
     try:

@@ -160,3 +160,7 @@ button.big { font-size:16px; padding:9px 26px; margin-right:14px; }
 .quick-track { position:relative; height:14px; background:#eef2f7; border-radius:7px; }
 .quick-track span { position:absolute; top:0; bottom:0; background:var(--accent); border-radius:7px; min-width:4px; }
 .quick-actions { gap:12px; align-items:center; flex-wrap:wrap; }
+.quick-edit { border-top:1px solid var(--line); padding:8px 0; } .quick-edit summary { cursor:pointer; }
+.quick-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:8px 14px; margin:8px 0; }
+.quick-grid label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
+.quick-grid input, .quick-grid select { width:100%; box-sizing:border-box; }

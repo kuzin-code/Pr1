@@ -11,7 +11,8 @@ from app.domain.load import LoadCell, daily_load, weekly_load
 from app.domain.notifications import due_events
 from app.domain.scheduling import Plan, PlanInput, build_plan
 from app.domain.status import order_done
-from app.domain.timing import StageTime, group_planned_hours, stage_planned_hours
+from app.domain.timing import (StageTime, extra_machine_hours, group_planned_hours, primary_machine_hours,
+                               stage_planned_hours)
 from app.domain.work_calendar import BENCH_CALENDAR
 from app.services.actor import Actor
 from app.storage.orm import FactRow, MachineRow, NotificationRow, OrderRow, PositionRow
@@ -39,7 +40,8 @@ def _inputs(session: Session) -> list[PlanInput]:
             position_id=pos.id, order_id=pos.order_id, order_start=pos.order.start_date,
             machine_code=pos.machine_code,
             cutting_hours=stage_planned_hours(times, Stage.CUTTING),
-            machine_hours=group_planned_hours(times, StageGroup.MACHINE),
+            machine_hours=primary_machine_hours(times),
+            extra_machines=tuple(extra_machine_hours(times)),
             bench_hours=group_planned_hours(times, StageGroup.BENCH),
             inspection_hours=stage_planned_hours(times, Stage.INSPECTION),
             approved_seq=pos.approved_seq,

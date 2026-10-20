@@ -13,7 +13,7 @@ from app.services import (approval_service, fact_service, journal_service, opera
                           plan_service, tech_service)
 from app.services.actor import ServiceError
 from app.services.history_service import list_history
-from app.services.reference_service import complexity_scale, journal_entries
+from app.services.reference_service import complexity_scale, domain_machines, journal_entries
 from app.web.deps import act, current_actor, get_db, redirect
 from app.web.templating import render
 
@@ -46,6 +46,8 @@ def position_page(request: Request, position_id: int, db: Session = Depends(get_
         actual=actual, history=list_history(db, entity="position", entity_id=pos.id, limit=50),
         facts=plan_service.fact_ends(db, pos.id), operations=operation_service.position_operations(db, pos.id),
         last_mark=operation_service.last_mark(db, pos.id),
+        cnc_machines=[m for m in domain_machines(db) if m.is_cnc],
+        machine_names={m.code: m.model for m in domain_machines(db)},
     )
 
 
@@ -152,6 +154,28 @@ def edit_route(request: Request, position_id: int, stage: str = Form(...), hours
 def assign_machine(request: Request, position_id: int, code: str = Form(...), db: Session = Depends(get_db)):
     actor = current_actor(request)
     return act(request, db, _back(position_id), lambda: tech_service.assign_machine(db, actor, position_id, code))
+
+
+@router.post("/positions/{position_id}/extra-machine")
+def add_machine(request: Request, position_id: int, code: str = Form(...), db: Session = Depends(get_db)):
+    actor = current_actor(request)
+    return act(request, db, _back(position_id), lambda: tech_service.add_machine(db, actor, position_id, code),
+               f"Станок {code} добавлен в техпроцесс: время и стоимость пересчитаны")
+
+
+@router.post("/positions/{position_id}/extra-machine/{code}/time")
+def extra_machine_time(request: Request, position_id: int, code: str, setup: str = Form("0"),
+                       machining: str = Form("0"), reason: str = Form(""), db: Session = Depends(get_db)):
+    actor = current_actor(request)
+    return act(request, db, _back(position_id), lambda: tech_service.set_extra_machine_time(
+        db, actor, position_id, code, float(setup.replace(",", ".") or 0), float(machining.replace(",", ".") or 0),
+        reason))
+
+
+@router.post("/positions/{position_id}/extra-machine/{code}/remove")
+def remove_machine(request: Request, position_id: int, code: str, db: Session = Depends(get_db)):
+    actor = current_actor(request)
+    return act(request, db, _back(position_id), lambda: tech_service.remove_machine(db, actor, position_id, code))
 
 
 @router.post("/positions/{position_id}/calculate")

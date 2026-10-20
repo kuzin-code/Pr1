@@ -1,4 +1,6 @@
 """Работа технолога с позицией: данные, сложность, аналог, маршрут, станок, расчёт (ФТ-05…ФТ-14)."""
+from dataclasses import replace
+
 from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
@@ -179,6 +181,59 @@ def assign_machine(session: Session, actor: Actor, position_id: int, code: str) 
         pos.machine_code = code
         mark_manual(pos, "machine")
         auto_prepare(session, pos)
+    session.commit()
+    return pos
+
+
+def _extras(pos: PositionRow) -> list[dict]:
+    return [dict(e) for e in (pos.data or {}).get("extra_machines") or []]
+
+
+def add_machine(session: Session, actor: Actor, position_id: int, code: str) -> PositionRow:
+    """Второй станок в техпроцессе (например, токарная, затем фрезерная): время — по деталям журнала,
+    сделанным на этом станке; себестоимость и срок пересчитываются."""
+    pos = _editable(session, actor, position_id, Action.ASSIGN_MACHINE)
+    machine = next((m for m in domain_machines(session) if m.code == code), None)
+    if machine is None or not machine.is_cnc:
+        raise ServiceError(f"«{code}» — не станок с ЧПУ: добавить в техпроцесс можно только станок")
+    if code == pos.machine_code or code in {e["machine"] for e in _extras(pos)}:
+        raise ServiceError(f"Станок {code} уже есть в техпроцессе позиции")
+    features = position_features(pos)
+    technology = next(iter(sorted(machine.technologies)), None)
+    if technology is None or machine not in allowed_machines(replace(features, technology=technology), [machine]):
+        raise ServiceError(f"Станок {code} не вмещает деталь по рабочей зоне")
+    pos.data = {**pos.data, "extra_machines": _extras(pos) + [{"machine": code, "technology": technology, "auto": True}]}
+    record(session, actor, "position", pos.id, "extra_machine", None, code, "добавлен станок в техпроцесс")
+    auto_prepare(session, pos)
+    session.commit()
+    return pos
+
+
+def set_extra_machine_time(session: Session, actor: Actor, position_id: int, code: str, setup: float,
+                           machining: float, reason: str = "") -> PositionRow:
+    pos = _editable(session, actor, position_id, Action.ASSIGN_MACHINE)
+    if setup < 0 or machining < 0:
+        raise ServiceError("Время не может быть отрицательным")
+    extras = _extras(pos)
+    extra = next((e for e in extras if e["machine"] == code), None)
+    if extra is None:
+        raise ServiceError(f"Станка {code} нет в техпроцессе позиции")
+    record(session, actor, "position", pos.id, f"extra_machine:{code}",
+           {"setup": extra.get("setup"), "machining": extra.get("machining")},
+           {"setup": setup, "machining": machining}, reason)
+    extra.update(setup=setup, machining=machining, auto=False)
+    pos.data = {**pos.data, "extra_machines": extras}
+    auto_prepare(session, pos)
+    session.commit()
+    return pos
+
+
+def remove_machine(session: Session, actor: Actor, position_id: int, code: str) -> PositionRow:
+    pos = _editable(session, actor, position_id, Action.ASSIGN_MACHINE)
+    extras = [e for e in _extras(pos) if e["machine"] != code]
+    record(session, actor, "position", pos.id, "extra_machine", code, None, "станок убран из техпроцесса")
+    pos.data = {**pos.data, "extra_machines": extras}
+    auto_prepare(session, pos)
     session.commit()
     return pos
 
