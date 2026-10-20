@@ -175,3 +175,21 @@ class NotificationRow(Base):
     planned_at: Mapped[datetime] = mapped_column(DateTime)
     text: Mapped[str] = mapped_column(Text)
     read: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ProposalRow(Base):
+    """Выставленное коммерческое предложение: снимок данных и файл Word (история КП)."""
+    __tablename__ = "proposals"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    created_by: Mapped[str] = mapped_column(String(64))
+    source: Mapped[str] = mapped_column(String(16))  # order — по заказу; quick — по быстрому расчёту
+    order_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    order_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    customer: Mapped[str] = mapped_column(String(256), default="")
+    designations: Mapped[str] = mapped_column(Text, default="")  # для поиска аналогичных заказов
+    grand_total: Mapped[float] = mapped_column(Float, default=0)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    file_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+

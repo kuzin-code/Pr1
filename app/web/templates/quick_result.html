@@ -53,6 +53,7 @@
 </div>
 
 {% include "_quick_edit.html" %}
+{% include "_similar_proposals.html" %}
 
 {% if s.issues or s.notes %}
 <div class="card">
@@ -68,6 +69,7 @@
   <form method="post" action="/quick/{{ token }}/launch" class="inline"
         onsubmit="return confirm('Принять эти файлы как заказ? Он попадёт в план, участники получат уведомление.')">
     <button class="big">Запустить как заказ</button></form>
+  <form method="post" action="/quick/{{ token }}/proposal" class="inline"><button class="secondary">Сформировать КП</button></form>
   <form method="post" action="/quick/{{ token }}/notify" class="inline"><button class="secondary">Сообщить начальнику участка</button></form>
   <form method="post" action="/quick/{{ token }}/discard" class="inline"><button class="secondary">Удалить расчёт</button></form>
   <a href="/quick" class="muted">Новый расчёт</a>

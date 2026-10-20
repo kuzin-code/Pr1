@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Коммерческие предложения{% endblock %}
+{% block content %}
+<h1>Коммерческие предложения</h1>
+<form method="get" action="/proposals" class="card row" style="gap:10px;align-items:center">
+  <input name="q" value="{{ q }}" placeholder="Заказчик, номер КП или заказа, обозначение детали" style="flex:1;min-width:240px">
+  <button>Найти</button>{% if q %}<a href="/proposals" class="muted">Сбросить</a>{% endif %}
+</form>
+<div class="card scroll">
+<table>
+  <tr><th>КП</th><th>Дата</th><th>Заказчик</th><th>Заказ</th><th>Позиции</th><th class="num">Итого с НДС, ₽</th><th>Выставил</th><th></th></tr>
+  {% for r in rows %}
+  <tr><td><a href="/proposals/{{ r.id }}"><b>{{ r.number }}</b></a></td><td>{{ r.created_at|dt }}</td>
+    <td>{{ r.customer or "—" }}</td>
+    <td>{% if r.order_id %}<a href="/orders/{{ r.order_id }}">{{ r.order_number }}</a>{% else %}<span class="badge">быстрый расчёт</span>{% endif %}</td>
+    <td class="muted">{{ r.designations|short(90) }}</td><td class="num">{{ kp_money(r.grand_total) }}</td>
+    <td class="muted">{{ r.created_by }}</td><td><a href="/proposals/{{ r.id }}/file">Word</a></td></tr>
+  {% else %}
+  <tr><td colspan="8" class="muted">{{ "Ничего не найдено" if q else "КП ещё не выставлялись" }}</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

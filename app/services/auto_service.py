@@ -71,12 +71,14 @@ def _drawing_issues(pos: PositionRow, data: dict, drawing: dict) -> list[str]:
     return issues
 
 
-def extra_machine_norms(journal, features: PartFeatures, machine: str, technology: str) -> dict:
-    """Время наладки и обработки на втором станке — по деталям журнала, сделанным на этом станке
-    (если таких нет — по деталям той же технологии)."""
+def extra_machine_norms(journal, features: PartFeatures, machine: str, technology: str,
+                        designation: str = "", drawing_designation: str | None = None) -> dict:
+    """Время наладки и обработки на втором станке: та же деталь, сделанная на этом станке, — её время из журнала;
+    иначе — по деталям журнала, сделанным на этом станке (если таких нет — по деталям той же технологии)."""
     part = replace(features, technology=technology)
     pool = [e for e in journal if e.machine_code == machine and e.technology == technology]
-    choice = pick_analog(part, pool or journal)
+    choice = same_part(pool, designation, drawing_designation) if designation else None
+    choice = choice or pick_analog(part, pool or journal)
     if choice is None:
         return {"setup": 0.0, "machining": 0.0, "analog": None}
     hours = {s.stage: s.hours for s in choice.route}
@@ -167,7 +169,8 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
     extras = []
     for extra in data.get("extra_machines") or []:
         if extra.get("auto", True):
-            extra = {**extra, **extra_machine_norms(journal, features, extra["machine"], extra["technology"])}
+            extra = {**extra, **extra_machine_norms(journal, features, extra["machine"], extra["technology"],
+                                                    pos.designation, drawing.get("designation"))}
             if not extra["setup"] and not extra["machining"]:
                 issues.append(f"Для станка {extra['machine']} нет деталей журнала: введите время вручную")
         extras.append(extra)

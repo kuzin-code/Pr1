@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
 from app.domain.order_intake import IntakeError
-from app.services import quick_service
+from app.services import proposal_history, quick_service
+from app.web.routes.proposals import storage as proposals_storage
 from app.services.actor import ServiceError
 from app.services.order_service import UploadedFile
 from app.web.deps import act, current_actor, flash, get_db, redirect
@@ -44,7 +45,7 @@ async def quick_calc(request: Request, quantity: str = Form("1"), desired_date: 
 
 
 @router.get("/quick/{token}")
-def quick_result(request: Request, token: str):
+def quick_result(request: Request, token: str, db: Session = Depends(get_db)):
     require(current_actor(request).role, Action.UPLOAD_ORDER)
     try:
         summary = quick_service.load(_work_dir(request), token)
@@ -52,7 +53,19 @@ def quick_result(request: Request, token: str):
         flash(request, str(err), "error")
         return redirect("/quick")
     return render(request, "quick_result.html", s=summary, token=token, edit=request.query_params.get("edit"),
-                  cnc_names={m["code"]: m["model"] for m in summary.get("cnc", [])})
+                  cnc_names={m["code"]: m["model"] for m in summary.get("cnc", [])},
+                  similar=proposal_history.similar(db, [p["designation"] for p in summary.get("positions", [])]))
+
+
+@router.post("/quick/{token}/proposal")
+def quick_proposal(request: Request, token: str, db: Session = Depends(get_db)):
+    actor = current_actor(request)
+    try:
+        row = proposal_history.create_from_quick(db, actor, _work_dir(request), token, proposals_storage(request))
+    except ServiceError as err:
+        flash(request, str(err), "error")
+        return redirect(f"/quick/{token}")
+    return redirect(f"/proposals/{row.id}?new=1")
 
 
 def _num(value: str, cast=float):

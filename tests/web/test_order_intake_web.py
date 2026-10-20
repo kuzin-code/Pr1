@@ -36,21 +36,42 @@ def test_bad_request_keeps_form_values(app):
     assert resp.status_code == 400 and "ИП Петров" in resp.text
 
 
-def test_proposal_preview_and_word_download(app):
+def test_proposal_saved_in_history_preview_and_word_download(app):
     import re
     client = login(app, "manager")
     page = client.post("/orders", data={"customer": "ООО «Альфа»", "desired_date": "2030-01-15"},
                        files=[("files", ("P-1.step", make_box_step(90, 50, 20).encode())),
                               ("files", ("P-1.pdf", make_pdf(["Bore 10H9"])))]).text
-    order_id = re.search(r'href="/orders/(\d+)/proposal"', page).group(1)
-    preview = client.get(f"/orders/{order_id}/proposal")
+    order_id = re.search(r'action="/orders/(\d+)/proposal"', page).group(1)
+    preview = client.post(f"/orders/{order_id}/proposal")
     assert preview.status_code == 200 and "Коммерческое предложение" in preview.text
     assert "Цена операций" in preview.text and "Срок изготовления" in preview.text and "ООО «Альфа»" in preview.text
-    assert f"/orders/{order_id}/proposal.docx" in preview.text  # автоматическое скачивание
-    doc = client.get(f"/orders/{order_id}/proposal.docx")
+    kp_id = re.search(r'/proposals/(\d+)/file', preview.text).group(1)
+    assert 'iframe src="/proposals/' in preview.text  # автоматическое скачивание
+    doc = client.get(f"/proposals/{kp_id}/file")
     assert doc.status_code == 200 and doc.content[:2] == b"PK"
     assert "attachment" in doc.headers["content-disposition"] and ".docx" in doc.headers["content-disposition"]
+    listing = client.get("/proposals?q=Альфа").text
+    assert "ООО «Альфа»" in listing and "P-1" in listing
+    again = client.get(f"/orders/{order_id}").text
+    assert "КП-" in again  # КП заказа видны в карточке
+
+
+def test_similar_proposal_shown_in_quick_calc(app):
+    import re
+    client = login(app, "manager")
+    page = client.post("/orders", files=[("files", ("P-7.step", make_box_step(90, 50, 20).encode())),
+                                         ("files", ("P-7.pdf", make_pdf(["Bore 10H9"])))]).text
+    order_id = re.search(r'action="/orders/(\d+)/proposal"', page).group(1)
+    client.post(f"/orders/{order_id}/proposal")
+    quick = client.post("/quick", files=[("files", ("P-7.step", make_box_step(90, 50, 20).encode())),
+                                         ("files", ("P-7.pdf", make_pdf(["Bore 10H9"])))]).text
+    assert "Ранее выставленные КП по этим деталям" in quick
+    token = re.search(r"/quick/([0-9a-f]{32})/launch", quick).group(1)
+    kp = client.post(f"/quick/{token}/proposal").text
+    assert "КП-Б-" in kp
 
 
 def test_operator_has_no_proposal(app):
-    assert login(app, "operator").get("/orders/1/proposal.docx").status_code == 403
+    operator = login(app, "operator")
+    assert operator.get("/proposals").status_code == 403 and operator.post("/orders/1/proposal").status_code == 403

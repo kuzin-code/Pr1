@@ -2,8 +2,11 @@
 {% block title %}Заказ {{ order.number }}{% endblock %}
 {% block content %}
 <h1>Заказ {{ order.number }}</h1>
-{% if can('upload_order') %}<p><a class="btn" href="/orders/{{ order.id }}/proposal">Сформировать КП</a>
-  <span class="muted">предварительный просмотр и файл Word в «Загрузки»</span></p>{% endif %}
+{% if can('upload_order') %}<div class="row" style="gap:10px;align-items:center;margin-bottom:12px">
+  <form method="post" action="/orders/{{ order.id }}/proposal" class="inline"><button>Сформировать КП</button></form>
+  <span class="muted">сохраняется в истории КП; просмотр и файл Word в «Загрузки»</span>
+  {% for kp in proposals %}<a href="/proposals/{{ kp.id }}" class="badge">{{ kp.number }} от {{ kp.created_at|dt }}</a>{% endfor %}
+</div>{% endif %}
 {% if done %}<div class="flash ok">Заказ завершён: все позиции прошли внутренний контроль.</div>{% endif %}
 <div class="card row">
   <div><label>Дата начала</label>{{ order.start_date|dt }}</div>
@@ -93,4 +96,5 @@
   </form>
 </div>
 {% endif %}
+{% if can('upload_order') %}{% include "_similar_proposals.html" %}{% endif %}
 {% endblock %}

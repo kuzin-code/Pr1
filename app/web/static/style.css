@@ -164,3 +164,4 @@ button.big { font-size:16px; padding:9px 26px; margin-right:14px; }
 .quick-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:8px 14px; margin:8px 0; }
 .quick-grid label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--muted); }
 .quick-grid input, .quick-grid select { width:100%; box-sizing:border-box; }
+.quick-dims { display:flex; gap:4px; } .quick-grid .quick-dims input { width:auto; min-width:0; flex:1; }

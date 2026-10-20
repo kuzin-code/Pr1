@@ -73,3 +73,21 @@ def test_second_machine_must_differ_and_fit(session, make_order):
         tech.add_machine(session, TECH, pos.id, "VF2")  # уже основной
     with pytest.raises(ServiceError):
         tech.add_machine(session, TECH, pos.id, "BS275")  # не станок с ЧПУ
+
+
+def test_second_machine_takes_time_of_same_part_made_on_it(session, tmp_path):
+    from app.domain.enums import CountMode
+    from app.domain.models import CalibrationEntry, Dimensions, StageNorm
+    from app.storage.convert import entry_to_row
+    from tests.services.conftest import MASTER, MON, part_files
+    from app.services.order_service import create_order
+    norms = [StageNorm(Stage.SETUP, 1.0, CountMode.PER_BATCH), StageNorm(Stage.MACHINING, 0.5, CountMode.PER_PIECE)]
+    session.add(entry_to_row(CalibrationEntry("Втулка-5 (VF2)", "Втулка", "VF2", "Д16Т", Dimensions(90, 50, 20), 12,
+                                              2, norms, technology="milling")))
+    session.commit()
+    pos = create_order(session, MASTER, MON, part_files("Втулка-5", dims=(90, 50, 20)), tmp_path / "u").positions[0]
+    tech.update_data(session, TECH, pos.id, {"technology": "turning"}, "токарная деталь")
+    tech.assign_machine(session, TECH, pos.id, "ST20Y")
+    tech.add_machine(session, TECH, pos.id, "VF2")
+    extra = pos.data["extra_machines"][0]
+    assert (extra["setup"], extra["machining"], extra["analog"]) == (1.0, 0.5, "Втулка-5 (VF2)")

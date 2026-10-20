@@ -2,12 +2,14 @@
 {% block title %}{{ p.number }} — коммерческое предложение{% endblock %}
 {% block content %}
 <div class="kp-bar no-print">
-  <a href="/orders/{{ order_id }}" class="btn secondary">← К заказу {{ p.order_number }}</a>
-  <a href="/orders/{{ order_id }}/proposal.docx" class="btn" id="kp-download">Скачать Word ещё раз</a>
+  {% if row.order_id %}<a href="/orders/{{ row.order_id }}" class="btn secondary">← К заказу {{ row.order_number }}</a>{% endif %}
+  <a href="/proposals" class="btn secondary">Все КП</a>
+  <a href="/proposals/{{ row.id }}/file" class="btn" id="kp-download">Скачать Word</a>
   <button onclick="window.print()" class="secondary">Печать / PDF</button>
-  <span class="muted">Предварительный просмотр. Файл Word уже скачивается в «Загрузки» — в нём всё можно поправить.</span>
+  <span class="muted">{{ "Сформировано и сохранено в истории КП; файл Word скачивается в «Загрузки»." if new else
+    "Сохранено " ~ (row.created_at|dt) ~ ", " ~ row.created_by ~ " — данные на момент выставления." }}</span>
 </div>
-<iframe src="/orders/{{ order_id }}/proposal.docx" hidden title="Скачивание КП"></iframe>
+{% if new %}<iframe src="/proposals/{{ row.id }}/file" hidden title="Скачивание КП"></iframe>{% endif %}
 
 <div class="kp-sheet">
   <div class="kp-head">

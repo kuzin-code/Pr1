@@ -167,6 +167,7 @@ def same_part(journal: list[CalibrationEntry], designation: str, drawing_designa
     number = (drawing_designation or "").strip().casefold()
     for entry in journal:
         part = entry.part_code.casefold()
-        if part == code or (number and (part == number or part.startswith(number + " "))):
+        # «Основание (VF2)» — та же деталь с пометкой станка в журнале
+        if part == code or part.startswith(code + " (") or (number and (part == number or part.startswith(number + " "))):
             return AnalogChoice(entry, False, list(entry.stages), ("та же деталь в журнале калибровки",))
     return None

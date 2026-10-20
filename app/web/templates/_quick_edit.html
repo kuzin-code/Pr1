@@ -17,7 +17,7 @@
         <label>Количество, шт.<input name="quantity" type="number" min="1" value="{{ p.quantity }}"></label>
         <label>Материал<input name="material" value="{{ p.material }}"></label>
         <label>Габариты, мм
-          <span class="row" style="gap:4px">{% for i in range(3) %}<input name="dim{{ i }}" size="5" value="{{ p.dims[i] if p.dims|length > i else '' }}">{% endfor %}</span></label>
+          <span class="quick-dims">{% for i in range(3) %}<input name="dim{{ i }}" size="5" value="{{ p.dims[i] if p.dims|length > i else '' }}">{% endfor %}</span></label>
         <label>Квалитет IT<input name="tolerance_grade" type="number" min="1" max="18" value="{{ p.tolerance_grade or '' }}"></label>
         <label>Балл сложности<input name="complexity" type="number" min="1" max="5" value="{{ p.complexity or '' }}"></label>
         <label>Технология<select name="technology">
