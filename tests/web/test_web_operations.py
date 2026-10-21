@@ -28,13 +28,13 @@ def test_specialists_see_own_queue_and_press_buttons(login):
     page = cutter.get("/work").text
     assert "Резка заготовки" in page and "Фрезерная обработка" not in page
     (cut,) = op_ids(page)
-    press(cutter, cut, "start", "2026-10-19T08:00")
-    press(cutter, cut, "finish", "2026-10-19T09:00")
+    press(cutter, cut, "start", "2026-10-19T09:00")
+    press(cutter, cut, "finish", "2026-10-19T10:00")
 
     operator = login("operator")
     page = operator.get("/work?machine=VF2").text
     assert "Наладка" in page and "Фрезерная обработка" in page and "можно начинать" in page
-    for s, e in (("2026-10-19T09:00", "2026-10-19T10:00"), ("2026-10-19T10:00", "2026-10-20T12:00")):
+    for s, e in (("2026-10-19T10:00", "2026-10-19T11:00"), ("2026-10-19T11:00", "2026-10-20T13:00")):
         (op,) = op_ids(operator.get("/work").text)  # кнопка «Начал» — только у доступной операции
         press(operator, op, "start", s)
         press(operator, op, "finish", e)
@@ -68,7 +68,7 @@ def test_master_undoes_mistaken_mark(login):
     pid = approve(login)
     cutter = login("zagotovitel")
     (cut,) = op_ids(cutter.get("/work").text)
-    press(cutter, cut, "start", "2026-10-19T08:00")
+    press(cutter, cut, "start", "2026-10-19T09:00")
     master = login("master")
     page = master.get(f"/positions/{pid}").text
     assert "Отменить отметку" in page and "«Начал»: Резка заготовки" in page
@@ -83,8 +83,8 @@ def test_unread_counter_in_menu_and_auto_refresh(login):
     pid = approve(login)
     cutter = login("zagotovitel")
     (cut,) = op_ids(cutter.get("/work").text)
-    press(cutter, cut, "start", "2026-10-19T08:00")
-    press(cutter, cut, "finish", "2026-10-19T09:00")
+    press(cutter, cut, "start", "2026-10-19T09:00")
+    press(cutter, cut, "finish", "2026-10-19T10:00")
     page = login("operator").get("/work").text
     # «Новый заказ» и «Наладка: можно начинать»
     assert _re.search(r'Уведомления <span class="nav-count">2</span>', page)

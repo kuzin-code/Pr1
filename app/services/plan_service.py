@@ -15,7 +15,12 @@ from app.domain.timing import (StageTime, extra_machine_hours, group_planned_hou
                                stage_planned_hours)
 from app.domain.work_calendar import BENCH_CALENDAR
 from app.services.actor import Actor
-from app.storage.orm import FactRow, MachineRow, NotificationRow, OrderRow, PositionRow
+from app.storage.orm import FactRow, MachineRow, NotificationRow, OperationRow, OrderRow, PositionRow
+
+
+def clock() -> datetime:
+    """Текущий момент для плана; в тестах подменяется фиксированным временем."""
+    return datetime.now()
 
 
 def plan_calc(pos: PositionRow) -> dict | None:
@@ -28,8 +33,15 @@ def fact_ends(session: Session, position_id: int) -> dict[FactKind, datetime]:
     return {FactKind(r.kind): r.ended_at for r in rows}
 
 
+def _started_ids(session: Session) -> set[int]:
+    """Позиции, по которым работа начата: отметка «Начал» или введённый факт."""
+    marked = session.scalars(select(OperationRow.position_id).where(OperationRow.started_at.is_not(None)))
+    return set(marked) | set(session.scalars(select(FactRow.position_id)))
+
+
 def _inputs(session: Session) -> list[PlanInput]:
     items = []
+    started = _started_ids(session)
     for pos in session.scalars(select(PositionRow)):
         calc = plan_calc(pos)
         if not calc or not pos.machine_code:
@@ -48,14 +60,16 @@ def _inputs(session: Session) -> list[PlanInput]:
             fact_machine_end=ends.get(FactKind.MACHINE),
             fact_bench_end=ends.get(FactKind.BENCH),
             fact_inspection_end=ends.get(FactKind.INSPECTION),
+            started=pos.id in started,
         ))
     return items
 
 
-def current_plan(session: Session) -> Plan:
-    """План пересчитывается при каждом обращении: после факта и после изменения плана."""
+def current_plan(session: Session, now: datetime | None = None) -> Plan:
+    """План пересчитывается при каждом обращении: после факта и после изменения плана.
+    Неначатая работа — не раньше текущего момента (now; по умолчанию — сейчас)."""
     busy = {m.code: m.busy_until for m in session.scalars(select(MachineRow)) if m.busy_until}
-    return build_plan(_inputs(session), busy)
+    return build_plan(_inputs(session), busy, now or clock())
 
 
 def order_deadline(session: Session, order_id: int, plan: Plan | None = None) -> datetime | None:

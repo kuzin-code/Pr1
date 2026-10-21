@@ -14,7 +14,7 @@
     <form method="post" action="/quick/{{ token }}/position">
       <input type="hidden" name="designation" value="{{ p.designation }}">
       <div class="quick-grid">
-        <label>Количество, шт.<input name="quantity" type="number" min="1" value="{{ p.quantity }}"></label>
+        <label>Количество, шт.<input name="quantity" type="number" min="1" max="{{ max_quantity }}" value="{{ p.quantity }}"></label>
         <label>Материал<input name="material" value="{{ p.material }}"></label>
         <label>Габариты, мм
           <span class="quick-dims">{% for i in range(3) %}<input name="dim{{ i }}" size="5" value="{{ p.dims[i] if p.dims|length > i else '' }}">{% endfor %}</span></label>

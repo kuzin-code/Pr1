@@ -17,7 +17,7 @@
   {% include "_files_drop.html" %}
   <div class="intake-fields" id="qty_row">
     <div><label for="quantity">Количество, шт. (если без списка — для всех деталей)</label>
-      <input id="quantity" type="number" name="quantity" min="1" value="{{ form.quantity or 1 }}"></div>
+      <input id="quantity" type="number" name="quantity" min="1" max="{{ max_quantity }}" value="{{ form.quantity or 1 }}"></div>
   </div>
 
   <details>

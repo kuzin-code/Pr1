@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.domain.access import Action, require
 from app.domain.enums import Role
+from app.domain.order_intake import validate_quantity
 from app.services import intake_service, plan_service, proposal_service
 from app.services.actor import Actor, ServiceError
 from app.services.order_service import UploadedFile
@@ -122,10 +123,8 @@ def _summary(copy: Session, actor: Actor, order, quantities: list[int] | None = 
 def _alternatives(copy: Session, order, plan, positions: list[dict]) -> None:
     """Станки по позиции: время по деталям журнала с этого станка, стоимость, когда свободен и когда будет готово
     (очередь — другие заказы, другие позиции этого расчёта и введённые даты занятости)."""
-    from dataclasses import replace as _replace
-    from datetime import time
-
     from app.domain.enums import StageGroup
+    from app.domain.scheduling import work_start
     from app.domain.machines import allowed_machines
     from app.domain.work_calendar import MACHINE_CALENDAR
     from app.domain.analog import same_part
@@ -134,9 +133,9 @@ def _alternatives(copy: Session, order, plan, positions: list[dict]) -> None:
     from app.services.reference_service import domain_machines, get_rates, journal_entries
 
     busy: dict[str, datetime] = {m.code: m.busy_until for m in copy.query(MachineRow) if m.busy_until}
-    # точка отсчёта — как у плана (начало смены в дату начала заказа), иначе «где быстрее» и «Занятость станков»
-    # на одной странице расходятся
-    base = MACHINE_CALENDAR.normalize(datetime.combine(order.start_date, time(8)))
+    # точка отсчёта — как у плана (начало смены в дату начала заказа, не раньше «сейчас»), иначе «где быстрее»
+    # и «Занятость станков» на одной странице расходятся
+    base = MACHINE_CALENDAR.normalize(work_start(order.start_date, plan_service.clock()))
     machines = [m for m in domain_machines(copy) if m.is_cnc]
     ids = sorted(p.id for p in order.positions)
     later = {pid: {x for x in ids if x >= pid} for pid in ids}  # сама позиция и стоящие после неё
@@ -193,6 +192,7 @@ def calculate(session: Session, actor: Actor, files: list[UploadedFile], work_di
     """quantities — ступени количества (до 4): цена и срок по каждой позиции для 1 / 10 / 50 шт."""
     require(actor.role, Action.UPLOAD_ORDER)
     quantities = _quantities(quantities)
+    validate_quantity(quantity)
     _cleanup(work_dir)
     token = uuid.uuid4().hex
     folder = _folder(work_dir, token)

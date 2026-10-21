@@ -11,6 +11,8 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
+from app.domain.order_intake import MAX_QUANTITY, QUANTITY_LIMIT_MESSAGE
+
 COLUMNS = {
     "designation": ("обозначение",),
     "name": ("наименование",),
@@ -111,6 +113,9 @@ def _quantity(value, row: int) -> int:
         raise OrderListError(f"Список деталей, строка {row}: количество «{_text(value)}» — нужно целое число") from None
     if number < 1 or not number.is_integer():
         raise OrderListError(f"Список деталей, строка {row}: количество «{_text(value)}» — нужно целое число ≥ 1")
+    if number > MAX_QUANTITY:
+        raise OrderListError(f"Список деталей, строка {row}: количество {int(number)} — "
+                             f"{QUANTITY_LIMIT_MESSAGE[0].lower()}{QUANTITY_LIMIT_MESSAGE[1:]}")
     return int(number)
 
 
@@ -152,7 +157,8 @@ def read_order_list(path: Path | str) -> OrderList:
 TEMPLATE_HINTS = [
     "Как заполнить список деталей",
     "1. Шапка: заказчик, дата заказа, разработчик и ответственный с контактами (необязательно).",
-    "2. Таблица: одна строка — одна деталь. Обязательны «Обозначение» и «К-во» (целое число ≥ 1).",
+    "2. Таблица: одна строка — одна деталь. Обязательны «Обозначение» и «К-во» "
+    f"(целое число от 1 до {MAX_QUANTITY}).",
     "3. Раздел (например, «Детали из алюминия») — строка, где заполнена только первая ячейка.",
     "4. «Покрытие, цвет» и «Прим.»: анодирование, окраска, RAL, гальваника, термообработка, шлифовка "
     "отмечаются системой как внешняя (кооперационная) операция — расчёт «без кооперации».",
@@ -203,8 +209,9 @@ def write_template(path: Path | str, rows: int = 50) -> Path:
     for r in range(8, 8 + rows):
         for col in range(2, 9):
             ws.cell(r, col).border = Border(left=thin, right=thin, bottom=thin)
-    quantity = DataValidation(type="whole", operator="greaterThanOrEqual", formula1="1", allow_blank=True,
-                              error="Количество — целое число не меньше 1", showErrorMessage=True)
+    quantity = DataValidation(type="whole", operator="between", formula1="1", formula2=str(MAX_QUANTITY),
+                              allow_blank=True, error=f"Количество — целое число от 1 до {MAX_QUANTITY}",
+                              showErrorMessage=True)
     ws.add_data_validation(quantity)
     quantity.add(f"E8:E{7 + rows}")
     ws.freeze_panes = "B8"

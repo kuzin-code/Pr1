@@ -7,7 +7,7 @@ import math
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-DAY_START_HOUR = 8
+DAY_START_HOUR = 9  # смена с 09:00 (решение пользователя 20.10.2026)
 WORKDAYS_PER_WEEK = 5
 _EPS = 1e-9
 

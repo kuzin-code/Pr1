@@ -4,6 +4,8 @@
 неутверждённые (предварительные) — после утверждённых. Этапы позиции последовательны:
 резка → станочная группа → слесарно-финишная → контроль. Программирование в срок не входит.
 Введённый факт окончания группы заменяет плановое окончание и сдвигает последующие работы.
+Неначатая позиция (нет отметки начала и фактов) планируется не раньше текущего момента — план не уходит
+в прошлое; начатая и выполненная работа остаётся как есть.
 """
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -26,6 +28,7 @@ class PlanInput:
     fact_machine_end: datetime | None = None
     fact_bench_end: datetime | None = None
     fact_inspection_end: datetime | None = None
+    started: bool = False  # есть отметка начала операции или факт — план позиции «сейчас» не сдвигает
 
 
 @dataclass(frozen=True)
@@ -57,18 +60,26 @@ class Plan:
     slots: list[MachineSlot] = field(default_factory=list)
 
 
+def work_start(order_start: date, now: datetime | None) -> datetime:
+    """Начало неначатой работы: начало смены в дату начала заказа, но не раньше «сейчас» (по календарю)."""
+    start = BENCH_CALENDAR.day_start(order_start)
+    return BENCH_CALENDAR.normalize(max(start, now)) if now else start
+
+
 def _queue_key(item: PlanInput):
     approved = item.approved_seq is not None
     return (0 if approved else 1, item.approved_seq or 0, item.position_id)
 
 
-def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime]) -> Plan:
+def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime],
+               now: datetime | None = None) -> Plan:
+    """now — текущий момент: неначатые позиции не планируются раньше него (None — как от даты начала)."""
     plan = Plan()
     machine_free: dict[str, datetime] = dict(machine_busy_until)
     for it in sorted(items, key=_queue_key):
         if not it.machine_code:
             continue
-        start = BENCH_CALENDAR.day_start(it.order_start)
+        start = work_start(it.order_start, None if it.started else now)
         cutting_end = BENCH_CALENDAR.add_hours(start, it.cutting_hours)
         free = machine_free.get(it.machine_code)
         possible_start = max(start, free) if free else start

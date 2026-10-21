@@ -10,11 +10,12 @@ from datetime import datetime
 
 from app.domain.cost import compute_cost
 from app.domain.models import Rates, StageNorm
+from app.domain.order_intake import MAX_QUANTITY, QUANTITY_LIMIT_MESSAGE
 from app.domain.timing import ExtraMachine, batch_times
 from app.domain.work_calendar import MACHINE_CALENDAR
 
 MAX_BREAKS = 4
-MAX_BREAK_QUANTITY = 100_000  # защита от опечатки: 10⁹ шт. считались бы по календарю минутами
+MAX_BREAK_QUANTITY = MAX_QUANTITY  # ступень — как количество позиции: не больше 100 шт.
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,7 @@ def parse_quantities(value) -> list[int]:
     if len(quantities) > MAX_BREAKS:
         raise ValueError(f"Не больше {MAX_BREAKS} ступеней количества")
     if any(q > MAX_BREAK_QUANTITY for q in quantities):
-        raise ValueError(f"Ступень количества — не больше {MAX_BREAK_QUANTITY:,} шт.".replace(",", " "))
+        raise ValueError(QUANTITY_LIMIT_MESSAGE)
     return quantities
 
 

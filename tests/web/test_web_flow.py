@@ -60,8 +60,8 @@ def test_full_flow(login):
 
     # Все операции позиции по порядку: мастер может отметить за любого специалиста.
     master = login("master")
-    times = ["2026-10-12T08:00", "2026-10-12T09:00", "2026-10-12T10:00", "2026-10-13T10:00",
-             "2026-10-13T12:00", "2026-10-13T13:00", "2026-10-14T09:00"]
+    times = ["2026-10-12T09:00", "2026-10-12T10:00", "2026-10-12T11:00", "2026-10-13T11:00",
+             "2026-10-13T13:00", "2026-10-13T14:00", "2026-10-14T10:00"]
     for i in range(6):
         ready = re.findall(r'action="/operations/(\d+)/start"', master.get("/work").text)
         assert master.post(f"/operations/{ready[0]}/start", data={"at": times[i]}).status_code == 303
@@ -94,7 +94,7 @@ def test_open_drawing_file(login):
 
 
 def test_master_sets_busy_until_and_sees_notifications(login):
-    resp = login("master").post("/machines/VF2/busy", data={"busy_until": "2026-10-20T08:00"})
+    resp = login("master").post("/machines/VF2/busy", data={"busy_until": "2026-10-20T09:00"})
     assert resp.status_code == 303
     assert "20.10.2026" in login("master").get("/plan").text
     assert login("master").get("/notifications").status_code == 200

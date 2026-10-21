@@ -70,7 +70,7 @@
     <td class="num">
       {% if can('upload_order') and p.status in ('calculation', 'tech_review') %}
       <form method="post" action="/positions/{{ p.id }}/quantity" class="inline">
-        <input type="number" name="quantity" min="1" value="{{ p.quantity }}"><button class="secondary">OK</button></form>
+        <input type="number" name="quantity" min="1" max="{{ max_quantity }}" value="{{ p.quantity }}"><button class="secondary">OK</button></form>
       {% else %}{{ p.quantity }}{% endif %}
     </td>
     <td>{{ status_label(p.status) }}</td>

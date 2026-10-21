@@ -69,3 +69,11 @@ def test_old_proposal_without_breaks_opens(app):
         db.commit()
     page = c.get(f"/proposals/{kp_id}")
     assert page.status_code == 200 and "Коммерческое предложение" in page.text and HEAD_ROW not in page.text
+
+
+def test_quantity_fields_limited_to_100(app):
+    c = client_for(app)
+    assert 'name="quantity" min="1" max="100"' in c.get("/quick").text
+    assert 'max="100"' in c.get("/orders/new").text
+    resp = c.post("/quick", data={"quantity": "150"}, files=files())
+    assert resp.status_code == 400 and "Количество в позиции — не больше 100 шт." in resp.text

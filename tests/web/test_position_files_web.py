@@ -11,8 +11,8 @@ def test_operator_opens_drawing_and_model_of_own_position(login):
     _, other = create_order(login, "Планка-2")  # не утверждена — у оператора операций нет
     cutter = login("zagotovitel")
     (cut,) = op_ids(cutter.get("/work").text)
-    press(cutter, cut, "start", "2026-10-19T08:00")
-    press(cutter, cut, "finish", "2026-10-19T09:00")  # у оператора наладка — «можно начинать»
+    press(cutter, cut, "start", "2026-10-19T09:00")
+    press(cutter, cut, "finish", "2026-10-19T10:00")  # у оператора наладка — «можно начинать»
     operator = login("operator")
     work = operator.get("/work").text
     assert f"/positions/{pid}/file/pdf" in work and f"/positions/{pid}/model" in work
@@ -32,8 +32,8 @@ def test_notification_link_for_specialist_leads_to_work(login):
     pid = approve(login)
     cutter = login("zagotovitel")
     (cut,) = op_ids(cutter.get("/work").text)
-    press(cutter, cut, "start", "2026-10-19T08:00")
-    press(cutter, cut, "finish", "2026-10-19T09:00")  # оператору: «Наладка: можно начинать»
+    press(cutter, cut, "start", "2026-10-19T09:00")
+    press(cutter, cut, "finish", "2026-10-19T10:00")  # оператору: «Наладка: можно начинать»
     page = login("operator").get("/notifications").text
     assert f'href="/positions/{pid}"' not in page and 'href="/work">открыть' in page
     assert f'href="/positions/{pid}">открыть' in login("technolog").get("/notifications").text

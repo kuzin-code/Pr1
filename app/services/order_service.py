@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.domain.access import Action, can, require
 from app.domain.enums import PositionStatus
-from app.domain.order_intake import designation, file_kind, match_files, pair_files, validate_position_count
+from app.domain.order_intake import (designation, file_kind, match_files, pair_files, validate_position_count,
+                                     validate_quantity)
 from app.domain.status import is_editable
 from app.parsers.order_list import OrderListItem, cooperation_hint, read_order_list
 from app.parsers.pdf_reader import read_pdf
@@ -80,8 +81,7 @@ def create_order(session: Session, actor: Actor, start_date: date | None, files:
         file_kind(name)
     pairing = pair_files(names)
     validate_position_count(pairing.position_count)
-    if quantity < 1:
-        raise ServiceError("Количество должно быть не меньше 1")
+    validate_quantity(quantity)
 
     order = OrderRow(number=number or "", start_date=start_date, created_at=datetime.now(),
                      created_by=actor.username)
@@ -140,8 +140,7 @@ def set_quantity(session: Session, actor: Actor, position_id: int, quantity: int
     require(actor.role, Action.UPLOAD_ORDER)
     pos = get_position(session, position_id)
     ensure_editable(pos)
-    if quantity < 1:
-        raise ServiceError("Количество должно быть не меньше 1")
+    validate_quantity(quantity)
     if pos.quantity != quantity:
         record(session, actor, "position", pos.id, "quantity", pos.quantity, quantity)
         pos.quantity = quantity

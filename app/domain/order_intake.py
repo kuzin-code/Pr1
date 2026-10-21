@@ -4,6 +4,9 @@ from dataclasses import dataclass, field
 from pathlib import PurePath
 
 MAX_POSITIONS = 50
+# Не больше 100 шт. в позиции (решение пользователя 20.10.2026): участок — штучное и мелкосерийное производство.
+MAX_QUANTITY = 100
+QUANTITY_LIMIT_MESSAGE = f"Количество в позиции — не больше {MAX_QUANTITY} шт."
 _EXTENSIONS = {".step": "step", ".stp": "step", ".pdf": "pdf"}
 
 
@@ -32,6 +35,18 @@ def file_kind(filename: str) -> str:
 def designation(filename: str) -> str:
     """Обозначение детали — имя файла без расширения и без приписки копии браузера «(1)», «(2)»."""
     return re.sub(r"\s*\(\d+\)$", "", PurePath(filename).stem.strip())
+
+
+class QuantityError(IntakeError):
+    pass
+
+
+def validate_quantity(quantity: int) -> None:
+    """Количество позиции: от 1 до MAX_QUANTITY шт."""
+    if quantity < 1:
+        raise QuantityError("Количество должно быть не меньше 1")
+    if quantity > MAX_QUANTITY:
+        raise QuantityError(QUANTITY_LIMIT_MESSAGE)
 
 
 def validate_position_count(count: int) -> None:

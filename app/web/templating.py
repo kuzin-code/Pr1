@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.domain.access import Action, can
 from app.domain.desired_date import check_desired
+from app.domain.order_intake import MAX_QUANTITY
 from app.domain.enums import (
     CountMode,
     FactKind,
@@ -85,7 +86,7 @@ templates.env.globals.update(
     stage_label=lambda v: Stage(v).label, status_label=lambda v: PositionStatus(v).label,
     count_label=lambda v: CountMode(v).label,
     Operation=Operation, operation_label=lambda v: Operation(v).label,
-    static_version=STATIC_VERSION,
+    static_version=STATIC_VERSION, max_quantity=MAX_QUANTITY,
 )
 
 
