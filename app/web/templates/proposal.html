@@ -22,31 +22,31 @@
     {% if p.contact_line %}<br><span class="muted">Контакты:</span> {{ p.contact_line }}{% endif %}</p>
   <p>Благодарим за запрос. Предлагаем изготовить детали по вашей конструкторской документации на следующих условиях:</p>
 
-  <table class="kp-table">
+  <table class="kp-table cards">
     <tr><th>№</th><th>Обозначение</th><th>Наименование</th><th>Материал</th><th class="num">Кол-во, шт.</th>
       <th class="num">Цена за шт., ₽</th><th class="num">Сумма, ₽</th></tr>
     {% for it in p.items %}
-    <tr><td>{{ loop.index }}</td><td>{{ it.designation }}</td><td>{{ it.name }}</td><td>{{ it.material }}</td>
-      <td class="num">{{ it.quantity }}</td><td class="num">{{ kp_money(it.price) }}</td><td class="num">{{ kp_money(it.batch_price) }}</td></tr>
+    <tr><td class="hide-phone">{{ loop.index }}</td><td class="cell-title">{{ it.designation }}</td><td data-label="Наименование">{{ it.name }}</td><td data-label="Материал">{{ it.material }}</td>
+      <td class="num" data-label="Кол-во, шт.">{{ it.quantity }}</td><td class="num" data-label="Цена за шт., ₽">{{ kp_money(it.price) }}</td><td class="num" data-label="Сумма, ₽">{{ kp_money(it.batch_price) }}</td></tr>
     {% endfor %}
-    <tr class="kp-total"><td colspan="6" class="num">Итого без НДС</td><td class="num">{{ kp_money(p.total) }}</td></tr>
-    <tr class="kp-total"><td colspan="6" class="num">НДС {{ p.vat_percent }} %</td><td class="num">{{ kp_money(p.vat) }}</td></tr>
-    <tr class="kp-total"><td colspan="6" class="num">Итого с НДС</td><td class="num">{{ kp_money(p.grand_total) }}</td></tr>
+    <tr class="kp-total"><td colspan="6" class="num">Итого без НДС</td><td class="num" data-label="Итого без НДС">{{ kp_money(p.total) }}</td></tr>
+    <tr class="kp-total"><td colspan="6" class="num">НДС {{ p.vat_percent }} %</td><td class="num" data-label="НДС {{ p.vat_percent }} %">{{ kp_money(p.vat) }}</td></tr>
+    <tr class="kp-total"><td colspan="6" class="num">Итого с НДС</td><td class="num" data-label="Итого с НДС">{{ kp_money(p.grand_total) }}</td></tr>
   </table>
 
   {% if p.has_breaks %}{% include "_proposal_breaks.html" %}{% endif %}
 
   <h3 class="kp-sub">Цена операций (на партию)</h3>
-  <table class="kp-table">
+  <table class="kp-table cards">
     <tr><th>№</th><th>Обозначение</th><th>Операция</th><th class="num">Время × ставка, ₽/ч</th><th class="num">Сумма, ₽</th></tr>
     {% for it in p.items %}
     {% if it.batch_price is none %}
-    <tr><td>{{ loop.index }}</td><td>{{ it.designation }}</td><td colspan="3" class="muted">цена не рассчитана</td></tr>
+    <tr><td class="hide-phone">{{ loop.index }}</td><td class="cell-title">{{ it.designation }}</td><td colspan="3" class="muted">цена не рассчитана</td></tr>
     {% else %}
-    <tr><td>{{ loop.index }}</td><td>{{ it.designation }}</td><td>Станочная обработка (наладка и обработка)</td>
-      <td class="num">{{ kp_hours(it.machine_hours) }} ч × {{ kp_money(it.machine_rate) }}</td><td class="num">{{ kp_money(it.machine_price) }}</td></tr>
-    <tr><td></td><td></td><td>Слесарно-финишная обработка</td>
-      <td class="num">{{ kp_hours(it.bench_hours) }} ч × {{ kp_money(it.bench_rate) }}</td><td class="num">{{ kp_money(it.bench_price) }}</td></tr>
+    <tr><td class="hide-phone">{{ loop.index }}</td><td class="cell-title">{{ it.designation }}</td><td data-label="Операция">Станочная обработка (наладка и обработка)</td>
+      <td class="num" data-label="Время × ставка">{{ kp_hours(it.machine_hours) }} ч × {{ kp_money(it.machine_rate) }}</td><td class="num" data-label="Сумма, ₽">{{ kp_money(it.machine_price) }}</td></tr>
+    <tr><td></td><td></td><td data-label="Операция">Слесарно-финишная обработка</td>
+      <td class="num" data-label="Время × ставка">{{ kp_hours(it.bench_hours) }} ч × {{ kp_money(it.bench_rate) }}</td><td class="num" data-label="Сумма, ₽">{{ kp_money(it.bench_price) }}</td></tr>
     {% endif %}
     {% endfor %}
   </table>

@@ -2,11 +2,11 @@
 {% if similar %}
 <div class="card">
   <h2>Ранее выставленные КП по этим деталям</h2>
-  <table>
+  <table class="cards">
     <tr><th>КП</th><th>Дата</th><th>Заказчик</th><th>Позиции</th><th class="num">Итого с НДС, ₽</th></tr>
     {% for r in similar %}
-    <tr><td><a href="/proposals/{{ r.id }}">{{ r.number }}</a></td><td>{{ r.created_at|dt }}</td><td>{{ r.customer or "—" }}</td>
-      <td class="muted">{{ r.designations|short(80) }}</td><td class="num">{{ kp_money(r.grand_total) }}</td></tr>
+    <tr><td class="cell-title"><a href="/proposals/{{ r.id }}">{{ r.number }}</a></td><td data-label="Дата">{{ r.created_at|dt }}</td><td data-label="Заказчик">{{ r.customer or "—" }}</td>
+      <td class="muted" data-label="Позиции">{{ r.designations|short(80) }}</td><td class="num" data-label="Итого с НДС, ₽">{{ kp_money(r.grand_total) }}</td></tr>
     {% endfor %}
   </table>
 </div>

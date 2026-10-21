@@ -18,18 +18,30 @@
     {% else %}<div class="quick-big">—</div><div class="muted">не указана</div>{% endif %}</div>
 </div>
 
+{# Действия — сразу под сводкой, чтобы не листать до конца страницы. #}
+<div class="card row quick-actions">
+  <form method="post" action="/quick/{{ token }}/launch" class="inline"
+        onsubmit="return confirm('Принять эти файлы как заказ? Он попадёт в план, участники получат уведомление.')">
+    <button class="big">Запустить как заказ</button></form>
+  <form method="post" action="/quick/{{ token }}/proposal" class="inline"><button class="secondary">Сформировать КП</button></form>
+  <form method="post" action="/quick/{{ token }}/notify" class="inline"><button class="secondary">Сообщить начальнику участка</button></form>
+  <form method="post" action="/quick/{{ token }}/discard" class="inline"><button class="secondary">Удалить расчёт</button></form>
+  <a href="/quick" class="muted">Новый расчёт</a>
+</div>
+<p class="muted quick-note">Неиспользованный расчёт удаляется автоматически через сутки.</p>
+
 {% include "_quick_machines.html" %}
 
 {% if s.machines %}
 <div class="card">
   <h2>Занятость станков{% if s.bottleneck %} · узкое место: {{ s.bottleneck }}{% endif %}</h2>
   {% set first = s.machines|map(attribute="start")|min %}{% set last = s.machines|map(attribute="end")|max %}
-  <table>
+  <table class="cards">
     <tr><th>Станок</th><th class="num">Позиций</th><th class="num">Часы</th><th>С</th><th>По</th><th style="width:40%"></th></tr>
     {% for m in s.machines %}
-    <tr><td>{{ m.model }}{% if m.model == s.bottleneck %} <span class="badge warn">узкое место</span>{% endif %}</td>
-      <td class="num">{{ m.positions }}</td><td class="num">{{ m.hours|hours }}</td><td>{{ m.start|dt }}</td><td>{{ m.end|dt }}</td>
-      <td>{{ quick_bar(first, last, m.start, m.end)|safe }}</td></tr>
+    <tr><td class="cell-title">{{ m.model }}{% if m.model == s.bottleneck %} <span class="badge warn">узкое место</span>{% endif %}</td>
+      <td class="num" data-label="Позиций">{{ m.positions }}</td><td class="num" data-label="Часы">{{ m.hours|hours }}</td><td data-label="С">{{ m.start|dt }}</td><td data-label="По">{{ m.end|dt }}</td>
+      <td class="cell-bar">{{ quick_bar(first, last, m.start, m.end)|safe }}</td></tr>
     {% endfor %}
   </table>
   <p class="muted">Работы ставятся в очередь станка после уже запланированных — как будто заказ принят сейчас.</p>
@@ -38,16 +50,16 @@
 
 <div class="card scroll">
   <h2>Позиции и цена операций</h2>
-  <table>
+  <table class="cards">
     <tr><th>Обозначение</th><th>Наименование</th><th>Материал</th><th class="num">Кол-во</th>
       <th class="num">Станочная, ч × ₽/ч</th><th class="num">Слесарно-финишная, ч × ₽/ч</th>
       <th class="num">Цена за шт., ₽</th><th class="num">Сумма, ₽</th></tr>
     {% for i in s["items"] %}
-    <tr><td>{{ i.designation }}</td><td>{{ i.name }}</td><td>{{ i.material }}</td><td class="num">{{ i.quantity }}</td>
+    <tr><td class="cell-title">{{ i.designation }}</td><td data-label="Наименование">{{ i.name }}</td><td data-label="Материал">{{ i.material }}</td><td class="num" data-label="Кол-во">{{ i.quantity }}</td>
       {% if i.batch_price is none %}<td colspan="4" class="muted">цена не рассчитана</td>
-      {% else %}<td class="num">{{ kp_hours(i.machine_hours) }} × {{ kp_money(i.machine_rate) }} = {{ kp_money(i.machine_price) }}</td>
-      <td class="num">{{ kp_hours(i.bench_hours) }} × {{ kp_money(i.bench_rate) }} = {{ kp_money(i.bench_price) }}</td>
-      <td class="num">{{ kp_money(i.price) }}</td><td class="num"><b>{{ kp_money(i.batch_price) }}</b></td>{% endif %}</tr>
+      {% else %}<td class="num" data-label="Станочная, ч × ₽/ч">{{ kp_hours(i.machine_hours) }} × {{ kp_money(i.machine_rate) }} = {{ kp_money(i.machine_price) }}</td>
+      <td class="num" data-label="Слесарно-финишная, ч × ₽/ч">{{ kp_hours(i.bench_hours) }} × {{ kp_money(i.bench_rate) }} = {{ kp_money(i.bench_price) }}</td>
+      <td class="num" data-label="Цена за шт., ₽">{{ kp_money(i.price) }}</td><td class="num" data-label="Сумма, ₽"><b>{{ kp_money(i.batch_price) }}</b></td>{% endif %}</tr>
     {% endfor %}
   </table>
   <p class="muted">Цена — по операциям механической обработки (время × ставка участка); материал, резка, программирование,
@@ -68,14 +80,4 @@
 </div>
 {% endif %}
 
-<div class="card row quick-actions">
-  <form method="post" action="/quick/{{ token }}/launch" class="inline"
-        onsubmit="return confirm('Принять эти файлы как заказ? Он попадёт в план, участники получат уведомление.')">
-    <button class="big">Запустить как заказ</button></form>
-  <form method="post" action="/quick/{{ token }}/proposal" class="inline"><button class="secondary">Сформировать КП</button></form>
-  <form method="post" action="/quick/{{ token }}/notify" class="inline"><button class="secondary">Сообщить начальнику участка</button></form>
-  <form method="post" action="/quick/{{ token }}/discard" class="inline"><button class="secondary">Удалить расчёт</button></form>
-  <a href="/quick" class="muted">Новый расчёт</a>
-</div>
-<p class="muted">Неиспользованный расчёт удаляется автоматически через сутки.</p>
 {% endblock %}

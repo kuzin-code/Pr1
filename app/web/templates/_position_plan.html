@@ -1,0 +1,61 @@
+{# Карточка позиции: расчёт по этапам, план, операции и отмена ошибочной отметки. #}
+{% if calc %}
+<div class="card scroll">
+  <h2>Расчёт {% if pos.approved_calc %}(зафиксирован при утверждении){% endif %}
+    {% for m in calc.marks %}<span class="badge warn">{{ m }}</span>{% endfor %}</h2>
+  <p class="muted">Аналог: {{ calc.analog_code or "нет" }} · k станочной группы {{ '%.3f'|format(calc.k.machine.value) }} (замеров: {{ calc.k.machine.count }})
+    · k слесарно-финишной {{ '%.3f'|format(calc.k.bench.value) }} (замеров: {{ calc.k.bench.count }}) · версия журнала {{ calc.journal_version }}
+    · {{ calc.created_at|dt }}, {{ calc.by }}</p>
+  <table class="cards">
+    <tr><th>Этап</th><th class="num">На ед. счёта</th><th>Счёт</th><th class="num">Расчётное на партию</th><th class="num">k</th><th class="num">Плановое на партию</th></tr>
+    {% for t in calc.stage_times %}
+    <tr><td class="cell-title">{{ stage_label(t.stage) }}{% if t.machine %} — {{ machine_names.get(t.machine, t.machine) }}{% endif %}</td>
+      <td class="num" data-label="На ед. счёта">{{ t.unit_hours|hours }}</td><td data-label="Счёт">{{ count_label(t.count_mode) }}</td>
+      <td class="num" data-label="Расчётное на партию">{{ t.calc_hours|hours }}</td><td class="num" data-label="k">{{ '%.3f'|format(t.k) }}</td>
+      <td class="num" data-label="Плановое на партию">{{ t.planned_hours|hours }}</td></tr>
+    {% endfor %}
+  </table>
+  {% if can('view_cost') %}
+  <p>Себестоимость обработки: <b>{{ calc.cost.batch_cost|money }}</b> за партию, <b>{{ calc.cost.piece_cost|money }}</b> за штуку
+    <span class="badge warn">ориентировочно</span><br>
+    <span class="muted">машинное {{ calc.cost.machine_hours|hours }} × {{ calc.rates.machine|money }}/ч + слесарное {{ calc.cost.bench_hours|hours }} × {{ calc.rates.bench|money }}/ч;
+    материалы, резка, программирование, контроль, накладные и кооперация не входят</span></p>
+  {% if actual and actual.actual %}<p>Факт: {{ actual.actual|money }} (машинное {{ actual.machine_hours|hours }}, слесарное {{ actual.bench_hours|hours }}), отклонение {{ '%.1f'|format(actual.deviation * 100) }}%</p>{% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
+{% if planned %}
+<div class="card">
+  <h2>План {% if planned.preliminary %}<span class="badge">предварительный</span>{% endif %}<span class="badge warn">ориентировочно</span></h2>
+  <table class="cards">
+    <tr><th>Резка до</th><th>Станок {{ planned.machine_code }}</th><th>Слесарно-финишная до</th><th>Контроль (срок позиции)</th><th>Отклонение</th></tr>
+    <tr><td data-label="Резка до">{{ planned.cutting_end|dt }}</td>
+      <td data-label="Станок {{ planned.machine_code }}">{{ planned.machine_start|dt }} — {{ planned.machine_end|dt }}</td>
+      <td data-label="Слесарно-финишная до">{{ planned.bench_end|dt }}</td><td data-label="Контроль (срок позиции)"><b>{{ planned.finish|dt }}</b></td>
+      <td data-label="Отклонение">{% if deviation %}{{ '%+.1f'|format(deviation.shift_hours) }} раб. ч (было {{ deviation.baseline|dt }}){% else %}—{% endif %}</td></tr>
+  </table>
+  {% if facts %}<p>Факт: {% for k, v in facts.items() %}<span class="badge ok">{{ k.label }}: {{ v|dt }}</span>{% endfor %}</p>{% endif %}
+  {% if operations %}
+  <h2 style="margin-top:12px" id="operations">Операции</h2>
+  <table class="cards">
+    <tr><th>№</th><th>Операция</th><th>Оборудование</th><th class="num">План, ч</th><th>Статус</th>
+      <th>Начал</th><th>Закончил</th><th class="num">Факт, ч</th></tr>
+    {% for o in operations %}
+    <tr><td class="hide-phone">{{ o.seq }}</td><td class="cell-title">{{ operation_label(o.operation) }}</td><td data-label="Оборудование">{{ o.resource or 'рабочее место' }}</td>
+      <td class="num" data-label="План, ч">{{ o.planned_hours|hours }}</td>
+      <td data-label="Статус"><span class="badge {{ {'done': 'ok', 'in_progress': 'warn', 'ready': 'ok'}.get(o.status, '') }}">{{ {'waiting': 'ожидает', 'ready': 'можно начинать', 'in_progress': 'в работе', 'done': 'выполнена'}[o.status] }}</span></td>
+      <td data-label="Начал">{{ o.started_at|dt if o.started_at else '—' }}{% if o.started_by %}<br><span class="muted">{{ o.started_by }}</span>{% endif %}</td>
+      <td data-label="Закончил">{{ o.finished_at|dt if o.finished_at else '—' }}{% if o.finished_by %}<br><span class="muted">{{ o.finished_by }}</span>{% endif %}</td>
+      <td class="num" data-label="Факт, ч">{{ o.duration_hours|hours if o.duration_hours is not none else '—' }}</td></tr>
+    {% endfor %}
+  </table>
+  {% if can('undo_operations') and last_mark %}
+  <form method="post" action="/positions/{{ pos.id }}/undo" class="inline pos-undo">
+    <span class="muted">Последняя отметка — {{ last_mark }}</span>
+    <input name="reason" placeholder="причина отмены" required>
+    <button class="danger">Отменить отметку</button>
+  </form>{% endif %}
+  {% endif %}
+</div>
+{% endif %}

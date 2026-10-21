@@ -1,7 +1,7 @@
 {# Предложение из быстрого расчёта: правки техпроцесса не технолога ждут решения технолога. #}
 {% set qp = d.get('quick_proposal') %}
 {% if qp %}
-<div class="card" style="border-left:4px solid var(--warn, #b54708)">
+<div class="card card-warn">
   <h2>Предложение из быстрого расчёта</h2>
   <p class="muted" style="margin-top:0">{{ qp.by }}, {{ qp.at|dt }}: при запуске заказа применено только количество;
     изменения техпроцесса ниже — на решение технолога.</p>

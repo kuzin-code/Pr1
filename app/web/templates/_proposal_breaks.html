@@ -1,13 +1,13 @@
 {# Ступени количества в КП: цена за штуку и за партию, готовность на станке для 1 / 10 / 50 шт. #}
 <h3 class="kp-sub">Цена в зависимости от количества</h3>
-<table class="kp-table">
+<table class="kp-table cards">
   <tr><th>№</th><th>Обозначение</th><th class="num">Кол-во, шт.</th><th class="num">Цена за шт., ₽</th>
     <th class="num">Сумма за партию, ₽</th><th>Готовность на станке</th></tr>
   {% for it in p.items %}{% set n = loop.index %}
   {% for b in it.breaks %}
-  <tr><td>{{ n if loop.first }}</td><td>{{ it.designation if loop.first }}</td><td class="num">{{ b.quantity }}</td>
-    <td class="num">{{ kp_money(b.piece_price) }}</td><td class="num">{{ kp_money(b.batch_price) }}</td>
-    <td>{{ b.ready[:10]|dt if b.ready else "—" }}</td></tr>
+  <tr><td class="hide-phone">{{ n if loop.first }}</td><td class="cell-title">{{ it.designation if loop.first }}</td><td class="num" data-label="Кол-во, шт.">{{ b.quantity }}</td>
+    <td class="num" data-label="Цена за шт., ₽">{{ kp_money(b.piece_price) }}</td><td class="num" data-label="Сумма за партию, ₽">{{ kp_money(b.batch_price) }}</td>
+    <td data-label="Готовность на станке">{{ b.ready[:10]|dt if b.ready else "—" }}</td></tr>
   {% endfor %}
   {% endfor %}
 </table>

@@ -2,37 +2,36 @@
 {% block title %}Заказ {{ order.number }}{% endblock %}
 {% block content %}
 <h1>Заказ {{ order.number }}</h1>
-{% if can('upload_order') %}<div class="row" style="gap:10px;align-items:center;margin-bottom:12px">
+{% if can('upload_order') %}<div class="row order-kp">
   <form method="post" action="/orders/{{ order.id }}/proposal" class="inline"><button>Сформировать КП</button>
-    <input name="quantities" size="14" placeholder="1, 10, 50" title="Ступени количества (до 4, через запятую): цена и срок для каждого количества"></form>
+    <input name="quantities" size="14" class="kp-steps" placeholder="1, 10, 50" title="Ступени количества (до 4, через запятую): цена и срок для каждого количества"></form>
   <span class="muted">сохраняется в истории КП; просмотр и файл Word в «Загрузки»</span>
   {% for kp in proposals %}<a href="/proposals/{{ kp.id }}" class="badge">{{ kp.number }} от {{ kp.created_at|dt }}</a>{% endfor %}
   {% if order.positions and order.positions|rejectattr('status', 'in', ['calculation', 'tech_review', 'awaiting_approval'])|list|length == 0 %}
-  <form method="post" action="/orders/{{ order.id }}/delete" class="inline js-delete" data-what="заказ {{ order.number }} целиком"
-        style="margin-left:auto"><input type="hidden" name="reason">
+  <form method="post" action="/orders/{{ order.id }}/delete" class="inline js-delete push-right" data-what="заказ {{ order.number }} целиком"><input type="hidden" name="reason">
     <button class="secondary danger-text">Удалить заказ</button></form>{% endif %}
 </div>{% endif %}
 {% if done %}<div class="flash ok">Заказ завершён: все позиции прошли внутренний контроль.</div>{% endif %}
-<div class="card row">
+<div class="card facts">
   <div><label>Дата начала</label>{{ order.start_date|dt }}</div>
-  <div style="margin-left:24px"><label>Расчётная дата изготовления</label>{{ deadline|dt }}
+  <div><label>Расчётная дата изготовления</label>{{ deadline|dt }}
     <span class="badge warn">ориентировочно</span></div>
   {% if order.desired_date %}{% set chk = check_desired(deadline, order.desired_date) %}
-  <div style="margin-left:24px"><label>Желаемая дата заказчика</label>{{ order.desired_date|dt }}
+  <div><label>Желаемая дата заказчика</label>{{ order.desired_date|dt }}
     <span class="badge {{ 'ok' if chk.status == 'ok' else 'err' if chk.status == 'late' else '' }}">{{ chk.label }}</span></div>
   {% endif %}
   {% if can('view_cost') %}
-  <div style="margin-left:24px"><label>Себестоимость обработки, итого</label>{{ total_cost|money }}
+  <div><label>Себестоимость обработки, итого</label>{{ total_cost|money }}
     <span class="badge warn">ориентировочно</span></div>
   {% endif %}
-  <div style="margin-left:24px"><label>Принят</label>{{ order.created_at|dt }}, {{ order.created_by }}</div>
+  <div><label>Принят</label>{{ order.created_at|dt }}, {{ order.created_by }}</div>
 </div>
 {% if order.customer or order.source_list %}
-<div class="card row">
+<div class="card facts">
   {% if order.customer %}<div><label>Заказчик</label>{{ order.customer }}</div>{% endif %}
-  {% if order.customer_order_date %}<div style="margin-left:24px"><label>Дата заказа</label>{{ order.customer_order_date|dt }}</div>{% endif %}
-  {% for k, v in (order.contacts or {}).items() %}{% if v %}<div style="margin-left:24px"><label>{{ k }}</label>{{ v }}</div>{% endif %}{% endfor %}
-  {% if order.source_list %}<div style="margin-left:24px"><label>Список деталей</label>{{ order.source_list }}</div>{% endif %}
+  {% if order.customer_order_date %}<div><label>Дата заказа</label>{{ order.customer_order_date|dt }}</div>{% endif %}
+  {% for k, v in (order.contacts or {}).items() %}{% if v %}<div><label>{{ k }}</label>{{ v }}</div>{% endif %}{% endfor %}
+  {% if order.source_list %}<div><label>Список деталей</label>{{ order.source_list }}</div>{% endif %}
 </div>
 {% endif %}
 
@@ -52,7 +51,7 @@
 {% endif %}
 <div class="card scroll">
 <h2>Позиции</h2>
-<table>
+<table class="cards">
   <tr><th>Позиция</th><th>Файлы</th><th class="num">Кол-во</th><th>Статус</th>
     {% if can('view_machine_assignment') %}<th>Станок</th>{% endif %}<th>Аналог</th><th>Срок позиции</th><th>Отклонение</th>
     {% if can('view_cost') %}<th class="num">Себестоимость партии</th><th class="num">Факт</th>{% endif %}</tr>
@@ -60,29 +59,29 @@
   {% for p in order.positions %}
   {% set planned = plan.positions.get(p.id) %}
   {% if (p.data or {}).get('section') and p.data.section != ns.section %}{% set ns.section = p.data.section %}
-  <tr><td colspan="11"><b>{{ ns.section }}</b></td></tr>{% endif %}
+  <tr class="row-section"><td colspan="11"><b>{{ ns.section }}</b></td></tr>{% endif %}
   {% set calc = p.approved_calc or p.current_calc %}
   <tr>
-    <td><a href="/positions/{{ p.id }}">{{ p.designation }}</a>
+    <td class="cell-title"><a href="/positions/{{ p.id }}">{{ p.designation }}</a>
       {% if p.needs_link %}<span class="badge err">нет файлов STEP/PDF</span>{% endif %}
       {% for key in ('coating', 'note') %}{% if (p.data or {}).get(key) %}<br><span class="badge warn">{{ p.data[key] }}</span>{% endif %}{% endfor %}</td>
-    <td class="muted">{{ p.step_name or "— STEP" }}<br>{{ p.pdf_name or "— PDF" }}</td>
-    <td class="num">
+    <td class="muted" data-label="Файлы">{{ p.step_name or "— STEP" }}<br>{{ p.pdf_name or "— PDF" }}</td>
+    <td class="num" data-label="Кол-во">
       {% if can('upload_order') and p.status in ('calculation', 'tech_review') %}
       <form method="post" action="/positions/{{ p.id }}/quantity" class="inline">
         <input type="number" name="quantity" min="1" max="{{ max_quantity }}" value="{{ p.quantity }}"><button class="secondary">OK</button></form>
       {% else %}{{ p.quantity }}{% endif %}
     </td>
-    <td>{{ status_label(p.status) }}</td>
-    {% if can('view_machine_assignment') %}<td>{{ p.machine_code or "—" }}</td>{% endif %}
-    <td>{{ p.analog_code or ("нет (вручную)" if p.no_analog else "—") }}</td>
-    <td>{% if planned %}{{ planned.finish|dt }}
+    <td data-label="Статус">{{ status_label(p.status) }}</td>
+    {% if can('view_machine_assignment') %}<td data-label="Станок">{{ p.machine_code or "—" }}</td>{% endif %}
+    <td data-label="Аналог">{{ p.analog_code or ("нет (вручную)" if p.no_analog else "—") }}</td>
+    <td data-label="Срок позиции">{% if planned %}{{ planned.finish|dt }}
       {% if planned.preliminary %}<span class="badge">предварительный</span>{% endif %}
       <span class="badge warn">ориентировочно</span>{% else %}—{% endif %}</td>
-    <td>{% set d = deviations.get(p.id) %}{% if d %}<span class="badge {{ 'err' if d.shift_hours > 0 else 'ok' }}">{{ '%+.1f'|format(d.shift_hours) }} раб. ч</span>{% else %}—{% endif %}</td>
+    <td data-label="Отклонение">{% set d = deviations.get(p.id) %}{% if d %}<span class="badge {{ 'err' if d.shift_hours > 0 else 'ok' }}">{{ '%+.1f'|format(d.shift_hours) }} раб. ч</span>{% else %}—{% endif %}</td>
     {% if can('view_cost') %}
-    <td class="num">{{ calc.cost.batch_cost|money if calc else "—" }}</td>
-    <td class="num">{% set a = actual_costs.get(p.id) %}{% if a %}{{ a.actual|money }}<br><span class="muted">откл. {{ '%.1f'|format(a.deviation * 100) }}%</span>{% else %}—{% endif %}</td>
+    <td class="num" data-label="Себестоимость партии">{{ calc.cost.batch_cost|money if calc else "—" }}</td>
+    <td class="num" data-label="Факт">{% set a = actual_costs.get(p.id) %}{% if a %}{{ a.actual|money }}<br><span class="muted">откл. {{ '%.1f'|format(a.deviation * 100) }}%</span>{% else %}—{% endif %}</td>
     {% endif %}
   </tr>
   {% endfor %}

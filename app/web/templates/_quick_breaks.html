@@ -2,20 +2,20 @@
 <div class="card scroll">
   {% if s.quantities %}
   <h2>Цена в зависимости от количества</h2>
-  <table>
+  <table class="cards">
     <tr><th>Обозначение</th><th class="num">Кол-во, шт.</th><th class="num">Станочная, ч</th>
       <th class="num">Слесарно-финишная, ч</th><th class="num">Сумма за партию, ₽</th><th class="num">Цена за шт., ₽</th>
       <th>Готовность на станке</th></tr>
     {% for i in s["items"] %}
     {% if i.breaks %}{% for b in i.breaks %}
     <tr{% if b.quantity == i.quantity %} class="quick-break-current"{% endif %}>
-      <td>{% if loop.first %}{{ i.designation }}{% endif %}</td>
-      <td class="num">{{ b.quantity }}{% if b.quantity == i.quantity %} <span class="badge">в расчёте</span>{% endif %}</td>
-      <td class="num">{{ kp_hours(b.machine_hours) }}</td><td class="num">{{ kp_hours(b.bench_hours) }}</td>
-      <td class="num">{{ kp_money(b.batch_price) }}</td><td class="num"><b>{{ kp_money(b.piece_price) }}</b></td>
-      <td>{{ b.ready|dt if b.ready else "—" }}</td></tr>
+      <td class="cell-title">{% if loop.first %}{{ i.designation }}{% endif %}</td>
+      <td class="num" data-label="Кол-во, шт.">{{ b.quantity }}{% if b.quantity == i.quantity %} <span class="badge">в расчёте</span>{% endif %}</td>
+      <td class="num" data-label="Станочная, ч">{{ kp_hours(b.machine_hours) }}</td><td class="num" data-label="Слесарно-финишная, ч">{{ kp_hours(b.bench_hours) }}</td>
+      <td class="num" data-label="Сумма за партию, ₽">{{ kp_money(b.batch_price) }}</td><td class="num" data-label="Цена за шт., ₽"><b>{{ kp_money(b.piece_price) }}</b></td>
+      <td data-label="Готовность на станке">{{ b.ready|dt if b.ready else "—" }}</td></tr>
     {% endfor %}{% else %}
-    <tr><td>{{ i.designation }}</td><td colspan="6" class="muted">цена не рассчитана</td></tr>
+    <tr><td class="cell-title">{{ i.designation }}</td><td colspan="6" class="muted">цена не рассчитана</td></tr>
     {% endif %}
     {% endfor %}
   </table>

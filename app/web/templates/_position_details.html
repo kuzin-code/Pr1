@@ -1,0 +1,115 @@
+{# Карточка позиции: файлы, данные списка и чертежа, замечания системы, данные детали и аналог. #}
+<div class="card facts">
+  <div><label>Количество (партия)</label>{{ pos.quantity }} шт.</div>
+  <div><label>Чертёж PDF — главный документ</label>
+    {% if pos.pdf_path %}<span class="muted">{{ pos.pdf_name }}</span>{% else %}<span class="err">нет файла</span>{% endif %}</div>
+  <div><label>Модель STEP</label>
+    {% if pos.step_path %}<a href="/positions/{{ pos.id }}/file/step">скачать {{ pos.step_name }}</a>{% else %}<span class="err">нет файла</span>{% endif %}</div>
+  {% if pos.needs_link %}<div><span class="badge err">Нет пары STEP+PDF</span></div>{% endif %}
+  {% if editable and (can('upload_order') or can('edit_tech_data')) %}
+  <form method="post" action="/positions/{{ pos.id }}/files" enctype="multipart/form-data" class="inline facts-wide">
+    <input type="file" name="files" multiple required accept=".step,.stp,.pdf"><button class="secondary">Прикрепить файлы</button>
+  </form>{% endif %}
+</div>
+{% include "_quick_proposal.html" %}
+{% if d.get('section') or d.get('coating') or d.get('note') or d.get('list_material') %}
+<div class="card facts">
+  {% if d.get('section') %}<div><label>Раздел списка</label>{{ d.section }}</div>{% endif %}
+  {% if d.get('list_material') %}<div><label>Материал по списку</label>{{ d.list_material }}</div>{% endif %}
+  {% if d.get('coating') %}<div><label>Покрытие, цвет</label>{{ d.coating }}</div>{% endif %}
+  {% if d.get('note') %}<div><label>Примечание заказчика</label>{{ d.note }}</div>{% endif %}
+</div>
+{% endif %}
+
+{% set dr = d.get('drawing') or {} %}
+{% if dr.get('designation') or dr.get('requirements') %}
+<div class="card">
+  <h2>Чертёж по ЕСКД</h2>
+  <div class="facts">
+    <div><label>Обозначение (графа 2)</label>{{ dr.designation or '—' }}</div>
+    <div><label>Наименование (графа 1)</label>{{ dr.name or '—' }}</div>
+    <div><label>Материал (графа 3)</label>{% if dr.sortament %}{{ dr.sortament }} / {% endif %}{{ d.get('material') or '—' }}</div>
+    <div><label>Масса, кг (графа 5)</label>{{ dr.mass_kg if dr.mass_kg is not none else '—' }}</div>
+    <div><label>Масштаб · формат</label>{{ dr.scale or '—' }} · {{ dr.sheet_format or '—' }}</div>
+    <div><label>Общие допуски</label>{{ 'IT%s'|format(dr.general_grade) if dr.general_grade else '—' }}</div>
+    <div><label>Шероховатость, min</label>{{ ('Ra %s'|format(dr.ra_min)).replace('.', ',') if dr.ra_min is not none else '—' }}</div>
+    <div><label>Резьбы · отверстия</label>{{ dr.thread_count }} · {{ dr.hole_count }}</div>
+    <div><label>Допуски формы и расположения</label>{{ 'есть' if dr.has_form_tolerances else 'нет' }}</div>
+  </div>
+  {% for op in dr.external_operations or [] %}<span class="badge warn">{{ op }}</span>{% endfor %}
+  {% if dr.requirements %}
+  <label>Технические требования</label>
+  <ol class="pos-req">{% for r in dr.requirements %}<li>{{ r }}</li>{% endfor %}</ol>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="grid">
+<div class="card">
+  <h2>Данные детали</h2>
+  {% for src in ('step', 'pdf') %}{% for e in (pos.read_data.get(src) or {}).get('errors', []) %}<div class="flash error">{{ e }}</div>{% endfor %}{% endfor %}
+  {% set r = pos.read_data %}
+  <p class="muted">Считано: габариты {{ (r.get('step') or {}).get('dims') or '—' }}, материал {{ (r.get('pdf') or {}).get('material') or '—' }},
+    квалитет {{ (r.get('pdf') or {}).get('tolerance_grade') or '—' }}, посадки {{ ((r.get('pdf') or {}).get('fits') or [])|join(', ') or '—' }},
+    резьбы {{ ((r.get('pdf') or {}).get('threads') or [])|join(', ') or '—' }}</p>
+  <form method="post" action="/positions/{{ pos.id }}/data">
+    {% set dims = d.get('dims') or ['', '', ''] %}
+    <div class="row">
+      <div><label>Габарит 1, мм</label><input class="small" name="dim_a" value="{{ dims[0] }}" {{ 'disabled' if not tech }}></div>
+      <div><label>Габарит 2, мм</label><input class="small" name="dim_b" value="{{ dims[1] }}" {{ 'disabled' if not tech }}></div>
+      <div><label>Габарит 3, мм</label><input class="small" name="dim_c" value="{{ dims[2] }}" {{ 'disabled' if not tech }}></div>
+      <div><label>Объём, мм³</label><input class="small" name="volume" value="{{ d.get('volume') or '' }}" {{ 'disabled' if not tech }}></div>
+    </div>
+    <div class="row">
+      <div><label>Материал</label><input name="material" value="{{ d.get('material') or '' }}" {{ 'disabled' if not tech }}></div>
+      <div><label>Квалитет (IT)</label><input class="small" name="tolerance_grade" value="{{ d.get('tolerance_grade') or '' }}" {{ 'disabled' if not tech }}></div>
+      <div><label>Резьбы</label><input name="threads" value="{{ (d.get('threads') or [])|join(', ') }}" {{ 'disabled' if not tech }}></div>
+      <div><label>Технология</label><select name="technology" {{ 'disabled' if not tech }}>
+        <option value="milling" {{ 'selected' if d.get('technology') != 'turning' }}>фрезерная</option>
+        <option value="turning" {{ 'selected' if d.get('technology') == 'turning' }}>токарная</option></select></div>
+    </div>
+    {% if tech %}<div class="row"><input name="reason" placeholder="Причина исправления" class="grow"><button>Сохранить</button></div>{% endif %}
+  </form>
+  <hr class="sep">
+  <div class="row">
+    <form method="post" action="/positions/{{ pos.id }}/complexity" class="inline">
+      <label>Балл сложности {% if auto.get('complexity', True) %}<span class="badge">оценка системы</span>{% else %}<span class="badge ok">задан технологом</span>{% endif %}</label>
+      <select name="complexity" class="fit" {{ 'disabled' if not tech }}>
+        <option value="">—</option>
+        {% for s in scale %}<option value="{{ s.score }}" {{ 'selected' if pos.complexity == s.score }}>{{ s.score }} — {{ s.description }}</option>{% endfor %}
+      </select>{% if tech %}<button class="secondary">OK</button>{% endif %}
+    </form>
+    <form method="post" action="/positions/{{ pos.id }}/cooperation" class="inline">
+      <label><input type="checkbox" name="cooperation" {{ 'checked' if pos.cooperation }} {{ 'disabled' if not tech }}> нужна кооперационная операция</label>
+      {% if tech %}<button class="secondary">OK</button>{% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Аналог из журнала калибровки</h2>
+  <p>Аналог: <b>{{ pos.analog_code or ("нет — время вводится вручную" if pos.no_analog else "не выбран") }}</b>
+    {% if pos.analog_code %}{% if auto.get('analog', True) %}<span class="badge">выбран системой</span>{% else %}<span class="badge ok">выбран технологом</span>{% endif %}
+    {% if d.get('analog_approximate') %}<span class="badge warn">аналог подобран по технологии, время пересчитано</span>{% endif %}{% endif %}</p>
+  {% if d.get('analog_reasons') %}<p>{% for reason in d.analog_reasons %}<span class="badge">{{ reason }}</span>{% endfor %}</p>{% endif %}
+  {% if problem %}<p class="muted">{{ problem }}</p>{% endif %}
+  {% if tech and journal %}
+  <form method="post" action="/positions/{{ pos.id }}/analog" class="inline" style="margin-bottom:8px">
+    <select name="code" class="fit">{% for e in journal %}<option value="{{ e.part_code }}" {{ 'selected' if e.part_code == pos.analog_code }}>{{ e.part_code }} — {{ e.name }} ({{ e.material }}, {{ e.machine_code }})</option>{% endfor %}</select>
+    <button class="secondary">Выбрать другой аналог</button></form>{% endif %}
+  <table class="cards">
+    <tr><th>Строгие аналоги</th><th>Признаки сходства</th><th>Станок</th><th></th></tr>
+    {% for m in analogs %}
+    <tr><td class="cell-title">{{ m.entry.part_code }}<br><span class="muted">{{ m.entry.name }}</span></td>
+      <td data-label="Признаки">{% for reason in m.reasons %}<span class="badge">{{ reason }}</span>{% endfor %}</td>
+      <td data-label="Станок">{{ m.entry.machine_code }}</td>
+      <td>{% if tech %}<form method="post" action="/positions/{{ pos.id }}/analog" class="inline">
+        <input type="hidden" name="code" value="{{ m.entry.part_code }}"><button class="secondary">Подтвердить</button></form>{% endif %}</td></tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">Строгих аналогов нет (сложность, квалитет ±1, габариты ±10 мм, материал) — используется ближайший по технологии</td></tr>
+    {% endfor %}
+  </table>
+  {% if tech %}<form method="post" action="/positions/{{ pos.id }}/analog" class="inline" style="margin-top:8px">
+    <input type="hidden" name="code" value="__none__"><button class="secondary">Аналога нет: ввести время вручную</button></form>{% endif %}
+</div>
+</div>

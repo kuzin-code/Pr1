@@ -1,0 +1,35 @@
+{# Полоса карточки позиции: обозначение, статус, шаг процесса, подсказка роли и главные действия (сверху страницы). #}
+{% set steps = [('Расчёт', ['calculation']), ('Проверка технолога', ['tech_review']), ('Утверждение', ['awaiting_approval']),
+                ('В работе', ['approved', 'machining', 'bench', 'inspection']), ('Готово', ['done'])] %}
+{% set ns = namespace(now=0) %}{% for label, codes in steps %}{% if pos.status in codes %}{% set ns.now = loop.index0 %}{% endif %}{% endfor %}
+<p class="muted crumb"><a href="/orders/{{ pos.order_id }}">← Заказ {{ pos.order.number }}</a>{% if pos.order.customer %} · {{ pos.order.customer }}{% endif %}</p>
+<section class="pos-bar">
+  <div class="pos-bar-line">
+    <h1>{{ pos.designation }} <span class="badge {{ 'ok' if pos.status == 'done' else 'warn' if pos.status in ('tech_review', 'awaiting_approval') else '' }}">{{ status_label(pos.status) }}</span></h1>
+    <span class="muted">{{ pos.quantity }} шт.{% if pos.machine_code %} · {{ pos.machine_code }}{% endif %}{% if pos.analog_code %} · аналог {{ pos.analog_code }}{% endif %}</span>
+  </div>
+  <ol class="pos-steps" aria-label="Этапы позиции">
+    {% for label, codes in steps %}<li class="{{ 'done' if loop.index0 < ns.now else 'now' if loop.index0 == ns.now }}">{{ label }}</li>{% endfor %}
+  </ol>
+  {% if tech and pos.status == 'tech_review' %}<p class="pos-todo"><b>Ваш шаг:</b> проверьте данные детали, аналог и маршрут, затем передайте на утверждение.</p>
+  {% elif can('approve') and pos.status == 'awaiting_approval' %}<p class="pos-todo"><b>Ваш шаг:</b> проверьте расчёт и срок — утвердите или верните на пересчёт с причиной.</p>
+  {% elif can('do_operations') and operations %}<p class="pos-todo"><b>Ваш шаг:</b> отметки «Начал» / «Закончил» — в окне операций; ошибочную отметку отмените внизу, в «Операциях».</p>{% endif %}
+  <div class="pos-acts">
+    {% if pos.pdf_path %}<a class="btn secondary" href="/positions/{{ pos.id }}/file/pdf" target="_blank">Открыть чертёж</a>{% endif %}
+    {% if pos.step_path %}<a class="btn secondary" href="/positions/{{ pos.id }}/model">Открыть 3D-модель</a>{% endif %}
+    {% if tech %}
+    <form method="post" action="/positions/{{ pos.id }}/auto" class="inline"><button class="secondary">Пересчитать автоматически</button></form>
+    {% if pos.status == 'tech_review' %}<form method="post" action="/positions/{{ pos.id }}/submit" class="inline"><button class="primary">Передать на утверждение</button></form>{% endif %}
+    {% endif %}
+    {% if can('edit_journal') and calc %}
+    <form method="post" action="/positions/{{ pos.id }}/journal" class="inline"><button class="secondary">Внести в журнал калибровки</button></form>
+    {% endif %}
+    {% if can('approve') and pos.status == 'awaiting_approval' %}
+    <form method="post" action="/positions/{{ pos.id }}/approve" class="inline"><button class="primary">Утвердить</button></form>
+    <form method="post" action="/positions/{{ pos.id }}/return" class="inline">
+      <input name="reason" placeholder="причина возврата"><button class="danger">Вернуть на пересчёт</button></form>
+    {% endif %}
+    {% if can('do_operations') and operations %}<a class="btn secondary" href="/work">Отметить в окне операций</a>{% endif %}
+  </div>
+  {% if not editable %}<p class="muted pos-note">Позиция передана на утверждение или утверждена: ручная правка недоступна, план меняется только по факту.</p>{% endif %}
+</section>

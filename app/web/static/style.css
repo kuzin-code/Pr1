@@ -152,7 +152,7 @@ button.big { font-size:16px; padding:9px 26px; margin-right:14px; }
 @page { size:A4; margin:15mm 15mm 15mm 20mm; }
 @media print { header, .no-print, main > .flash { display:none !important; } body, main { background:#fff; margin:0; padding:0; }
   .kp-sheet { box-shadow:none; width:auto; min-height:0; padding:0; margin:0; } }
-@media (max-width:820px) { .kp-sheet { width:auto; min-height:0; padding:16px; } .kp-head { flex-direction:column; } .kp-meta { text-align:left; } }
+@media screen and (max-width:820px) { .kp-sheet { width:auto; min-height:0; padding:16px; } .kp-head { flex-direction:column; } .kp-meta { text-align:left; } }
 /* Быстрый расчёт */
 .quick-kpi { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:14px; }
 .quick-kpi .card { margin:0; } .quick-big { font-size:20px; font-weight:700; margin:4px 0; }
@@ -219,8 +219,9 @@ header .me a { color:inherit; }
   .flash { padding:7px 10px; font-size:13px; }
 }
 
-/* Таблицы-карточки: на узком экране строка становится карточкой, подпись ячейки — из data-label. */
-@media (max-width:700px) {
+/* Таблицы-карточки: на узком экране строка становится карточкой, подпись ячейки — из data-label.
+   Только для экрана: печать (КП на А4) остаётся таблицей. */
+@media screen and (max-width:700px) {
   table.cards, table.cards tbody, table.cards tr, table.cards td { display:block; width:100%; }
   table.cards tr:has(> th) { display:none; }
   table.cards tr { background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin-bottom:10px; }
@@ -239,7 +240,64 @@ header .me a { color:inherit; }
 /* Широкие числовые таблицы оставляем с прокруткой, первая колонка закреплена. */
 table.sticky-first th:first-child, table.sticky-first td:first-child { position:sticky; left:0; background:var(--card); z-index:1;
   box-shadow:1px 0 0 var(--line); }
-@media (min-width:701px) { .hide-desk { display:none !important; } }
+@media print, (min-width:701px) { .hide-desk { display:none !important; } }
 @media (max-width:1440px) and (min-width:761px) { header .brand-full { display:none; } header .brand-short { display:inline; font-size:16px; }
   header.top { flex-wrap:nowrap; } header .me-role { display:none; } }
 @media (max-width:1100px) and (min-width:761px) { header .nav a, .nav-group-title { padding:12px 5px; font-size:13px; } }
+
+/* Общие блоки карточек: сетка «подпись — значение» вместо отступов в шаблонах, главная кнопка, предупреждение. */
+.facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px 22px; align-items:start; }
+.facts > .facts-wide { grid-column:1 / -1; }
+.card.facts { padding:12px 16px; }
+button.primary, .btn.primary { background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; }
+button.primary:hover, .btn.primary:hover { background:var(--brand-dark); border-color:var(--brand-dark); }
+.card-warn { border-left:4px solid var(--warn); }
+.push-right { margin-left:auto; }
+.grow { flex:1; min-width:0; }
+select.fit { max-width:100%; }
+hr.sep { border:0; border-top:1px solid var(--line); }
+.row-current td { background:#eef4fd; }
+tr.row-section td { padding-top:10px; }
+.order-kp { gap:10px; align-items:center; margin-bottom:12px; }
+.quick-note { margin-top:-6px; }
+
+/* Карточка позиции: полоса сверху — статус, шаги, подсказка роли, главные действия. */
+.crumb { margin:0 0 6px; }
+.pos-bar { background:var(--card); border:1px solid var(--line); border-top:4px solid var(--brand); border-radius:8px;
+  padding:12px 16px; margin-bottom:14px; }
+@media (min-width:761px) { .pos-bar { position:sticky; top:0; z-index:5; box-shadow:0 4px 14px rgba(16,24,40,.06); } }
+.pos-bar-line { display:flex; flex-wrap:wrap; gap:4px 14px; align-items:baseline; }
+.pos-bar h1 { margin:0; }
+.pos-steps { display:flex; list-style:none; margin:12px 0 4px; padding:0; }
+.pos-steps li { flex:1; position:relative; text-align:center; font-size:12px; color:var(--muted); padding-top:26px; }
+.pos-steps li::before { content:""; position:absolute; top:4px; left:50%; transform:translateX(-50%); width:16px; height:16px;
+  border-radius:50%; background:#eef0f4; border:2px solid #d0d5dd; z-index:1; }
+.pos-steps li::after { content:""; position:absolute; top:11px; left:-50%; width:100%; height:3px; background:#eef0f4; }
+.pos-steps li:first-child::after { display:none; }
+.pos-steps li.done { color:var(--ok); } .pos-steps li.done::before { background:var(--ok); border-color:var(--ok); }
+.pos-steps li.done::after, .pos-steps li.now::after { background:var(--ok); }
+.pos-steps li.now { color:var(--brand); font-weight:700; } .pos-steps li.now::before { background:var(--brand); border-color:var(--brand); }
+.pos-todo { background:#f8e9ef; color:var(--brand-dark); border-radius:6px; padding:7px 12px; margin:8px 0; }
+.pos-acts { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; }
+.pos-note { margin:8px 0 0; }
+.pos-list, .pos-req { margin:4px 0 0; padding-left:20px; }
+.pos-undo { margin-top:10px; }
+
+@media screen and (max-width:700px) {
+  .pos-steps li { font-size:0; } .pos-steps li.now { font-size:11px; white-space:nowrap; }
+  .pos-acts > a, .pos-acts > form, .pos-acts button { flex:1 1 auto; text-align:center; }
+  .pos-acts form.inline { display:flex; width:100%; } .pos-acts form.inline input { flex:1; min-width:0; }
+  .facts { grid-template-columns:1fr 1fr; gap:8px 12px; }
+  td.cell-form { padding-left:0; } td.cell-form form.inline { width:100%; }
+  td.cell-bar { padding-left:0; }
+  .kp-total td:first-child { display:none; }
+  .kp-table.cards td { border:0; }
+  .quick-actions button.big { width:100%; margin-right:0; }
+  .quick-actions form.inline { flex:1 1 auto; } .quick-actions form.inline button { width:100%; }
+  button.big { width:100%; margin:0 0 8px; }
+  .order-kp form.inline { width:100%; } .order-kp .kp-steps { flex:1; min-width:0; }
+  .push-right { margin-left:0; }
+  .row-current td { background:transparent; } tr.row-current { border-color:var(--accent); background:#eef4fd; }
+  tr.row-section { background:transparent; border:0; padding:4px 0; margin:6px 0 4px; }
+  input[type=file], select, form.inline { max-width:100%; }
+}
