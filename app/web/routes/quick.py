@@ -171,4 +171,7 @@ def quick_launch(request: Request, token: str, db: Session = Depends(get_db)):
         flash(request, str(err), "error")
         return redirect(f"/quick/{token}")
     flash(request, f"Заказ {order.number} запущен: позиций {len(order.positions)}, расчёт выполнен.")
+    if any((p.data or {}).get("quick_proposal") for p in order.positions):
+        flash(request, "Изменения техпроцесса из быстрого расчёта переданы технологу как предложение: "
+                       "применено только количество.")
     return redirect(f"/orders/{order.id}")

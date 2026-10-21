@@ -1,0 +1,21 @@
+{# Предложение из быстрого расчёта: правки техпроцесса не технолога ждут решения технолога. #}
+{% set qp = d.get('quick_proposal') %}
+{% if qp %}
+<div class="card" style="border-left:4px solid var(--warn, #b54708)">
+  <h2>Предложение из быстрого расчёта</h2>
+  <p class="muted" style="margin-top:0">{{ qp.by }}, {{ qp.at|dt }}: при запуске заказа применено только количество;
+    изменения техпроцесса ниже — на решение технолога.</p>
+  <table>
+    <tr><th>Параметр</th><th>Предлагается</th></tr>
+    {% for label, text in quick_proposal_rows(qp["values"]) %}<tr><td>{{ label }}</td><td><b>{{ text }}</b></td></tr>{% endfor %}
+  </table>
+  {% if can('edit_tech_data') %}
+  <div class="row" style="gap:10px;margin-top:8px">
+    <form method="post" action="/positions/{{ pos.id }}/quick-proposal/accept" class="inline">
+      <input name="reason" placeholder="Причина (обязательно)" size="30"><button>Принять</button></form>
+    <form method="post" action="/positions/{{ pos.id }}/quick-proposal/reject" class="inline">
+      <input name="reason" placeholder="Причина (обязательно)" size="30"><button class="secondary">Отклонить</button></form>
+  </div>
+  {% else %}<p class="muted">Принять или отклонить предложение может технолог.</p>{% endif %}
+</div>
+{% endif %}

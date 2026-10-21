@@ -10,7 +10,7 @@ from app.domain.access import Action, can, require
 from app.domain.enums import FactKind, PositionStatus, Stage
 from app.domain.status import is_editable
 from app.services import (approval_service, fact_service, journal_service, operation_service, order_service,
-                          plan_service, tech_service)
+                          plan_service, quick_apply, tech_service)
 from app.services.actor import ServiceError
 from app.services.history_service import list_history
 from app.services.reference_service import complexity_scale, domain_machines, journal_entries
@@ -239,6 +239,18 @@ def approve(request: Request, position_id: int, db: Session = Depends(get_db)):
     actor = current_actor(request)
     return act(request, db, _back(position_id), lambda: approval_service.approve(db, actor, position_id),
                "Позиция утверждена")
+
+
+@router.post("/positions/{position_id}/quick-proposal/{decision}")
+def quick_proposal(request: Request, position_id: int, decision: str, reason: str = Form(""),
+                   db: Session = Depends(get_db)):
+    """Технолог принимает или отклоняет предложение из быстрого расчёта (с причиной)."""
+    actor = current_actor(request)
+    if decision not in ("accept", "reject"):
+        return redirect(_back(position_id))
+    fn = quick_apply.accept_proposal if decision == "accept" else quick_apply.reject_proposal
+    return act(request, db, _back(position_id), lambda: fn(db, actor, position_id, reason),
+               "Предложение принято — расчёт обновлён" if decision == "accept" else "Предложение отклонено")
 
 
 @router.post("/positions/{position_id}/return")

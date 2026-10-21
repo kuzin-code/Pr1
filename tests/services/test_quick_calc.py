@@ -9,7 +9,7 @@ from app.services import plan_service
 from app.services import quick_service as quick
 from app.services.actor import ServiceError
 from app.storage.orm import HistoryRow, NotificationRow, OrderRow, PositionRow
-from tests.services.conftest import HEAD, MON, OPERATOR, part_files
+from tests.services.conftest import HEAD, MON, OPERATOR, TECH, part_files
 from tests.services.test_quick_intake import MANAGER
 
 
@@ -113,10 +113,10 @@ def test_bad_edit_keeps_previous_result(session, result, tmp_path):
     assert quick.load(tmp_path / "work", result.token)["total"] == result.summary["total"]
 
 
-def test_launch_carries_edits_into_order(session, result, tmp_path):
+def test_launch_by_technologist_carries_edits_into_order(session, result, tmp_path):
     d = result.summary["positions"][0]["designation"]
     quick.update_position(session, MANAGER, tmp_path / "work", result.token, d, {"quantity": 7, "machine": "SMM"})
-    order = quick.launch(session, MANAGER, tmp_path / "work", result.token, tmp_path / "uploads")
+    order = quick.launch(session, TECH, tmp_path / "work", result.token, tmp_path / "uploads")
     pos = next(p for p in order.positions if p.designation == d)
     assert pos.quantity == 7 and pos.machine_code == "SMM"
 

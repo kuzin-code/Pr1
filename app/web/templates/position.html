@@ -21,6 +21,7 @@
     <input type="file" name="files" multiple required accept=".step,.stp,.pdf"><button class="secondary">Прикрепить файлы</button>
   </form>{% endif %}
 </div>
+{% include "_quick_proposal.html" %}
 {% if d.get('section') or d.get('coating') or d.get('note') or d.get('list_material') %}
 <div class="card row">
   {% if d.get('section') %}<div><label>Раздел списка</label>{{ d.section }}</div>{% endif %}

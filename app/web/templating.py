@@ -30,6 +30,11 @@ def static_version(folder: Path) -> str:
 STATIC_VERSION = static_version(Path(__file__).parent / "static")
 
 
+def _quick_proposal_rows(values: dict) -> list[tuple[str, str]]:
+    from app.services.quick_apply import describe
+    return describe(values or {})
+
+
 def money(value) -> str:
     return "—" if value is None else f"{value:,.0f}".replace(",", " ") + " ₽"
 
@@ -86,7 +91,7 @@ templates.env.globals.update(
     stage_label=lambda v: Stage(v).label, status_label=lambda v: PositionStatus(v).label,
     count_label=lambda v: CountMode(v).label,
     Operation=Operation, operation_label=lambda v: Operation(v).label,
-    static_version=STATIC_VERSION, max_quantity=MAX_QUANTITY,
+    static_version=STATIC_VERSION, max_quantity=MAX_QUANTITY, quick_proposal_rows=_quick_proposal_rows,
 )
 
 

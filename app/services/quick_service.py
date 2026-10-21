@@ -22,6 +22,7 @@ from app.domain.enums import Role
 from app.domain.order_intake import validate_quantity
 from app.services import intake_service, plan_service, proposal_service
 from app.services.actor import Actor, ServiceError
+from app.services.quick_apply import apply_on_launch, apply_overrides
 from app.services.order_service import UploadedFile
 from app.storage.db import make_engine
 from app.storage.orm import MachineRow
@@ -245,51 +246,6 @@ EDITABLE = ("quantity", "material", "dims", "tolerance_grade", "complexity", "te
             "extra_machines", "route")
 
 
-def apply_overrides(session: Session, order, overrides: dict) -> None:
-    """Правки параметров позиций (быстрый расчёт или запуск его как заказа): те же действия, что у технолога."""
-    from app.domain.enums import CountMode, Stage
-    from app.services import order_service, tech_service
-    from app.services.auto_service import SYSTEM
-
-    reason = "правка в быстром расчёте"
-    for pos in order.positions:
-        ov = overrides.get(pos.designation) or {}
-        if "quantity" in ov:
-            order_service.set_quantity(session, SYSTEM, pos.id, int(ov["quantity"]))
-        data = {k: ov[k] for k in ("material", "dims", "tolerance_grade", "technology") if k in ov}
-        if data:
-            tech_service.update_data(session, SYSTEM, pos.id, data, reason)
-        if "complexity" in ov:
-            tech_service.set_complexity(session, SYSTEM, pos.id, int(ov["complexity"]), reason)
-        if ov.get("machine") and ov["machine"] != pos.machine_code:
-            from app.services.reference_service import domain_machines
-            machine = next((m for m in domain_machines(session) if m.code == ov["machine"]), None)
-            technology = (pos.data or {}).get("technology") or "milling"
-            if machine and machine.technologies and technology not in machine.technologies:
-                # токарный станок для фрезерной детали и наоборот — технология меняется вместе со станком
-                tech_service.update_data(session, SYSTEM, pos.id,
-                                         {"technology": sorted(machine.technologies)[0]}, reason)
-            tech_service.assign_machine(session, SYSTEM, pos.id, ov["machine"])
-        if "extra_machines" in ov:
-            wanted = {e["machine"]: e for e in ov["extra_machines"]}
-            for e in (pos.data or {}).get("extra_machines") or []:
-                if e["machine"] not in wanted:
-                    tech_service.remove_machine(session, SYSTEM, pos.id, e["machine"])
-            for code, e in wanted.items():
-                if code not in {x["machine"] for x in (pos.data or {}).get("extra_machines") or []}:
-                    tech_service.add_machine(session, SYSTEM, pos.id, code)
-                if e.get("setup") is not None or e.get("machining") is not None:
-                    current = next(x for x in pos.data["extra_machines"] if x["machine"] == code)
-                    tech_service.set_extra_machine_time(
-                        session, SYSTEM, pos.id, code, float(e.get("setup", current.get("setup") or 0)),
-                        float(e.get("machining", current.get("machining") or 0)), reason)
-        for stage, hours in (ov.get("route") or {}).items():
-            mode = next((s["count_mode"] for s in pos.route if s["stage"] == stage), None)
-            mode = mode or (CountMode.PER_BATCH.value if stage in ("setup", "inspection")
-                            else CountMode.ONCE.value if stage == "programming" else CountMode.PER_PIECE.value)
-            tech_service.edit_route_stage(session, SYSTEM, pos.id, Stage(stage), float(hours), mode, reason)
-
-
 def update_position(session: Session, actor: Actor, work_dir: Path | str, token: str, designation: str,
                     values: dict) -> dict:
     """Правка параметров позиции быстрого расчёта и пересчёт (ничего не записывается в рабочую базу).
@@ -352,22 +308,45 @@ def discard(work_dir: Path | str, token: str) -> None:
 
 
 def launch(session: Session, actor: Actor, work_dir: Path | str, token: str, upload_dir: Path | str):
-    """Запустить как заказ: те же файлы и параметры — обычный приём заказа (с уведомлениями)."""
+    """Запустить как заказ: те же файлы и параметры — обычный приём заказа (с уведомлениями).
+    Правки техпроцесса не технологом — предложение технологу (quick_apply). Повторное нажатие не создаёт
+    второй заказ: пока идёт запуск, расчёт заблокирован, после запуска — удалён; ошибка правок — заказ
+    удаляется, расчёт остаётся."""
     summary = load(work_dir, token)
     folder, params = _folder(work_dir, token), summary["params"]
-    desired = params.get("desired_date")
-    order = intake_service.quick_intake(session, actor, _stored_files(folder), upload_dir,
-                                        customer=params.get("customer") or "",
-                                        desired_date=date.fromisoformat(desired) if desired else None,
-                                        quantity=int(params.get("quantity") or 1))
-    if params.get("overrides"):
-        apply_overrides(session, order, params["overrides"])
-        from app.services.history_service import record
-        record(session, actor, "order", order.id, "quick_overrides", None, params["overrides"],
-               "правки из быстрого расчёта")
-        session.commit()
+    lock = folder / "launch.lock"
+    try:
+        lock.touch(exist_ok=False)
+    except FileExistsError:
+        raise ServiceError("Расчёт уже запускается как заказ — обновите список заказов") from None
+    try:
+        desired = params.get("desired_date")
+        order = intake_service.quick_intake(session, actor, _stored_files(folder), upload_dir,
+                                            customer=params.get("customer") or "",
+                                            desired_date=date.fromisoformat(desired) if desired else None,
+                                            quantity=int(params.get("quantity") or 1))
+        if params.get("overrides"):
+            _launch_overrides(session, actor, order, params["overrides"])
+    except Exception:
+        lock.unlink(missing_ok=True)
+        raise
     discard(work_dir, token)
     return order
+
+
+def _launch_overrides(session: Session, actor: Actor, order, overrides: dict) -> None:
+    from app.services.auto_service import SYSTEM
+    from app.services.history_service import record
+    from app.services.order_service import _drop_order
+
+    try:
+        record(session, actor, "order", order.id, "quick_overrides", None, overrides, "правки из быстрого расчёта")
+        apply_on_launch(session, actor, order, overrides)
+    except Exception:
+        session.rollback()
+        _drop_order(session, SYSTEM, order, "правки быстрого расчёта не применились — заказ не создан")
+        session.commit()
+        raise
 
 
 def _money(value: float) -> str:
