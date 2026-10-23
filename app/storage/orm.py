@@ -116,6 +116,8 @@ class PositionRow(Base):  # Д-2, Д-3
     current_calc: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     approved_calc: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     baseline_finish: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Ручной приоритет срочной позиции в очереди станков: больше — раньше; None/0 — обычный
+    priority: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
 
     @property
     def needs_link(self) -> bool:

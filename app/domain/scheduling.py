@@ -1,7 +1,7 @@
 """Очередь станков и срок изготовления (ФТ-15, ФТ-16, ФТ-22).
 
-Ограниченный ресурс — только станки с ЧПУ. Позиции на станке идут в порядке утверждения,
-неутверждённые (предварительные) — после утверждённых. Этапы позиции последовательны:
+Ограниченный ресурс — только станки с ЧПУ. Позиции на станке идут в порядке утверждения с учётом ручного
+приоритета срочных (queue_order.py), неутверждённые (предварительные) — после утверждённых. Этапы позиции последовательны:
 резка → станочная группа → слесарно-финишная → контроль. Программирование в срок не входит.
 План и загрузка считаются только по плановому времени (решение пользователя 23.10.2026): отметки
 «Начал»/«Закончил» и факты окончания групп — для прослеживаемости операций, на план не влияют.
@@ -17,6 +17,7 @@
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 
+from app.domain.queue_order import QueueItem, queue_order
 from app.domain.work_calendar import BENCH_CALENDAR, MACHINE_CALENDAR
 
 # False — план и загрузка только по плановому времени; True — по отметкам «Начал»/«Закончил» и фактам
@@ -46,6 +47,7 @@ class PlanInput:
     fact_inspection_end: datetime | None = None
     started: bool = False  # есть отметка начала операции или факт — план позиции «сейчас» не сдвигает
     machine_started: tuple = ()  # ((код станка, фактическое начало первой станочной операции), …)
+    priority: int = 0  # ручной приоритет срочной позиции: больше — раньше в очереди
 
     @property
     def on_machine(self) -> bool:
@@ -89,14 +91,17 @@ def work_start(order_start: date, now: datetime | None) -> datetime:
     return BENCH_CALENDAR.normalize(max(start, now)) if now else start
 
 
-def _queue_key(item: PlanInput):
-    approved = item.approved_seq is not None
-    return (0 if approved else 1, item.approved_seq or 0, item.position_id)
+def _ordered(items: list[PlanInput], marks: bool) -> list[PlanInput]:
+    """Очередь: по приоритету и порядку утверждения; начатые не вытесняются.
+    По факту (marks) работа, уже начатая или выполненная на станке, занимает его раньше неначатой."""
+    by_id = {it.position_id: it for it in items}
 
-
-def _queue_key_marks(item: PlanInput):
-    """По факту: работа, уже начатая или выполненная на станке, занимает его раньше неначатой."""
-    return (0 if item.on_machine else 1,) + _queue_key(item)
+    def order(group):
+        return [by_id[k] for k in queue_order([QueueItem(it.position_id, it.approved_seq, it.position_id,
+                                                         it.priority, it.started) for it in group])]
+    if marks:
+        return order([it for it in items if it.on_machine]) + order([it for it in items if not it.on_machine])
+    return order(items)
 
 
 def _fit_to_fact(slots: list[MachineSlot], hours: list[float], fact_end: datetime) -> list[MachineSlot]:
@@ -126,7 +131,7 @@ def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime],
         items = [_plan_only(it) for it in items]
     plan = Plan()
     machine_free: dict[str, datetime] = dict(machine_busy_until)
-    for it in sorted(items, key=_queue_key_marks if marks else _queue_key):
+    for it in _ordered(items, marks):
         if not it.machine_code:
             continue
         actual = dict(it.machine_started)

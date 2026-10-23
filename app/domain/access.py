@@ -33,6 +33,7 @@ class Action(str, Enum):
     VIEW_POSITION_FILES = "view_position_files"  # чертёж PDF, STEP и 3D-модель позиции
     EDIT_DOWNTIME_REASON = "edit_downtime_reason"  # исправить причину отклонения при «Закончил»
     VIEW_DOWNTIME = "view_downtime"  # часы сверх плана по причинам и станкам
+    SET_PRIORITY = "set_priority"  # ручной приоритет срочной позиции в очереди станков
 
 
 PERMISSIONS: dict[Action, frozenset[Role]] = {
@@ -59,13 +60,14 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     # Оборудование вносят IT и технолог (решение пользователя 15.10.2026; в ТЗ 1.0 — только IT).
     Action.EDIT_REFERENCE: frozenset({IT, T}),
     Action.MANAGE_USERS: frozenset({IT}),
-    # Технолог и начальник участка получают уведомление о новом заказе.
-    Action.RECEIVE_NOTIFICATIONS: frozenset({T, H, M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
+    # Технолог и начальник участка получают уведомление о новом заказе; менеджер — о смене приоритета (сроки).
+    Action.RECEIVE_NOTIFICATIONS: frozenset({T, H, M, O, MGR, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
     Action.DO_OPERATIONS: frozenset({M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
     Action.UNDO_OPERATIONS: frozenset({M}),
     # Причину выбирает специалист при «Закончил»; исправляет мастер с комментарием (в историю).
     Action.EDIT_DOWNTIME_REASON: frozenset({M}),
     Action.VIEW_DOWNTIME: frozenset({H, M}),
+    Action.SET_PRIORITY: frozenset({M, H}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),
     # Чертёж и модель: кто видит заказы — любой позиции; специалисты из «Моих операций» — только позиций
     # со своими операциями (проверка в operation_service.require_position_files).

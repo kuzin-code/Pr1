@@ -9,9 +9,9 @@ from app.domain.access import Action, require
 from app.domain.enums import FactKind, Operation
 from app.domain.gantt import build_gantt
 from app.domain.operations import MACHINE_OPERATIONS
-from app.services import operation_service, plan_service, reference_service
+from app.services import operation_service, plan_service, priority_service, reference_service
 from app.storage.orm import PositionRow
-from app.web.deps import act, current_actor, get_db
+from app.web.deps import act, current_actor, flash, get_db
 from app.web.templating import render
 
 router = APIRouter()
@@ -68,6 +68,23 @@ def set_busy(request: Request, code: str, busy_until: str = Form(""), db: Sessio
     moment = datetime.fromisoformat(busy_until) if busy_until else None
     return act(request, db, "/plan", lambda: reference_service.set_busy_until(db, actor, code, moment),
                "Дата окончания текущих работ сохранена")
+
+
+@router.post("/positions/{position_id}/priority")
+def set_priority(request: Request, position_id: int, action: str = Form(""), reason: str = Form(""),
+                 db: Session = Depends(get_db)):
+    """«Срочно ↑» / «обычный» в очереди станков — с причиной (в историю); после — какие сроки сдвинулись."""
+    actor = current_actor(request)
+
+    def change():
+        pos = db.get(PositionRow, position_id)
+        if pos is None:
+            raise ValueError("Позиция не найдена")
+        result = priority_service.set_priority(db, actor, position_id,
+                                               priority_service.target_priority(pos, action), reason)
+        flash(request, result.summary(), "ok")
+
+    return act(request, db, "/plan#queue", change, "Приоритет изменён")
 
 
 @router.get("/notifications")

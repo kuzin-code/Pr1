@@ -1,5 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Загрузка станков{% endblock %}
+{% block title %}Загрузка станков<script>
+  // Смена приоритета: обязательная причина (уходит в историю).
+  document.querySelectorAll('form.js-reason').forEach(function (f) {
+    f.addEventListener('submit', function (e) {
+      var reason = window.prompt(f.dataset.what + '. Укажите причину:', '');
+      if (!reason || !reason.trim()) { e.preventDefault(); return; }
+      f.querySelector('input[name=reason]').value = reason.trim();
+    });
+  });
+</script>
+{% endblock %}
 {% block content %}
 <h1>Загрузка станков с ЧПУ <span class="badge warn">ориентировочно</span></h1>
 <div class="row">
@@ -106,14 +116,30 @@
 </div>
 
 <div class="card scroll">
-  <h2>Очередь по станкам и сроки позиций</h2>
+  <h2 id="queue">Очередь по станкам и сроки позиций</h2>
   <table class="cards">
-    <tr><th>Позиция</th><th>Станок</th><th>Заказ</th><th>Станок: начало — окончание</th><th>Срок позиции</th></tr>
+    <tr><th>Позиция</th><th>Станок</th><th>Заказ</th><th>Станок: начало — окончание</th><th>Срок позиции</th><th>Приоритет</th></tr>
     {% for s in plan.slots|sort(attribute='machine_code,start') %}{% set p = positions[s.position_id] %}{% set pp = plan.positions[s.position_id] %}
     <tr><td class="cell-title">{{ p.designation }} <span class="muted">{{ p.quantity }} шт.</span></td><td data-label="Станок">{{ s.machine_code }}</td><td data-label="Заказ">{{ p.order.number }}</td>
       <td data-label="Станок: начало — окончание">{{ s.start|dt }} — {{ s.end|dt }}{% if s.end < s.start %} <span class="badge err">окончание раньше начала</span>{% endif %}</td>
-      <td data-label="Срок позиции">{{ pp.finish|dt }} {% if pp.preliminary %}<span class="badge">предварительный</span>{% endif %}<span class="badge warn">ориентировочно</span></td></tr>
+      <td data-label="Срок позиции">{{ pp.finish|dt }} {% if pp.preliminary %}<span class="badge">предварительный</span>{% endif %}<span class="badge warn">ориентировочно</span></td>
+      <td data-label="Приоритет">{% if p.priority %}<span class="badge err">срочно{{ ' ×%d'|format(p.priority) if p.priority > 1 }}</span>{% else %}<span class="muted">обычный</span>{% endif %}
+        {% if can('set_priority') and s.machine_code == p.machine_code %}<span class="prio-actions">
+        {% for act, label in (('urgent', 'срочно ↑'), ('normal', 'обычный')) if act == 'urgent' or p.priority %}
+        <form method="post" action="/positions/{{ p.id }}/priority" class="inline js-reason" data-what="{{ label }}: «{{ p.designation }}»">
+          <input type="hidden" name="action" value="{{ act }}"><input type="hidden" name="reason">
+          <button class="secondary">{{ label }}</button></form>{% endfor %}</span>{% endif %}</td></tr>
     {% endfor %}
   </table>
 </div>
+<script>
+  // Смена приоритета: обязательная причина (уходит в историю).
+  document.querySelectorAll('form.js-reason').forEach(function (f) {
+    f.addEventListener('submit', function (e) {
+      var reason = window.prompt(f.dataset.what + '. Укажите причину:', '');
+      if (!reason || !reason.trim()) { e.preventDefault(); return; }
+      f.querySelector('input[name=reason]').value = reason.trim();
+    });
+  });
+</script>
 {% endblock %}

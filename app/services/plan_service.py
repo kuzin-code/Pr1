@@ -81,6 +81,7 @@ def _inputs(session: Session) -> list[PlanInput]:
             fact_inspection_end=ends.get(FactKind.INSPECTION),
             started=pos.id in started,
             machine_started=tuple(sorted(machine_starts.get(pos.id, {}).items())),
+            priority=pos.priority or 0,
         ))
     return items
 
