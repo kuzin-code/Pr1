@@ -65,7 +65,7 @@ def test_full_flow(login):
     for i in range(6):
         ready = re.findall(r'action="/operations/(\d+)/start"', master.get("/work").text)
         assert master.post(f"/operations/{ready[0]}/start", data={"at": times[i]}).status_code == 303
-        assert master.post(f"/operations/{ready[0]}/finish", data={"at": times[i + 1]}).status_code == 303
+        assert master.post(f"/operations/{ready[0]}/finish", data={"at": times[i + 1], "reason": "tool"}).status_code == 303
     order_page = master.get(order_url).text
     assert "Заказ завершён" in order_page
 

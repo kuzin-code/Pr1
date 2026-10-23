@@ -9,7 +9,7 @@ from app.domain.access import Action, can, require
 from app.domain.desired_date import check_desired
 from app.domain.enums import PositionStatus as S, Role
 from app.domain.status import order_done
-from app.services import plan_service
+from app.services import downtime_service, plan_service
 from app.services.actor import Actor
 from app.services.file_check import check_entry_files
 from app.services.history_service import list_history
@@ -26,6 +26,7 @@ EVENT_LABELS = {
     "route": "изменён маршрут", "files": "прикреплены файлы", "list": "принят заказ по списку",
     "add": "добавлена в журнал", "update": "изменена в журнале", "stages": "изменено время операций",
     "measurement": "добавлен замер", "rates": "изменены ставки", "operations": "изменены операции станка",
+    "downtime_reason": "исправлена причина отклонения",
 }
 
 
@@ -84,6 +85,7 @@ class Dashboard:
     machines: list[MachineWeek] = field(default_factory=list)
     deadlines: list[Deadline] = field(default_factory=list)
     events: list[Event] = field(default_factory=list)
+    overruns: list = field(default_factory=list)  # (период, OverrunTable): часы сверх плана по причинам
 
 
 def greeting(moment: datetime) -> str:
@@ -185,6 +187,8 @@ def build_dashboard(session: Session, actor: Actor, now: datetime | None = None)
         Kpi("late", "Отстают от плана", len(late), hint="позиций", tone="err" if late else "ok", link="/plan"),
     ]
     board.tasks_title, board.tasks = _tasks(session, actor, positions, deviations)
+    if can(actor.role, Action.VIEW_DOWNTIME):
+        board.overruns = downtime_service.overrun_report(session, actor, now)
 
     for order in open_orders:
         deadline = plan_service.order_deadline(session, order.id, plan)

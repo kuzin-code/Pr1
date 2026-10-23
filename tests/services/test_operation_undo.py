@@ -17,7 +17,7 @@ def run(session, rows, upto):
             (OPERATOR, at(12, 11), at(13, 12)), (SLESAR, at(13, 12), at(13, 15))]
     for row, (actor, s, e) in list(zip(rows, plan))[:upto]:
         ops.start(session, actor, row.id, s)
-        ops.finish(session, actor, row.id, e)
+        ops.finish(session, actor, row.id, e, reason="tool")
 
 
 def test_undo_start(session, make_order):
@@ -42,7 +42,7 @@ def test_undo_finish_of_machine_group_reverts_fact_k_and_status(session, make_or
     assert ref.journal_entry(session, "DEMO-02").measurements == []  # замер убран — k не испорчен
     from app.domain.enums import FactKind
     assert FactKind.MACHINE not in plans.fact_ends(session, pos.id)
-    ops.finish(session, OPERATOR, rows[2].id, at(13, 13))  # повторная правильная отметка
+    ops.finish(session, OPERATOR, rows[2].id, at(13, 13), reason="tool")  # повторная правильная отметка
     assert pos.status == PositionStatus.BENCH.value
 
 

@@ -132,6 +132,7 @@ class FactRow(Base):  # Д-7
     entered_at: Mapped[datetime] = mapped_column(DateTime)
     duration_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
     calc_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(16), nullable=True)  # причина отклонения группы
 
 
 class HistoryRow(Base):  # Д-8
@@ -163,6 +164,9 @@ class OperationRow(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     finished_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
     duration_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Причина отклонения при «Закончил» (downtime.Reason) и комментарий к ней
+    reason: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    reason_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class NotificationRow(Base):

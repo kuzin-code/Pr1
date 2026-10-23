@@ -51,8 +51,9 @@ def _duration(session: Session, pos: PositionRow, kind: FactKind, ended_at: date
 
 def record_fact(session: Session, actor: Actor, position_id: int, kind: FactKind,
                 ended_at: datetime, now: datetime | None = None, duration: float | None = None,
-                authorized: bool = False) -> FactRow:
-    """Окончание группы этапов. duration — точная длительность по кнопкам «Начал»/«Закончил»."""
+                authorized: bool = False, reason: str | None = None) -> FactRow:
+    """Окончание группы этапов. duration — точная длительность по кнопкам «Начал»/«Закончил»;
+    reason — причина отклонения группы (замер с причиной-потерей в k не идёт)."""
     if not authorized:
         require(actor.role, _ACTION[kind])
     pos = get_position(session, position_id)
@@ -72,11 +73,11 @@ def record_fact(session: Session, actor: Actor, position_id: int, kind: FactKind
     group = _GROUP.get(kind)
     calc_hours = group_calc_hours(_times(pos), group) if group else None
     fact = FactRow(position_id=pos.id, kind=kind.value, ended_at=ended_at, entered_by=actor.username,
-                   entered_at=now or datetime.now(), duration_hours=duration, calc_hours=calc_hours)
+                   entered_at=now or datetime.now(), duration_hours=duration, calc_hours=calc_hours, reason=reason)
     session.add(fact)
     # Замер пополняет журнал по аналогу; k для контроля не определяется (ФТ-12, ФТ-21).
     if group and pos.analog_code and calc_hours and duration > 0:
-        add_journal_measurement(session, pos.analog_code, group, calc_hours, duration, pos.id, ended_at)
+        add_journal_measurement(session, pos.analog_code, group, calc_hours, duration, pos.id, ended_at, reason)
     pos.status = transition(status, after).value
     record(session, actor, "position", pos.id, f"fact_{kind.value}", None,
            {"ended_at": ended_at.isoformat(), "duration_hours": duration})

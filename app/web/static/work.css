@@ -48,6 +48,17 @@ main > .flash { font-size:17px; font-weight:600; padding:14px 16px; border-radiu
 .w-big.start { background:var(--work-start); } .w-big.start:active { background:var(--work-start-dark); }
 .w-big.finish { background:var(--work-brand); } .w-big.finish:active { background:var(--work-brand-dark); }
 .w-big:disabled { opacity:.6; cursor:wait; }
+/* Причина отклонения при «Закончил»: крупные кнопки-переключатели, удобно пальцем. */
+.w-reason summary { cursor:pointer; color:var(--work-muted); padding:6px 0; }
+.w-reason.need summary { color:var(--work-run-text); }
+.w-reasons { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-top:6px; }
+.w-rbtn { position:relative; display:block; }
+.w-rbtn input { position:absolute; opacity:0; inset:0; }
+.w-rbtn span { display:flex; align-items:center; justify-content:center; min-height:48px; padding:8px; text-align:center;
+               border:2px solid var(--work-chip-line); border-radius:10px; background:#fff; font-size:16px; font-weight:600; }
+.w-rbtn input:checked + span { background:var(--work-brand); border-color:var(--work-brand); color:#fff; }
+.w-rbtn input:focus-visible + span { outline:3px solid var(--work-run); }
+.w-note { width:100%; font-size:16px; padding:10px; margin-top:8px; }
 .w-undo { color:var(--work-muted); font-size:13px; }
 
 .w-wait { background:#fff; border:1px solid var(--work-line); border-radius:14px; }

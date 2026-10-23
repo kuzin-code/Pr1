@@ -40,14 +40,23 @@
   <h2 style="margin-top:12px" id="operations">Операции</h2>
   <table class="cards">
     <tr><th>№</th><th>Операция</th><th>Оборудование</th><th class="num">План, ч</th><th>Статус</th>
-      <th>Начал</th><th>Закончил</th><th class="num">Факт, ч</th></tr>
+      <th>Начал</th><th>Закончил</th><th class="num">Факт, ч</th><th>Причина отклонения</th></tr>
     {% for o in operations %}
     <tr><td class="hide-phone">{{ o.seq }}</td><td class="cell-title">{{ operation_label(o.operation) }}</td><td data-label="Оборудование">{{ o.resource or 'рабочее место' }}</td>
       <td class="num" data-label="План, ч">{{ o.planned_hours|hours }}</td>
       <td data-label="Статус"><span class="badge {{ {'done': 'ok', 'in_progress': 'warn', 'ready': 'ok'}.get(o.status, '') }}">{{ {'waiting': 'ожидает', 'ready': 'можно начинать', 'in_progress': 'в работе', 'done': 'выполнена'}[o.status] }}</span></td>
       <td data-label="Начал">{{ o.started_at|dt if o.started_at else '—' }}{% if o.started_by %}<br><span class="muted">{{ o.started_by }}</span>{% endif %}</td>
       <td data-label="Закончил">{{ o.finished_at|dt if o.finished_at else '—' }}{% if o.finished_by %}<br><span class="muted">{{ o.finished_by }}</span>{% endif %}</td>
-      <td class="num" data-label="Факт, ч">{{ o.duration_hours|hours if o.duration_hours is not none else '—' }}</td></tr>
+      <td class="num" data-label="Факт, ч">{{ o.duration_hours|hours if o.duration_hours is not none else '—' }}</td>
+      <td data-label="Причина отклонения">{% if o.reason %}<span class="badge warn">{{ reason_label(o.reason) }}</span>{% if o.reason_note %} <span class="muted">{{ o.reason_note }}</span>{% endif %}{% elif o.status == 'done' %}—{% endif %}
+        {% if o.status == 'done' and can('edit_downtime_reason') %}
+        <details class="pos-reason"><summary class="muted">исправить</summary>
+          <form method="post" action="/operations/{{ o.id }}/reason" class="inline">
+            <select name="reason" aria-label="Причина"><option value="">без причины</option>
+              {% for value, label in REASON_LABELS.items() %}<option value="{{ value.value }}"{{ ' selected' if o.reason == value.value }}>{{ label }}</option>{% endfor %}</select>
+            <input name="note" value="{{ o.reason_note or '' }}" placeholder="комментарий к причине">
+            <input name="comment" placeholder="почему исправляете" required>
+            <button class="secondary">Исправить</button></form></details>{% endif %}</td></tr>
     {% endfor %}
   </table>
   {% if can('undo_operations') and last_mark %}

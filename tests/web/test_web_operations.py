@@ -17,7 +17,7 @@ def op_ids(page):
 
 
 def press(client, op_id, action, when):
-    resp = client.post(f"/operations/{op_id}/{action}", data={"at": when})
+    resp = client.post(f"/operations/{op_id}/{action}", data={"at": when, "reason": "tool"})
     assert resp.status_code == 303, resp.text
     return resp
 

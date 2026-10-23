@@ -25,7 +25,15 @@
     <details class="w-when"><summary>Указать другое время</summary>
       <input type="datetime-local" name="at" aria-label="Время отметки">
       <span class="w-hint">Пусто — отметится текущее время.</span></details>
-    {% if kind == 'run' %}<button class="w-big finish">Закончил</button>
+    {% if kind == 'run' %}{% set need = r.id in overdue %}
+    <details class="w-reason{{ ' need' if need }}"{{ ' open' if need }}>
+      <summary>Причина отклонения{% if need %} — <b>обязательно</b>{% else %}, если дольше {{ (r.planned_hours * overrun_factor)|hours }}{% endif %}</summary>
+      <div class="w-reasons" role="radiogroup" aria-label="Причина отклонения">
+        {% for value, label in reasons.items() %}<label class="w-rbtn"><input type="radio" name="reason" value="{{ value.value }}"><span>{{ label }}</span></label>{% endfor %}
+      </div>
+      <input name="note" class="w-note" placeholder="Комментарий (для «другое» — обязательно)" aria-label="Комментарий к причине">
+    </details>
+    <button class="w-big finish">Закончил</button>
     {% else %}<button class="w-big start">Начал</button>{% endif %}
   </form>
   {% if can('undo_operations') and (r.status == 'in_progress' or r.seq > 1) %}

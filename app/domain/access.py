@@ -31,6 +31,8 @@ class Action(str, Enum):
     DO_OPERATIONS = "do_operations"
     UNDO_OPERATIONS = "undo_operations"  # отмена ошибочной отметки «Начал» / «Закончил»  # окно специалиста: очередь операций, «Начал» / «Закончил»
     VIEW_POSITION_FILES = "view_position_files"  # чертёж PDF, STEP и 3D-модель позиции
+    EDIT_DOWNTIME_REASON = "edit_downtime_reason"  # исправить причину отклонения при «Закончил»
+    VIEW_DOWNTIME = "view_downtime"  # часы сверх плана по причинам и станкам
 
 
 PERMISSIONS: dict[Action, frozenset[Role]] = {
@@ -61,6 +63,9 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.RECEIVE_NOTIFICATIONS: frozenset({T, H, M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
     Action.DO_OPERATIONS: frozenset({M, O, Role.CUTTER, Role.LOCKSMITH, Role.INSPECTOR}),
     Action.UNDO_OPERATIONS: frozenset({M}),
+    # Причину выбирает специалист при «Закончил»; исправляет мастер с комментарием (в историю).
+    Action.EDIT_DOWNTIME_REASON: frozenset({M}),
+    Action.VIEW_DOWNTIME: frozenset({H, M}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),
     # Чертёж и модель: кто видит заказы — любой позиции; специалисты из «Моих операций» — только позиций
     # со своими операциями (проверка в operation_service.require_position_files).

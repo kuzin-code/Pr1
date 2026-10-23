@@ -82,12 +82,13 @@
 <div class="card scroll">
   <h2>Замеры (обучение k)</h2>
   <table class="cards">
-    <tr><th>Группа</th><th class="num">Расчёт, ч</th><th class="num">Факт, ч</th><th class="num">Факт ÷ расчёт</th><th>Источник</th></tr>
+    <tr><th>Группа</th><th class="num">Расчёт, ч</th><th class="num">Факт, ч</th><th class="num">Факт ÷ расчёт</th><th>Причина отклонения</th><th>Источник</th></tr>
     {% for m in entry.measurements %}
     <tr><td data-label="Группа">{{ 'станочная' if m.group == machine_group else 'слесарно-финишная' }}</td><td class="num" data-label="Расчёт, ч">{{ m.calc_hours }}</td>
       <td class="num" data-label="Факт, ч">{{ m.actual_hours }}</td><td class="num" data-label="Факт ÷ расчёт">{{ '%.3f'|format(m.ratio) if m.actual_hours > 0 else 'ошибочная отметка' }}</td>
+      <td data-label="Причина отклонения">{% if m.reason %}<span class="badge{{ '' if m.in_k else ' warn' }}">{{ reason_label(m.reason) }}</span>{% if not m.in_k %} <span class="muted">не в k</span>{% endif %}{% endif %}</td>
       <td class="muted" data-label="Источник">{{ 'позиция %s'|format(m.position_id) if m.position_id else 'вручную' }}</td></tr>
-    {% else %}<tr><td colspan="5" class="muted">Замеров нет</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="6" class="muted">Замеров нет</td></tr>{% endfor %}
   </table>
   {% if edit %}
   <form method="post" action="/journal/{{ row.id }}/measurement" class="inline" style="margin-top:8px">

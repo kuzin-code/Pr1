@@ -55,7 +55,7 @@ def test_machine_work_starts_at_actual_mark(session, make_order, marks_on):
     rows = ops.position_operations(session, pos.id)
     cut, setup = rows[0], next(r for r in rows if r.stage == "setup")
     ops.start(session, CUTTER, cut.id, datetime(2026, 10, 16, 14, 0))
-    ops.finish(session, CUTTER, cut.id, datetime(2026, 10, 16, 14, 30))
+    ops.finish(session, CUTTER, cut.id, datetime(2026, 10, 16, 14, 30), reason="tool")
     ops.start(session, OPERATOR, setup.id, datetime(2026, 10, 16, 15, 20))
     plan = plan_service.current_plan(session, now=datetime(2026, 10, 16, 18, 0))
     assert plan.positions[pos.id].machine_start == datetime(2026, 10, 16, 15, 20)
@@ -71,11 +71,11 @@ def test_load_is_work_volume_and_dashboard_matches_plan_tables(session, make_ord
     rows = ops.position_operations(session, pos.id)
     cut, setup, mill = rows[0], rows[1], rows[2]
     ops.start(session, CUTTER, cut.id, datetime(2026, 10, 20, 9))
-    ops.finish(session, CUTTER, cut.id, datetime(2026, 10, 20, 9, 30))
+    ops.finish(session, CUTTER, cut.id, datetime(2026, 10, 20, 9, 30), reason="tool")
     ops.start(session, OPERATOR, setup.id, datetime(2026, 10, 20, 10))
-    ops.finish(session, OPERATOR, setup.id, datetime(2026, 10, 20, 10, 30))
+    ops.finish(session, OPERATOR, setup.id, datetime(2026, 10, 20, 10, 30), reason="tool")
     ops.start(session, OPERATOR, mill.id, datetime(2026, 10, 20, 10, 30))
-    ops.finish(session, OPERATOR, mill.id, datetime(2026, 10, 23, 14, 30))  # «висела» начатой
+    ops.finish(session, OPERATOR, mill.id, datetime(2026, 10, 23, 14, 30), reason="tool")  # «висела» начатой
     now = datetime(2026, 10, 23, 16)
     load = plan_service.load_tables(session, now=now)
     week = load.weekly["VF2"][(2026, 43)].hours
@@ -88,12 +88,12 @@ def test_load_is_work_volume_and_dashboard_matches_plan_tables(session, make_ord
 def _mark_all_machine_ops(session, pos):
     from tests.services.conftest import OPERATOR
     rows = ops.position_operations(session, pos.id)
-    ops.finish(session, CUTTER, rows[0].id, datetime(2026, 10, 20, 9, 30))
+    ops.finish(session, CUTTER, rows[0].id, datetime(2026, 10, 20, 9, 30), reason="tool")
     setup, mill = rows[1], rows[2]  # наладка вне смены, обработка «висела» 3 дня
     ops.start(session, OPERATOR, setup.id, datetime(2026, 10, 20, 19, 0))
-    ops.finish(session, OPERATOR, setup.id, datetime(2026, 10, 20, 20, 0))
+    ops.finish(session, OPERATOR, setup.id, datetime(2026, 10, 20, 20, 0), reason="tool")
     ops.start(session, OPERATOR, mill.id, datetime(2026, 10, 20, 20, 0))
-    ops.finish(session, OPERATOR, mill.id, datetime(2026, 10, 23, 18, 0))
+    ops.finish(session, OPERATOR, mill.id, datetime(2026, 10, 23, 18, 0), reason="tool")
 
 
 def test_marks_do_not_change_bars_or_load(session, make_order):

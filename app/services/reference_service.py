@@ -119,10 +119,10 @@ def journal_entry(session: Session, code: str) -> CalibrationEntry:
 
 def add_journal_measurement(session: Session, code: str, group: StageGroup, calc_hours: float,
                             actual_hours: float, position_id: int | None = None,
-                            at: datetime | None = None) -> CalibrationEntry:
-    """Замер по факту; k пересчитывается системой (ФТ-12)."""
+                            at: datetime | None = None, reason: str | None = None) -> CalibrationEntry:
+    """Замер по факту; k пересчитывается системой (ФТ-12). reason — причина отклонения при «Закончил»."""
     row = _journal_row(session, code)
-    entry = add_measurement(entry_from_row(row), group, calc_hours, actual_hours, position_id, at)
+    entry = add_measurement(entry_from_row(row), group, calc_hours, actual_hours, position_id, at, reason)
     entry_to_row(entry, row)
     bump_journal_version(session)
     return entry
@@ -136,6 +136,19 @@ def remove_measurements(session: Session, code: str, position_id: int, group: St
     kept = [m for m in row.measurements if not (m.get("position_id") == position_id and m["group"] == group.value)]
     if len(kept) != len(row.measurements):
         row.measurements = kept
+        bump_journal_version(session)
+
+
+def set_measurement_reason(session: Session, code: str, position_id: int, group: StageGroup,
+                           reason: str | None) -> None:
+    """Причина у замеров позиции по группе (мастер исправил причину отклонения)."""
+    row = session.scalar(select(JournalRow).where(JournalRow.part_code == code))
+    if row is None:
+        return
+    changed = [dict(m, reason=reason) if m.get("position_id") == position_id and m["group"] == group.value else m
+               for m in row.measurements]
+    if changed != row.measurements:
+        row.measurements = changed
         bump_journal_version(session)
 
 

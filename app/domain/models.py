@@ -3,6 +3,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from app.domain.downtime import counts_in_k
 from app.domain.enums import CountMode, Stage, StageGroup
 
 
@@ -76,10 +77,16 @@ class Measurement:
     actual_hours: float
     position_id: int | None = None
     at: datetime | None = None
+    reason: str | None = None  # причина отклонения при «Закончил» (downtime.Reason)
 
     @property
     def ratio(self) -> float:
         return self.actual_hours / self.calc_hours
+
+    @property
+    def in_k(self) -> bool:
+        """Замер с причиной-потерей (ремонт, ждал заготовку, брак, другое) в k не идёт."""
+        return counts_in_k(self.reason)
 
     def to_dict(self) -> dict:
         return {
@@ -88,13 +95,14 @@ class Measurement:
             "actual_hours": self.actual_hours,
             "position_id": self.position_id,
             "at": self.at.isoformat() if self.at else None,
+            "reason": self.reason,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "Measurement":
         at = datetime.fromisoformat(data["at"]) if data.get("at") else None
         return cls(StageGroup(data["group"]), float(data["calc_hours"]), float(data["actual_hours"]),
-                   data.get("position_id"), at)
+                   data.get("position_id"), at, data.get("reason"))
 
 
 @dataclass

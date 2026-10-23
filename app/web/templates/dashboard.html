@@ -1,5 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Главная{% endblock %}
+{% block title %}Главная{% if board.overruns %}
+<section class="card dash-overruns">
+  <h2>Часы сверх плана по причинам и станкам</h2>
+  <div class="grid">
+  {% for title, t in board.overruns %}
+  <div class="scroll">
+    <h3>{{ title }}{% if t.total %} · {{ t.total|hours }}{% endif %}</h3>
+    {% if t.rows %}
+    <table class="cards">
+      <tr><th>Причина</th>{% for m in t.machines %}<th class="num">{{ m }}</th>{% endfor %}<th class="num">Итого</th></tr>
+      {% for reason, cells, total in t.rows %}
+      <tr><td class="cell-title">{{ reason }}</td>{% for m in t.machines %}<td class="num" data-label="{{ m }}">{{ cells[m]|hours if m in cells else '' }}</td>{% endfor %}
+        <td class="num" data-label="Итого"><b>{{ total|hours }}</b></td></tr>
+      {% endfor %}
+      <tr><td class="cell-title"><b>Всего</b></td>{% for m in t.machines %}<td class="num" data-label="{{ m }}"><b>{{ t.totals[m]|hours }}</b></td>{% endfor %}
+        <td class="num" data-label="Итого"><b>{{ t.total|hours }}</b></td></tr>
+    </table>
+    {% else %}<p class="dash-empty">Операций сверх плана нет.</p>{% endif %}
+  </div>
+  {% endfor %}
+  </div>
+  <p class="muted">Факт сверх плана выполненных операций. Причину выбирает специалист при «Закончил», если операция заняла
+    больше плана в {{ ('%g'|format(overrun_factor)).replace('.', ',') }} раза; «ремонт», «ждал заготовку», «брак», «другое» в коэффициент k не идут.</p>
+</section>
+{% endif %}
+{% endblock %}
 {% block content %}
 <section class="dash-hero" data-auto-refresh="300">
   <div>
@@ -82,4 +107,29 @@
     </ul>
   </section>
 </div>
+{% if board.overruns %}
+<section class="card dash-overruns">
+  <h2>Часы сверх плана по причинам и станкам</h2>
+  <div class="grid">
+  {% for title, t in board.overruns %}
+  <div class="scroll">
+    <h3>{{ title }}{% if t.total %} · {{ t.total|hours }}{% endif %}</h3>
+    {% if t.rows %}
+    <table class="cards">
+      <tr><th>Причина</th>{% for m in t.machines %}<th class="num">{{ m }}</th>{% endfor %}<th class="num">Итого</th></tr>
+      {% for reason, cells, total in t.rows %}
+      <tr><td class="cell-title">{{ reason }}</td>{% for m in t.machines %}<td class="num" data-label="{{ m }}">{{ cells[m]|hours if m in cells else '' }}</td>{% endfor %}
+        <td class="num" data-label="Итого"><b>{{ total|hours }}</b></td></tr>
+      {% endfor %}
+      <tr><td class="cell-title"><b>Всего</b></td>{% for m in t.machines %}<td class="num" data-label="{{ m }}"><b>{{ t.totals[m]|hours }}</b></td>{% endfor %}
+        <td class="num" data-label="Итого"><b>{{ t.total|hours }}</b></td></tr>
+    </table>
+    {% else %}<p class="dash-empty">Операций сверх плана нет.</p>{% endif %}
+  </div>
+  {% endfor %}
+  </div>
+  <p class="muted">Факт сверх плана выполненных операций. Причину выбирает специалист при «Закончил», если операция заняла
+    больше плана в {{ ('%g'|format(overrun_factor)).replace('.', ',') }} раза; «ремонт», «ждал заготовку», «брак», «другое» в коэффициент k не идут.</p>
+</section>
+{% endif %}
 {% endblock %}

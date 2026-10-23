@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.access import AccessDenied, Action, can, require
+from app.domain.downtime import check_reason, group_reason, reason_label
 from app.domain.enums import FactKind, Operation, PositionStatus, Role, StageGroup
 from app.domain.history import require_reason
 from app.domain.operations import (
@@ -122,6 +123,13 @@ def _calendar(operation: Operation):
     return MACHINE_CALENDAR if operation in MACHINE_OPERATIONS else BENCH_CALENDAR
 
 
+def elapsed_hours(row: OperationRow, moment: datetime) -> float:
+    """Сколько рабочих часов идёт начатая операция к моменту moment."""
+    if row.started_at is None or moment <= row.started_at:
+        return 0.0
+    return _calendar(Operation(row.operation)).hours_between(row.started_at, moment)
+
+
 def _label(pos: PositionRow, row: OperationRow) -> str:
     where = f" на {row.resource}" if row.resource else ""
     return f"«{pos.designation}» ({pos.quantity} шт., заказ {pos.order.number}){where}"
@@ -160,26 +168,31 @@ def _close_groups(session: Session, actor: Actor, pos: PositionRow, rows: list[O
         members = [r for r in rows if group_of(Operation(r.operation)) is group]
         return members, all(r.status == OpStatus.DONE.value for r in members)
 
+    def reason(members):  # причина замера группы: потеря (не в k) важнее
+        found = group_reason(r.reason for r in members)
+        return found.value if found else None
+
     machine_rows, machine_done = done(StageGroup.MACHINE)
     if machine_rows and machine_done and FactKind.MACHINE not in ends:
-        record_fact(session, actor, pos.id, FactKind.MACHINE, at,
-                    duration=sum(r.duration_hours or 0 for r in machine_rows), authorized=True)
+        record_fact(session, actor, pos.id, FactKind.MACHINE, at, authorized=True, reason=reason(machine_rows),
+                    duration=sum(r.duration_hours or 0 for r in machine_rows))
     bench_rows, bench_done = done(StageGroup.BENCH)
-    if machine_done and bench_done and FactKind.MACHINE in fact_ends(session, pos.id) \
-            and FactKind.BENCH not in fact_ends(session, pos.id):
-        record_fact(session, actor, pos.id, FactKind.BENCH, at,
-                    duration=sum(r.duration_hours or 0 for r in bench_rows), authorized=True)
+    if machine_done and bench_done and FactKind.MACHINE in fact_ends(session, pos.id)             and FactKind.BENCH not in fact_ends(session, pos.id):
+        record_fact(session, actor, pos.id, FactKind.BENCH, at, authorized=True, reason=reason(bench_rows),
+                    duration=sum(r.duration_hours or 0 for r in bench_rows))
     inspection = [r for r in rows if r.operation == Operation.INSPECTION.value]
     if inspection and inspection[0].status == OpStatus.DONE.value and FactKind.BENCH in fact_ends(session, pos.id):
-        record_fact(session, actor, pos.id, FactKind.INSPECTION, at,
-                    duration=inspection[0].duration_hours or 0, authorized=True)
+        record_fact(session, actor, pos.id, FactKind.INSPECTION, at, authorized=True, reason=inspection[0].reason,
+                    duration=inspection[0].duration_hours or 0)
 
 
 def _specialist(operation: Operation) -> Role:
     return next(r for r in OPERATION_ROLES[operation] if r is not Role.MASTER)
 
 
-def finish(session: Session, actor: Actor, op_id: int, at: datetime | None = None) -> OperationRow:
+def finish(session: Session, actor: Actor, op_id: int, at: datetime | None = None,
+           reason: str | None = None, note: str = "") -> OperationRow:
+    """«Закончил»; факт больше плана × порог — с причиной отклонения (downtime.py)."""
     row, rows, pos = _get(session, actor, op_id)
     at = at or datetime.now().replace(second=0, microsecond=0)
     if row.status != OpStatus.IN_PROGRESS.value:
@@ -187,16 +200,20 @@ def finish(session: Session, actor: Actor, op_id: int, at: datetime | None = Non
     if at <= row.started_at:
         raise OperationError(f"Окончание раньше начала ({row.started_at:%d.%m %H:%M})")
     operation = Operation(row.operation)
-    row.duration_hours = round(_calendar(operation).hours_between(row.started_at, at), 3)
+    duration = round(_calendar(operation).hours_between(row.started_at, at), 3)
+    cause, note = check_reason(row.planned_hours, duration, reason, note)
+    row.duration_hours, row.reason, row.reason_note = duration, cause.value if cause else None, note or None
     row.status, row.finished_at, row.finished_by = OpStatus.DONE.value, at, actor.username
     _refresh(rows)
     record(session, actor, "position", pos.id, f"finish_{row.operation}", None,
-           {"at": at.isoformat(), "hours": row.duration_hours})
+           {"at": at.isoformat(), "hours": row.duration_hours, "reason": row.reason}, note)
     session.flush()
     _close_groups(session, actor, pos, rows, at)
 
     over = row.duration_hours - row.planned_hours
     note = f"; превышение плана на {over:.1f} ч" if over > 0.2 * row.planned_hours and over > 0.1 else ""
+    if row.reason:
+        note += f", причина: {reason_label(row.reason)}" + (f" ({row.reason_note})" if row.reason_note else "")
     notify(session, Role.MASTER, f"op:{row.id}:done", pos.id, row.operation, at,
            f"{operation.label} выполнена: {_label(pos, row)} — {row.duration_hours:.2f} ч "
            f"(план {row.planned_hours:.2f} ч){note}")
@@ -265,6 +282,7 @@ def undo_last(session: Session, actor: Actor, position_id: int, reason: str) -> 
         for key in (f"op:{row.id}:done", *(f"op:{r.id}:ready" for r in rows if r.seq > row.seq)):
             session.query(NotificationRow).filter(NotificationRow.key == key).delete()
         row.status, row.finished_at, row.finished_by, row.duration_hours = OpStatus.IN_PROGRESS.value, None, None, None
+        row.reason, row.reason_note = None, None
     else:
         row.status, row.started_at, row.started_by = OpStatus.WAITING.value, None, None
     _refresh(rows)
