@@ -18,6 +18,9 @@ from app.services.actor import Actor
 from app.storage.orm import FactRow, MachineRow, NotificationRow, OperationRow, OrderRow, PositionRow
 
 
+MACHINE_STAGES = {st.value for st in Stage if st.group is StageGroup.MACHINE}
+
+
 def clock() -> datetime:
     """Текущий момент для плана; в тестах подменяется фиксированным временем."""
     return datetime.now()
@@ -39,9 +42,23 @@ def _started_ids(session: Session) -> set[int]:
     return set(marked) | set(session.scalars(select(FactRow.position_id)))
 
 
+def _machine_starts(session: Session) -> dict[int, dict[str, datetime]]:
+    """Фактическое начало станочной работы позиции по станкам: самая ранняя отметка «Начал» наладки/обработки."""
+    result: dict[int, dict[str, datetime]] = {}
+    rows = session.scalars(select(OperationRow).where(OperationRow.started_at.is_not(None)))
+    for row in rows:
+        if row.stage not in MACHINE_STAGES or not row.resource:
+            continue
+        starts = result.setdefault(row.position_id, {})
+        if row.resource not in starts or row.started_at < starts[row.resource]:
+            starts[row.resource] = row.started_at
+    return result
+
+
 def _inputs(session: Session) -> list[PlanInput]:
     items = []
     started = _started_ids(session)
+    machine_starts = _machine_starts(session)
     for pos in session.scalars(select(PositionRow)):
         calc = plan_calc(pos)
         if not calc or not pos.machine_code:
@@ -61,6 +78,7 @@ def _inputs(session: Session) -> list[PlanInput]:
             fact_bench_end=ends.get(FactKind.BENCH),
             fact_inspection_end=ends.get(FactKind.INSPECTION),
             started=pos.id in started,
+            machine_started=tuple(sorted(machine_starts.get(pos.id, {}).items())),
         ))
     return items
 

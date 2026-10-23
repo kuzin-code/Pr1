@@ -37,3 +37,17 @@ def test_quick_calc_where_faster_and_busy_from_same_moment(session, tmp_path, mo
     assert current["free_from"] >= NOW.isoformat() and busy["start"] >= NOW.isoformat()
     assert current["free_from"][:10] == busy["start"][:10] == NOW.date().isoformat()
     assert r.summary["calc_date"] >= NOW.isoformat()
+
+
+def test_machine_work_starts_at_actual_mark(session, make_order):
+    """Наладку начали в пятницу после смены станка — план берёт отметку «Начал», а не понедельник."""
+    from tests.services.conftest import OPERATOR
+    pos = approved(session, make_order)
+    rows = ops.position_operations(session, pos.id)
+    cut, setup = rows[0], next(r for r in rows if r.stage == "setup")
+    ops.start(session, CUTTER, cut.id, datetime(2026, 10, 16, 14, 0))
+    ops.finish(session, CUTTER, cut.id, datetime(2026, 10, 16, 14, 30))
+    ops.start(session, OPERATOR, setup.id, datetime(2026, 10, 16, 15, 20))
+    plan = plan_service.current_plan(session, now=datetime(2026, 10, 16, 18, 0))
+    assert plan.positions[pos.id].machine_start == datetime(2026, 10, 16, 15, 20)
+    assert all(s.end >= s.start for s in plan.slots)

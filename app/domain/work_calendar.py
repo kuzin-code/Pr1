@@ -68,6 +68,29 @@ class WorkCalendar:
             remaining -= available
             current = self.day_start(self._next_workday(current.date()))
 
+    def _latest_working(self, moment: datetime) -> datetime:
+        """Ближайший рабочий момент не позже заданного (конец окна дня включительно)."""
+        day = moment.date()
+        if self.is_workday(day) and moment >= self.day_start(day):
+            return min(moment, self.day_end(day))
+        day -= timedelta(days=1)
+        while not self.is_workday(day):
+            day -= timedelta(days=1)
+        return self.day_end(day)
+
+    def sub_hours(self, end: datetime, hours: float) -> datetime:
+        """Момент начала работы длительностью hours рабочих часов, окончившейся в end."""
+        if not math.isfinite(hours) or hours < 0:
+            raise ValueError("hours должно быть неотрицательным конечным числом")
+        current = self._latest_working(end)
+        remaining = float(hours)
+        while True:
+            available = (current - self.day_start(current.date())).total_seconds() / 3600
+            if remaining <= available + _EPS:
+                return current - timedelta(hours=remaining)
+            remaining -= available
+            current = self._latest_working(self.day_start(current.date()) - timedelta(seconds=1))
+
     def split_by_day(self, start: datetime, end: datetime) -> dict[date, float]:
         """Рабочие часы интервала [start, end) по календарным дням."""
         result: dict[date, float] = {}

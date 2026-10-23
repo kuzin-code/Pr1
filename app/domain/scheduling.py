@@ -6,6 +6,10 @@
 Введённый факт окончания группы заменяет плановое окончание и сдвигает последующие работы.
 Неначатая позиция (нет отметки начала и фактов) планируется не раньше текущего момента — план не уходит
 в прошлое; начатая и выполненная работа остаётся как есть.
+Работа на станке по факту: начало — отметка «Начал» первой станочной операции на этом станке; позиции, уже
+начатые или выполненные на станке, занимают его раньше неначатых (это уже случилось). Полоса на станке
+никогда не кончается раньше начала: если факт окончания раньше расчётного начала и отметки «Начал» нет,
+начало отсчитывается от факта назад на плановую длительность.
 """
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -29,6 +33,12 @@ class PlanInput:
     fact_bench_end: datetime | None = None
     fact_inspection_end: datetime | None = None
     started: bool = False  # есть отметка начала операции или факт — план позиции «сейчас» не сдвигает
+    machine_started: tuple = ()  # ((код станка, фактическое начало первой станочной операции), …)
+
+    @property
+    def on_machine(self) -> bool:
+        """Работа на станке уже начата или выполнена."""
+        return bool(self.machine_started) or self.fact_machine_end is not None
 
 
 @dataclass(frozen=True)
@@ -68,7 +78,20 @@ def work_start(order_start: date, now: datetime | None) -> datetime:
 
 def _queue_key(item: PlanInput):
     approved = item.approved_seq is not None
-    return (0 if approved else 1, item.approved_seq or 0, item.position_id)
+    return (0 if item.on_machine else 1, 0 if approved else 1, item.approved_seq or 0, item.position_id)
+
+
+def _fit_to_fact(slots: list[MachineSlot], hours: list[float], fact_end: datetime) -> list[MachineSlot]:
+    """Последняя полоса кончается фактом; полосы идут подряд и не бывают «конец раньше начала»."""
+    result = list(slots)
+    bound = fact_end
+    for i in range(len(result) - 1, -1, -1):
+        s = result[i]
+        end = bound if i == len(result) - 1 else min(s.end, bound)
+        start = s.start if s.start <= end else MACHINE_CALENDAR.sub_hours(end, hours[i])
+        result[i] = MachineSlot(s.machine_code, s.position_id, start, end, s.preliminary)
+        bound = start
+    return result
 
 
 def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime],
@@ -79,30 +102,36 @@ def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime],
     for it in sorted(items, key=_queue_key):
         if not it.machine_code:
             continue
+        actual = dict(it.machine_started)
+        preliminary = it.approved_seq is None
         start = work_start(it.order_start, None if it.started else now)
         cutting_end = BENCH_CALENDAR.add_hours(start, it.cutting_hours)
         free = machine_free.get(it.machine_code)
         possible_start = max(start, free) if free else start
-        machine_start = MACHINE_CALENDAR.normalize(max(cutting_end, possible_start))
-        machine_end = MACHINE_CALENDAR.add_hours(machine_start, it.machine_hours)
-        slots = [MachineSlot(it.machine_code, it.position_id, machine_start, machine_end, it.approved_seq is None)]
-        for code, hours in it.extra_machines:
-            busy = machine_free.get(code)
-            extra_start = MACHINE_CALENDAR.normalize(max(machine_end, busy) if busy else machine_end)
-            extra_end = MACHINE_CALENDAR.add_hours(extra_start, hours)
-            slots.append(MachineSlot(code, it.position_id, extra_start, extra_end, it.approved_seq is None))
-            machine_free[code] = extra_end
-            machine_end = extra_end
+        if it.machine_code in actual:
+            machine_start = actual[it.machine_code]
+            possible_start = min(possible_start, machine_start)
+        else:
+            machine_start = MACHINE_CALENDAR.normalize(max(cutting_end, possible_start))
+        slot_end = MACHINE_CALENDAR.add_hours(machine_start, it.machine_hours)
+        slots = [MachineSlot(it.machine_code, it.position_id, machine_start, slot_end, preliminary)]
+        hours = [it.machine_hours]
+        for code, extra_hours in it.extra_machines:
+            if code in actual:
+                extra_start = actual[code]
+            else:
+                busy = machine_free.get(code)
+                extra_start = MACHINE_CALENDAR.normalize(max(slot_end, busy) if busy else slot_end)
+            slot_end = MACHINE_CALENDAR.add_hours(extra_start, extra_hours)
+            slots.append(MachineSlot(code, it.position_id, extra_start, slot_end, preliminary))
+            hours.append(extra_hours)
         if it.fact_machine_end:  # факт окончания станочной группы — по последнему станку
-            last = slots[-1]
-            slots[-1] = MachineSlot(last.machine_code, last.position_id, last.start, it.fact_machine_end,
-                                    last.preliminary)
-            machine_end = it.fact_machine_end
-            if len(slots) > 1:
-                machine_free[last.machine_code] = it.fact_machine_end
+            slots = _fit_to_fact(slots, hours, it.fact_machine_end)
+        for extra in slots[1:]:
+            machine_free[extra.machine_code] = extra.end
+        machine_start, machine_end = slots[0].start, slots[-1].end
         bench_end = it.fact_bench_end or BENCH_CALENDAR.add_hours(machine_end, it.bench_hours)
         finish = it.fact_inspection_end or BENCH_CALENDAR.add_hours(bench_end, it.inspection_hours)
-        preliminary = it.approved_seq is None
         plan.positions[it.position_id] = PositionPlan(
             it.position_id, it.order_id, it.machine_code, cutting_end, possible_start,
             machine_start, machine_end, bench_end, finish, preliminary,
