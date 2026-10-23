@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, require
 from app.domain.enums import FactKind, PositionStatus, Role, Stage, StageGroup
 from app.domain.load import LoadCell, daily_load, weekly_load
+from app.domain.machine_work import OpMark, machine_work
 from app.domain.notifications import due_events
 from app.domain.scheduling import Plan, PlanInput, build_plan
 from app.domain.status import order_done
@@ -107,9 +108,20 @@ class LoadTables:
     weekly: dict[str, dict[tuple[int, int], LoadCell]]
 
 
-def load_tables(session: Session, plan: Plan | None = None) -> LoadTables:
-    plan = plan or current_plan(session)
-    return LoadTables(daily_load(plan.slots), weekly_load(plan.slots))
+def _op_marks(session: Session) -> list[OpMark]:
+    """Станочные операции утверждённых позиций с отметками «Начал»/«Закончил» — для объёма работы."""
+    rows = session.scalars(select(OperationRow).where(OperationRow.stage.in_(MACHINE_STAGES))
+                           .order_by(OperationRow.position_id, OperationRow.seq))
+    return [OpMark(r.resource, r.position_id, r.planned_hours or 0.0, r.started_at, r.finished_at)
+            for r in rows if r.resource]
+
+
+def load_tables(session: Session, plan: Plan | None = None, now: datetime | None = None) -> LoadTables:
+    """Загрузка — объём работы: план плановыми часами, начатое — по отметкам операций (без простоя)."""
+    now = now or clock()
+    plan = plan or current_plan(session, now)
+    works = machine_work(plan.slots, _op_marks(session), now)
+    return LoadTables(daily_load(works), weekly_load(works))
 
 
 @dataclass(frozen=True)

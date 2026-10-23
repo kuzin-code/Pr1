@@ -167,7 +167,7 @@ def build_dashboard(session: Session, actor: Actor, now: datetime | None = None)
 
     monday = now.date() - timedelta(days=now.weekday())
     week = {monday + timedelta(days=i) for i in range(5)}
-    daily = plan_service.load_tables(session, plan).daily
+    daily = plan_service.load_tables(session, plan, now).daily
     cnc = [m for m in session.scalars(select(MachineRow).order_by(MachineRow.id)) if m.is_cnc]
     for m in cnc:
         hours = sum(cell.hours for day, cell in daily.get(m.code, {}).items() if day in week)

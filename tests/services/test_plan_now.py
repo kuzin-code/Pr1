@@ -1,6 +1,8 @@
 """План не в прошлом: неначатые позиции — от «сейчас», начатые — как есть; быстрый расчёт — от той же точки."""
 from datetime import datetime
 
+import pytest
+
 from app.services import operation_service as ops
 from app.services import plan_service
 from app.services import quick_service as quick
@@ -51,3 +53,26 @@ def test_machine_work_starts_at_actual_mark(session, make_order):
     plan = plan_service.current_plan(session, now=datetime(2026, 10, 16, 18, 0))
     assert plan.positions[pos.id].machine_start == datetime(2026, 10, 16, 15, 20)
     assert all(s.end >= s.start for s in plan.slots)
+
+
+def test_load_is_work_volume_and_dashboard_matches_plan_tables(session, make_order):
+    """Операцию «забыли» закончить на 3 дня — загрузка не 18 ч простоя; главная = таблица «По неделям»."""
+    from app.domain.machine_work import IDLE_CAP_FACTOR
+    from app.services import dashboard_service
+    from tests.services.conftest import HEAD, OPERATOR
+    pos = approved(session, make_order)
+    rows = ops.position_operations(session, pos.id)
+    cut, setup, mill = rows[0], rows[1], rows[2]
+    ops.start(session, CUTTER, cut.id, datetime(2026, 10, 20, 9))
+    ops.finish(session, CUTTER, cut.id, datetime(2026, 10, 20, 9, 30))
+    ops.start(session, OPERATOR, setup.id, datetime(2026, 10, 20, 10))
+    ops.finish(session, OPERATOR, setup.id, datetime(2026, 10, 20, 10, 30))
+    ops.start(session, OPERATOR, mill.id, datetime(2026, 10, 20, 10, 30))
+    ops.finish(session, OPERATOR, mill.id, datetime(2026, 10, 23, 14, 30))  # «висела» начатой
+    now = datetime(2026, 10, 23, 16)
+    load = plan_service.load_tables(session, now=now)
+    week = load.weekly["VF2"][(2026, 43)].hours
+    assert week == pytest.approx(0.5 + min(mill.planned_hours * IDLE_CAP_FACTOR, 22.0))
+    board = dashboard_service.build_dashboard(session, HEAD, now=now)
+    vf2 = next(m for m in board.machines if m.code == "VF2")
+    assert vf2.hours == pytest.approx(week)

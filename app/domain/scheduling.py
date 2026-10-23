@@ -62,6 +62,7 @@ class MachineSlot:
     start: datetime
     end: datetime
     preliminary: bool
+    hours: float | None = None  # плановый объём работы на станке (наладка и обработка), ч
 
 
 @dataclass
@@ -89,7 +90,7 @@ def _fit_to_fact(slots: list[MachineSlot], hours: list[float], fact_end: datetim
         s = result[i]
         end = bound if i == len(result) - 1 else min(s.end, bound)
         start = s.start if s.start <= end else MACHINE_CALENDAR.sub_hours(end, hours[i])
-        result[i] = MachineSlot(s.machine_code, s.position_id, start, end, s.preliminary)
+        result[i] = MachineSlot(s.machine_code, s.position_id, start, end, s.preliminary, s.hours)
         bound = start
     return result
 
@@ -114,7 +115,8 @@ def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime],
         else:
             machine_start = MACHINE_CALENDAR.normalize(max(cutting_end, possible_start))
         slot_end = MACHINE_CALENDAR.add_hours(machine_start, it.machine_hours)
-        slots = [MachineSlot(it.machine_code, it.position_id, machine_start, slot_end, preliminary)]
+        slots = [MachineSlot(it.machine_code, it.position_id, machine_start, slot_end, preliminary,
+                             it.machine_hours)]
         hours = [it.machine_hours]
         for code, extra_hours in it.extra_machines:
             if code in actual:
@@ -123,7 +125,7 @@ def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime],
                 busy = machine_free.get(code)
                 extra_start = MACHINE_CALENDAR.normalize(max(slot_end, busy) if busy else slot_end)
             slot_end = MACHINE_CALENDAR.add_hours(extra_start, extra_hours)
-            slots.append(MachineSlot(code, it.position_id, extra_start, slot_end, preliminary))
+            slots.append(MachineSlot(code, it.position_id, extra_start, slot_end, preliminary, extra_hours))
             hours.append(extra_hours)
         if it.fact_machine_end:  # факт окончания станочной группы — по последнему станку
             slots = _fit_to_fact(slots, hours, it.fact_machine_end)
