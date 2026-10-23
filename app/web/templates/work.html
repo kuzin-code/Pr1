@@ -51,6 +51,8 @@
 </nav>
 {% endif %}
 
+{% if shift_machine %}<p><a class="w-chip" href="/plan/shift?machine={{ shift_machine }}">Сменное задание{{ ' — ' ~ shift_machine if selected }}</a></p>{% endif %}
+
 {% if running %}
 <h2 class="w-sec">В работе · {{ running|length }}</h2>
 <div class="w-grid">{% for r in running %}{{ op_card(r, 'run') }}{% endfor %}</div>

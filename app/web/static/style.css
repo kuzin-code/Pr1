@@ -315,3 +315,13 @@ tr.row-section td { padding-top:10px; }
 /* Приоритет в очереди станков: кнопки «срочно ↑» / «обычный»; на телефоне — крупнее, без перетаскивания. */
 .prio-actions { display:inline-flex; gap:6px; flex-wrap:wrap; margin-left:6px; }
 @media (max-width:760px) { .prio-actions { display:flex; margin:6px 0 0; } .prio-actions button { min-height:44px; } }
+
+/* Сменное задание на станок: экран, телефон (карточки) и печать A4. */
+.shift-nav { gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.shift-meta { font-size:16px; }
+.shift-signs { display:none; }
+@media print {
+  .shift-sheet h1 { font-size:18pt; margin:0 0 4pt; } .shift-table { font-size:10pt; width:100%; }
+  .shift-table td, .shift-table th { border:1px solid #999; padding:3pt 5pt; }
+  .shift-sign { min-width:30mm; } .shift-signs { display:flex; justify-content:space-between; margin-top:14mm; }
+}

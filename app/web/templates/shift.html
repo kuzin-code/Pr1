@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Сменное задание {{ machine.model }}{% endblock %}
+{% block content %}
+<div class="shift-sheet">
+<div class="row no-print shift-nav">
+  <a class="btn secondary" href="/plan/shift?machine={{ machine.code }}&date={{ prev_day.isoformat() }}">← {{ prev_day.strftime('%d.%m') }}</a>
+  <form method="get" action="/plan/shift" class="inline">
+    <select name="machine" aria-label="Станок">{% for m in machines %}<option value="{{ m.code }}"{{ ' selected' if m.code == machine.code }}>{{ m.model }}</option>{% endfor %}</select>
+    <input type="date" name="date" value="{{ day.isoformat() }}" aria-label="Дата смены"><button class="secondary">Показать</button></form>
+  <a class="btn secondary" href="/plan/shift?machine={{ machine.code }}&date={{ next_day.isoformat() }}">{{ next_day.strftime('%d.%m') }} →</a>
+  <button type="button" onclick="window.print()">Печать</button>
+</div>
+
+<h1>Сменное задание</h1>
+<p class="shift-meta"><b>{{ machine.model }}</b> ({{ machine.code }}) · {{ day.strftime('%d.%m.%Y') }}
+  {% if shift.start %}· смена {{ shift.start.strftime('%H:%M') }}–{{ shift.end.strftime('%H:%M') }} · по плану {{ shift.hours|hours }}{% else %}· выходной{% endif %}</p>
+
+{% if shift.lines %}
+<table class="cards shift-table">
+  <tr><th>№</th><th>Позиция</th><th>Заказ</th><th class="num">Кол-во</th><th>Операция</th><th>Время по плану</th><th class="num">Часы в смену</th><th>Отметка</th></tr>
+  {% for l in shift.lines %}{% set p = positions[l.position_id] %}
+  <tr><td class="hide-phone">{{ loop.index }}</td>
+    <td class="cell-title"><b>{{ p.designation }}</b>{% if l.preliminary %} <span class="badge">предварительно</span>{% endif %}{% if p.priority %} <span class="badge err">срочно</span>{% endif %}</td>
+    <td data-label="Заказ">{{ p.order.number }}{% if p.order.customer %} <span class="muted">{{ p.order.customer }}</span>{% endif %}</td>
+    <td class="num" data-label="Кол-во">{{ p.quantity }} шт.</td>
+    <td data-label="Операция">{{ operation_title(l.op.operation) }}{% if l.op.status == 'done' %} <span class="badge ok">выполнена</span>{% elif l.op.status == 'in_progress' %} <span class="badge warn">в работе</span>{% endif %}</td>
+    <td data-label="Время по плану">{{ l.start.strftime('%H:%M') }}–{{ l.end.strftime('%H:%M') }}
+      {% if l.from_previous %}<span class="muted">· с прошлой смены</span>{% endif %}{% if l.continues %}<span class="muted">· продолжится</span>{% endif %}</td>
+    <td class="num" data-label="Часы в смену">{{ l.hours|hours }}</td>
+    <td data-label="Отметка" class="shift-sign"></td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">{{ 'В выходной смены нет.' if not shift.start else 'По плану на эту смену работ на станке нет.' }}</p>
+{% endif %}
+
+<p class="muted shift-foot">Задание по текущему плану на {{ printed.strftime('%d.%m.%Y %H:%M') }} (по плановому времени;
+  срок ориентировочный). Отметки «Начал» / «Закончил» — в окне «Мои операции».</p>
+<div class="shift-signs"><span>Выдал (мастер): ____________</span><span>Принял (оператор): ____________</span></div>
+</div>
+{% endblock %}

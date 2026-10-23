@@ -39,6 +39,7 @@
         {% elif b.left > gantt.today and nx.next is none %}{% set nx.next = gantt.days[(b.left // gantt.day_px)|int].label %}{% endif %}
       {% endfor %}{% endif %}
       <div class="gantt-name"><b title="{{ r.name }}">{{ r.name }}</b><br><span class="muted">{{ r.hours|hours }}</span>
+        · <a class="gantt-shift" href="/plan/shift?machine={{ r.code }}" title="Сменное задание на станок">Сменное задание</a>
         {%- if nx.next and not nx.busy %} <span class="gantt-next">· работа с {{ nx.next }}</span>{% endif %}</div>
       {% endfor %}
     </div>

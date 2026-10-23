@@ -33,7 +33,14 @@ def work_page(request: Request, machine: str | None = None, db: Session = Depend
     overdue = {r.id for r in rows if r.started_at and needs_reason(r.planned_hours, ops.elapsed_hours(r, moment))}
     return render(request, "work.html", rows=rows, positions=positions, machines=machines, selected=selected,
                   show_machine_filter=bool(my_ops & MACHINE_OPERATIONS) and len(machines) > 1,
-                  now=moment.strftime("%Y-%m-%dT%H:%M"), overdue=overdue, reasons=REASON_LABELS)
+                  now=moment.strftime("%Y-%m-%dT%H:%M"), overdue=overdue, reasons=REASON_LABELS,
+                  shift_machine=_shift_machine(machines, selected))
+
+
+def _shift_machine(machines, selected: str) -> str:
+    """Станок для ссылки «Сменное задание»: выбранный станок с ЧПУ или первый из своих."""
+    cnc = [m.code for m in machines if m.is_cnc]
+    return selected if selected in cnc else (cnc[0] if cnc else "")
 
 
 def _moment(at: str) -> datetime | None:

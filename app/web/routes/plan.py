@@ -1,17 +1,18 @@
 """Загрузка станков, дата окончания текущих работ, уведомления (ФТ-15, ФТ-17, ФТ-22, ФТ-23)."""
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.access import Action, require
+from app.domain.access import Action, can, require
 from app.domain.enums import FactKind, Operation
 from app.domain.gantt import build_gantt
 from app.domain.operations import MACHINE_OPERATIONS
-from app.services import operation_service, plan_service, priority_service, reference_service
+from app.services import operation_service, plan_service, priority_service, reference_service, shift_service
 from app.storage.orm import PositionRow
-from app.web.deps import act, current_actor, flash, get_db
+from app.services.actor import ServiceError
+from app.web.deps import act, current_actor, flash, get_db, redirect
 from app.web.templating import render
 
 router = APIRouter()
@@ -60,6 +61,31 @@ def plan_page(request: Request, view: str = "gantt", db: Session = Depends(get_d
                             _bar_info(db, plan, positions))
     return render(request, "plan.html", plan=plan, machines=machines, table=table, columns=columns,
                   view=view, positions=positions, deviations=deviations, gantt=gantt, kind_labels=KIND_LABELS)
+
+
+@router.get("/plan/shift")
+def shift_page(request: Request, machine: str = "", date: str = "", db: Session = Depends(get_db)):
+    """Сменное задание на станок: печать A4 и вид на телефоне."""
+    actor = current_actor(request)
+    day = _parse_day(date)
+    code = machine or request.session.get("machine") or next(
+        (m.code for m in reference_service.list_machines(db) if m.is_cnc), "")
+    try:
+        row, shift, positions = shift_service.shift_for(db, actor, code, day)
+    except ServiceError as err:
+        flash(request, str(err), "error")
+        return redirect("/plan" if can(actor.role, Action.VIEW_PLAN) else "/work")
+    machines = [m for m in reference_service.list_machines(db) if m.is_cnc]
+    return render(request, "shift.html", machine=row, shift=shift, positions=positions, machines=machines,
+                  day=day, prev_day=day - timedelta(days=1), next_day=day + timedelta(days=1),
+                  operation_title=shift_service.operation_title, printed=datetime.now())
+
+
+def _parse_day(value: str) -> date:
+    try:
+        return date.fromisoformat(value) if value else date.today()
+    except ValueError:
+        return date.today()
 
 
 @router.post("/machines/{code}/busy")
