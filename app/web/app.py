@@ -16,8 +16,8 @@ from app.services.operation_service import ensure_all_operations
 from app.services.seed import seed_reference
 from app.storage.db import init_db, make_engine
 from app.web.deps import MustChangePassword, NotLoggedIn, redirect
-from app.web.routes import (auth, dashboard, users, journal, machines, orders, plan, positions, proposals, quick,
-                            reference, work)
+from app.web.routes import (auth, dashboard, export, users, journal, machines, orders, plan, positions, proposals,
+                            quick, reference, work)
 from app.web.templating import render
 
 
@@ -71,7 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return render(request, "error.html", status_code=403, title="Нет доступа", message=str(exc))
 
     start_daily_backup(settings)
-    for module in (auth, dashboard, users, orders, positions, plan, quick, proposals, reference, journal, machines,
+    for module in (auth, dashboard, users, export, orders, positions, plan, quick, proposals, reference, journal, machines,
                    work):
         app.include_router(module.router)
     return app

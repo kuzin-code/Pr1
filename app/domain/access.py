@@ -34,6 +34,7 @@ class Action(str, Enum):
     EDIT_DOWNTIME_REASON = "edit_downtime_reason"  # исправить причину отклонения при «Закончил»
     VIEW_DOWNTIME = "view_downtime"  # часы сверх плана по причинам и станкам
     SET_PRIORITY = "set_priority"  # ручной приоритет срочной позиции в очереди станков
+    EXPORT_ACCOUNTING = "export_accounting"  # выгрузка заказов в 1С файлом
 
 
 PERMISSIONS: dict[Action, frozenset[Role]] = {
@@ -68,6 +69,8 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.EDIT_DOWNTIME_REASON: frozenset({M}),
     Action.VIEW_DOWNTIME: frozenset({H, M}),
     Action.SET_PRIORITY: frozenset({M, H}),
+    # Выгрузку в 1С делают начальник участка и менеджер (в файле — сумма КП и себестоимость).
+    Action.EXPORT_ACCOUNTING: frozenset({H, MGR}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),
     # Чертёж и модель: кто видит заказы — любой позиции; специалисты из «Моих операций» — только позиций
     # со своими операциями (проверка в operation_service.require_position_files).

@@ -3,6 +3,16 @@
 {% block content %}
 <h1>Заказы</h1>
 {% if can('upload_order') %}<p><a class="btn" href="/orders/new">+ Новый заказ</a></p>{% endif %}
+{% if can('export_accounting') %}
+<details class="card export-1c"><summary><b>Выгрузка в 1С</b> <span class="muted">— заказы за период файлом</span></summary>
+  <form method="get" action="/orders/export-1c" class="inline">
+    <label>с <input type="date" name="from" value="{{ export_from }}" required></label>
+    <label>по <input type="date" name="to" value="{{ export_to }}" required></label>
+    <select name="fmt" aria-label="Формат файла"><option value="csv">CSV (1С, «;», UTF-8)</option><option value="xlsx">Excel (xlsx)</option></select>
+    <button>Выгрузить</button></form>
+  <p class="muted">Заказы по дате приёма: номер, заказчик, позиции, количество, сумма КП, плановая и фактическая
+    себестоимость, дата готовности. Состав колонок согласуется с бухгалтерией.</p>
+</details>{% endif %}
 <div class="card scroll">
 <table class="cards">
   <tr><th>Номер</th><th>Заказчик</th><th>Дата начала</th><th class="num">Позиций</th><th>Статус</th><th>Расчётная дата</th><th>Желаемая дата</th><th>Создан</th></tr>

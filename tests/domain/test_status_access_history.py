@@ -57,6 +57,7 @@ MATRIX = {
     Action.EDIT_DOWNTIME_REASON: {Role.MASTER},
     Action.VIEW_DOWNTIME: {Role.HEAD, Role.MASTER},
     Action.SET_PRIORITY: {Role.MASTER, Role.HEAD},
+    Action.EXPORT_ACCOUNTING: {Role.HEAD, Role.MANAGER},
     Action.EDIT_JOURNAL: {Role.TECHNOLOGIST},
     Action.IMPORT_JOURNAL: {Role.TECHNOLOGIST, Role.IT},
     Action.VIEW_REFERENCE: {Role.TECHNOLOGIST, Role.HEAD, Role.IT},

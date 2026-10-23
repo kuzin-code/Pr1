@@ -35,7 +35,9 @@ def orders_list(request: Request, db: Session = Depends(get_db)):
         rows.append({"order": order, "deadline": plan_service.order_deadline(db, order.id, plan),
                      "done": order_done(statuses),
                      "preliminary": any(p.approved_seq is None for p in order.positions)})
-    return render(request, "orders.html", rows=rows)
+    today = date.today()
+    return render(request, "orders.html", rows=rows, export_from=today.replace(day=1).isoformat(),
+                  export_to=today.isoformat())
 
 
 def _customers(db: Session) -> list[str]:

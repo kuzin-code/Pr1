@@ -26,7 +26,8 @@ EVENT_LABELS = {
     "route": "изменён маршрут", "files": "прикреплены файлы", "list": "принят заказ по списку",
     "add": "добавлена в журнал", "update": "изменена в журнале", "stages": "изменено время операций",
     "measurement": "добавлен замер", "rates": "изменены ставки", "operations": "изменены операции станка",
-    "downtime_reason": "исправлена причина отклонения",
+    "downtime_reason": "исправлена причина отклонения", "priority": "изменён приоритет",
+    "export_1c": "выгружены в 1С",
 }
 
 
@@ -206,7 +207,8 @@ def build_dashboard(session: Session, actor: Actor, now: datetime | None = None)
         pos = by_id.get(int(h.entity_id)) if h.entity == "position" and h.entity_id.isdigit() else None
         subject = {"position": f"«{pos.designation}»" if pos else f"позиция {h.entity_id}",
                    "journal": f"журнал: {h.entity_id}",
-                   "machine": f"станок {h.entity_id}", "order": f"заказ {h.entity_id}"}.get(h.entity, h.entity)
+                   "machine": f"станок {h.entity_id}", "order": f"заказ {h.entity_id}",
+                   "export": "заказы за период"}.get(h.entity, h.entity)
         link = f"/positions/{h.entity_id}" if h.entity == "position" and view else ""
         board.events.append(Event(h.ts, f"{subject} — {what} ({h.username})", link))
         if len(board.events) == 8:
