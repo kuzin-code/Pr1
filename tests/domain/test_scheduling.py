@@ -60,9 +60,11 @@ def test_order_deadline_is_max_of_positions():
 
 
 def test_fact_later_than_plan_shifts_position_and_next():
+    """Только при включённом PLAN_FROM_MARKS; по умолчанию план по плановому времени."""
     base = build_plan([item(1, seq=1), item(2, seq=2)], {})
     late = datetime(2026, 10, 15, 10, 0)
-    shifted = build_plan([item(1, seq=1, fact_machine_end=late), item(2, seq=2)], {})
+    assert build_plan([item(1, seq=1, fact_machine_end=late), item(2, seq=2)], {}) == base
+    shifted = build_plan([item(1, seq=1, fact_machine_end=late), item(2, seq=2)], {}, from_marks=True)
     assert shifted.positions[1].machine_end == late
     assert shifted.positions[1].finish > base.positions[1].finish
     assert shifted.positions[2].machine_start == late

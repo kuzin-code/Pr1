@@ -1,9 +1,13 @@
-"""Станочная работа по факту: начало — отметка «Начал» первой станочной операции; полоса не бывает конец < начало."""
+"""Включённый PLAN_FROM_MARKS — станочная работа по факту: начало — отметка «Начал» первой станочной операции; полоса не бывает конец < начало."""
 from datetime import date, datetime
 
-from app.domain.scheduling import PlanInput, build_plan
+from functools import partial
+
+from app.domain.scheduling import PlanInput
+from app.domain.scheduling import build_plan as _build_plan
 from app.domain.work_calendar import MACHINE_CALENDAR
 
+build_plan = partial(_build_plan, from_marks=True)  # логика «по факту» явно включена
 MON = date(2026, 10, 12)
 FRI_EVENING = datetime(2026, 10, 16, 18, 0)  # пятница после смены станка
 

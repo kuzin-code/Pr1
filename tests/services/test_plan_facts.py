@@ -84,7 +84,9 @@ def test_fact_on_unapproved_position_rejected(session, make_order):
         facts.record_fact(session, OPERATOR, pos.id, FactKind.MACHINE, datetime(2026, 10, 13, 11))
 
 
-def test_late_fact_shifts_next_position_and_shows_deviation(session, make_order):
+def test_late_fact_shifts_next_position_and_shows_deviation(session, make_order, monkeypatch):
+    from app.domain import scheduling
+    monkeypatch.setattr(scheduling, "PLAN_FROM_MARKS", True)  # логика «по факту» явно включена
     first = approved(session, make_order)
     second = approved(session, make_order)
     before = plans.current_plan(session).positions[second.id].finish

@@ -10,6 +10,7 @@ from app.domain.enums import FactKind, PositionStatus, Role, Stage, StageGroup
 from app.domain.load import LoadCell, daily_load, weekly_load
 from app.domain.machine_work import OpMark, machine_work
 from app.domain.notifications import due_events
+from app.domain import scheduling
 from app.domain.scheduling import Plan, PlanInput, build_plan
 from app.domain.status import order_done
 from app.domain.timing import (StageTime, extra_machine_hours, group_planned_hours, primary_machine_hours,
@@ -117,10 +118,11 @@ def _op_marks(session: Session) -> list[OpMark]:
 
 
 def load_tables(session: Session, plan: Plan | None = None, now: datetime | None = None) -> LoadTables:
-    """Загрузка — объём работы: план плановыми часами, начатое — по отметкам операций (без простоя)."""
+    """Загрузка — плановые часы наладки и обработки по рабочим дням полосы плана.
+    При PLAN_FROM_MARKS начатое считается по отметкам операций (без простоя)."""
     now = now or clock()
     plan = plan or current_plan(session, now)
-    works = machine_work(plan.slots, _op_marks(session), now)
+    works = machine_work(plan.slots, _op_marks(session) if scheduling.from_marks_enabled() else [], now)
     return LoadTables(daily_load(works), weekly_load(works))
 
 

@@ -3,7 +3,10 @@
 Ограниченный ресурс — только станки с ЧПУ. Позиции на станке идут в порядке утверждения,
 неутверждённые (предварительные) — после утверждённых. Этапы позиции последовательны:
 резка → станочная группа → слесарно-финишная → контроль. Программирование в срок не входит.
-Введённый факт окончания группы заменяет плановое окончание и сдвигает последующие работы.
+План и загрузка считаются только по плановому времени (решение пользователя 23.10.2026): отметки
+«Начал»/«Закончил» и факты окончания групп — для прослеживаемости операций, на план не влияют.
+Логика «по факту» (ниже) включается константой PLAN_FROM_MARKS. При ней введённый факт окончания группы
+заменяет плановое окончание и сдвигает последующие работы.
 Неначатая позиция (нет отметки начала и фактов) планируется не раньше текущего момента — план не уходит
 в прошлое; начатая и выполненная работа остаётся как есть.
 Работа на станке по факту: начало — отметка «Начал» первой станочной операции на этом станке; позиции, уже
@@ -11,10 +14,19 @@
 никогда не кончается раньше начала: если факт окончания раньше расчётного начала и отметки «Начал» нет,
 начало отсчитывается от факта назад на плановую длительность.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 
 from app.domain.work_calendar import BENCH_CALENDAR, MACHINE_CALENDAR
+
+# False — план и загрузка только по плановому времени; True — по отметкам «Начал»/«Закончил» и фактам
+# (начало — отметка станочной операции, окончание — факт, загрузка — фактическая работа без простоя).
+PLAN_FROM_MARKS = False
+
+
+def from_marks_enabled(value: bool | None = None) -> bool:
+    """Явное значение или текущий переключатель PLAN_FROM_MARKS."""
+    return PLAN_FROM_MARKS if value is None else value
 
 
 @dataclass(frozen=True)
@@ -79,7 +91,12 @@ def work_start(order_start: date, now: datetime | None) -> datetime:
 
 def _queue_key(item: PlanInput):
     approved = item.approved_seq is not None
-    return (0 if item.on_machine else 1, 0 if approved else 1, item.approved_seq or 0, item.position_id)
+    return (0 if approved else 1, item.approved_seq or 0, item.position_id)
+
+
+def _queue_key_marks(item: PlanInput):
+    """По факту: работа, уже начатая или выполненная на станке, занимает его раньше неначатой."""
+    return (0 if item.on_machine else 1,) + _queue_key(item)
 
 
 def _fit_to_fact(slots: list[MachineSlot], hours: list[float], fact_end: datetime) -> list[MachineSlot]:
@@ -95,12 +112,21 @@ def _fit_to_fact(slots: list[MachineSlot], hours: list[float], fact_end: datetim
     return result
 
 
+def _plan_only(item: PlanInput) -> PlanInput:
+    """Вход без отметок и фактов: остаётся только признак «начата» (не переносится на «сейчас»)."""
+    return replace(item, machine_started=(), fact_machine_end=None, fact_bench_end=None, fact_inspection_end=None)
+
+
 def build_plan(items: list[PlanInput], machine_busy_until: dict[str, datetime],
-               now: datetime | None = None) -> Plan:
-    """now — текущий момент: неначатые позиции не планируются раньше него (None — как от даты начала)."""
+               now: datetime | None = None, from_marks: bool | None = None) -> Plan:
+    """now — текущий момент: неначатые позиции не планируются раньше него (None — как от даты начала).
+    from_marks — учитывать отметки и факты (None — по переключателю PLAN_FROM_MARKS)."""
+    marks = from_marks_enabled(from_marks)
+    if not marks:
+        items = [_plan_only(it) for it in items]
     plan = Plan()
     machine_free: dict[str, datetime] = dict(machine_busy_until)
-    for it in sorted(items, key=_queue_key):
+    for it in sorted(items, key=_queue_key_marks if marks else _queue_key):
         if not it.machine_code:
             continue
         actual = dict(it.machine_started)
