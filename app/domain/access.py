@@ -35,6 +35,7 @@ class Action(str, Enum):
     VIEW_DOWNTIME = "view_downtime"  # часы сверх плана по причинам и станкам
     SET_PRIORITY = "set_priority"  # ручной приоритет срочной позиции в очереди станков
     EXPORT_ACCOUNTING = "export_accounting"  # выгрузка заказов в 1С файлом
+    DISMISS_DFM = "dismiss_dfm"  # снять предупреждение проверки технологичности (с причиной)
 
 
 PERMISSIONS: dict[Action, frozenset[Role]] = {
@@ -71,6 +72,7 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     Action.SET_PRIORITY: frozenset({M, H}),
     # Выгрузку в 1С делают начальник участка и менеджер (в файле — сумма КП и себестоимость).
     Action.EXPORT_ACCOUNTING: frozenset({H, MGR}),
+    Action.DISMISS_DFM: frozenset({T}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),
     # Чертёж и модель: кто видит заказы — любой позиции; специалисты из «Моих операций» — только позиций
     # со своими операциями (проверка в operation_service.require_position_files).

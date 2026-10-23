@@ -70,6 +70,22 @@
 {% include "_quick_edit.html" %}
 {% include "_similar_proposals.html" %}
 
+{% set dfm_rows = s.positions|selectattr('dfm')|list %}
+{% if dfm_rows %}
+<div class="card">
+  <h2>Технологичность по STEP</h2>
+  <table class="cards">
+    <tr><th>Позиция</th>{% for c in dfm_rows[0].dfm %}<th>{{ c.title }}</th>{% endfor %}</tr>
+    {% for p in dfm_rows %}
+    <tr><td class="cell-title">{{ p.designation }}</td>
+      {% for c in p.dfm %}<td data-label="{{ c.title }}"><span class="badge {{ {'ok': 'ok', 'warn': 'err'}.get(c.status, 'warn') }}">{{ {'ok': 'в норме', 'warn': 'предупреждение', 'unknown': 'не определено'}[c.status] }}</span>
+        {% if c.status != 'ok' %}<br><span class="muted">{{ c.detail }}</span>{% endif %}</td>{% endfor %}</tr>
+    {% endfor %}
+  </table>
+  <p class="muted">Предупреждение снимает технолог в карточке позиции после запуска в работу.</p>
+</div>
+{% endif %}
+
 {% if s.issues or s.notes %}
 <div class="card">
   <h2>Нюансы</h2>

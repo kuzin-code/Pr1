@@ -44,6 +44,25 @@
 </div>
 {% endif %}
 
+{% set dfm_checks = d.get('dfm') or [] %}
+{% if dfm_checks %}{% set dismissed = d.get('dfm_dismissed') or {} %}
+<div class="card" id="dfm">
+  <h2>Технологичность по STEP</h2>
+  <table class="cards">
+    <tr><th>Проверка</th><th>Итог</th><th>Подробно</th>{% if can('dismiss_dfm') %}<th></th>{% endif %}</tr>
+    {% for c in dfm_checks %}{% set off = c.status == 'warn' and (dismissed.get(c.code) or {}).get('detail') == c.detail %}
+    <tr><td class="cell-title">{{ c.title }}</td>
+      <td data-label="Итог">{% if off %}<span class="badge">снято</span>{% else %}<span class="badge {{ {'ok': 'ok', 'warn': 'err'}.get(c.status, 'warn') }}">{{ {'ok': 'в норме', 'warn': 'предупреждение', 'unknown': 'не определено'}[c.status] }}</span>{% endif %}</td>
+      <td data-label="Подробно">{{ c.detail }}{% if off %}<br><span class="muted">снял {{ dismissed[c.code].by }}, {{ dismissed[c.code].at.replace('T', ' ') }}: {{ dismissed[c.code].reason }}</span>{% endif %}</td>
+      {% if can('dismiss_dfm') %}<td data-label="Снять">{% if c.status == 'warn' and not off %}
+        <form method="post" action="/positions/{{ pos.id }}/dfm/{{ c.code }}/dismiss" class="inline">
+          <input name="reason" placeholder="почему не мешает" required><button class="secondary">Снять</button></form>{% endif %}</td>{% endif %}</tr>
+    {% endfor %}
+  </table>
+  <p class="muted">Проверка по модели STEP на этом компьютере. Чего по модели определить нельзя, — «не определено».</p>
+</div>
+{% endif %}
+
 <div class="grid">
 <div class="card">
   <h2>Данные детали</h2>

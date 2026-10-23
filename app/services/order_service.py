@@ -14,6 +14,7 @@ from app.domain.order_intake import (designation, file_kind, match_files, pair_f
 from app.domain.status import is_editable
 from app.parsers.order_list import OrderListItem, cooperation_hint, read_order_list
 from app.parsers.pdf_reader import read_pdf
+from app.parsers.step_features import read_features
 from app.parsers.step_reader import read_step
 from app.services.actor import Actor, ServiceError
 from app.services.auto_service import auto_prepare
@@ -43,8 +44,10 @@ def read_documents(step_path: str | None, pdf_path: str | None, known_materials:
                   "threads": [], "fits": [], "technology": "milling"}
     if step_path:
         step = read_step(step_path)
+        found = read_features(step_path)  # отверстия и внутренние радиусы — для проверки технологичности
         read["step"] = {"dims": step.dims.as_list() if step.dims else None, "volume": step.volume,
-                        "bodies": step.bodies, "errors": step.errors}
+                        "bodies": step.bodies, "errors": step.errors,
+                        "features": found.to_dict() if found else None}
         data["dims"], data["volume"] = read["step"]["dims"], step.volume
     if pdf_path:
         pdf = read_pdf(pdf_path, known_materials)

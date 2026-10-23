@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, can, require
 from app.domain.enums import FactKind, PositionStatus, Stage
 from app.domain.status import is_editable
-from app.services import (approval_service, fact_service, journal_service, operation_service, order_service,
-                          plan_service, quick_apply, tech_service)
+from app.services import (approval_service, dfm_service, fact_service, journal_service, operation_service,
+                          order_service, plan_service, quick_apply, tech_service)
 from app.services.actor import ServiceError
 from app.services.history_service import list_history
 from app.services.reference_service import complexity_scale, domain_machines, journal_entries
@@ -90,6 +90,14 @@ async def attach_files(request: Request, position_id: int, files: list[UploadFil
     uploaded = [order_service.UploadedFile(f.filename or "", await f.read()) for f in files if f.filename]
     return act(request, db, _back(position_id), lambda: order_service.attach_position_files(
         db, actor, position_id, uploaded, request.app.state.settings.upload_dir), "Файлы прикреплены, расчёт обновлён")
+
+
+@router.post("/positions/{position_id}/dfm/{code}/dismiss")
+def dismiss_dfm(request: Request, position_id: int, code: str, reason: str = Form(""), db: Session = Depends(get_db)):
+    """Технолог снимает предупреждение проверки технологичности — с причиной (в историю)."""
+    actor = current_actor(request)
+    return act(request, db, _back(position_id) + "#dfm",
+               lambda: dfm_service.dismiss(db, actor, position_id, code, reason), "Предупреждение снято")
 
 
 @router.post("/positions/{position_id}/undo")

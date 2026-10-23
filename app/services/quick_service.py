@@ -96,6 +96,7 @@ def _summary(copy: Session, actor: Actor, order, quantities: list[int] | None = 
             "complexity": p.complexity, "technology": data.get("technology") or "milling", "machine": p.machine_code,
             "extra_machines": [dict(e) for e in data.get("extra_machines") or []],
             "route": [dict(s) for s in p.route or []], "analog": p.analog_code,
+            "dfm": [dict(c) for c in data.get("dfm") or []],
         })
     _alternatives(copy, order, plan, positions)
     return {

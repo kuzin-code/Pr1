@@ -14,6 +14,7 @@ from app.domain.machines import choose_machine
 from app.domain.models import Dimensions, PartFeatures, StageNorm
 from app.domain.route import route_to_list
 from app.domain.status import is_editable
+from app.services import dfm_service
 from app.services.actor import Actor, ServiceError
 from app.services.calc_service import DEFAULT_GRADE, build_calculation
 from app.services.history_service import record
@@ -134,6 +135,7 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
     if same and "technology" not in (data.get("edited") or []):
         data["technology"] = same.entry.technology
     technology = data.get("technology") or "milling"
+    issues.extend(dfm_service.evaluate(session, pos, data))  # технологичность по STEP
     features = PartFeatures(Dimensions.from_list(data["dims"]), data.get("material") or "",
                             int(grade) if grade is not None else DEFAULT_GRADE, pos.complexity, technology)
     # Станок назначил технолог — время по деталям журнала, сделанным на этом станке.

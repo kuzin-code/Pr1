@@ -63,6 +63,9 @@ def seed_reference(session: Session, seed_dir: Path | str, demo_journal: bool = 
     _seed_machines(session, _load(seed_dir / "machines.json"))
     _seed_parameters(session, _load(seed_dir / "parameters.json"))
     _seed_users(session, _load(seed_dir / "users.json"))
+    rules = seed_dir / "dfm_rules.json"  # пороги проверки технологичности по STEP
+    if rules.exists() and session.get(Parameter, "dfm_rules") is None:
+        session.add(Parameter(key="dfm_rules", value={k: v for k, v in _load(rules).items() if not k.startswith("_")}))
     if demo_journal:
         _seed_journal(session, _load(seed_dir / "journal_demo.json"))
     session.commit()
