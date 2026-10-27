@@ -1,5 +1,4 @@
 """Карточка позиции: данные, аналог, маршрут, станок, расчёт, утверждение, факт."""
-from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
@@ -7,7 +6,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.domain.access import Action, can, require
-from app.domain.enums import FactKind, PositionStatus, Stage
+from app.domain.enums import PositionStatus, Stage
 from app.domain.status import is_editable
 from app.services import (approval_service, dfm_service, fact_service, journal_service, operation_service,
                           order_service, plan_service, quick_apply, tech_service)

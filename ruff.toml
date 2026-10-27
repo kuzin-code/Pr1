@@ -1,0 +1,9 @@
+# Статический анализ кода (ruff) — в CI (.github/workflows/ci.yml) и локально: python -m ruff check .
+# Только правила, которые находят ошибки, а не стиль: синтаксис, неопределённые имена, неиспользуемый код,
+# замыкание на переменную цикла, изменяемое значение по умолчанию.
+line-length = 120
+target-version = "py312"
+extend-exclude = ["app/web/static/vendor", "КД", "data", "mockups", "docs_dev"]
+
+[lint]
+select = ["E9", "F", "B006", "B023"]

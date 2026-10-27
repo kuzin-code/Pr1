@@ -18,7 +18,7 @@ from app.domain.route import route_from_list
 from app.services.actor import Actor, ServiceError
 from app.services.auto_service import MANUAL_ROUTE
 from app.services.calc_service import DEFAULT_GRADE, position_features
-from app.services.file_check import check_entry_files, journal_code, name_warning, unreadable_reason
+from app.services.file_check import check_entry_files, journal_code, unreadable_reason
 from app.services.history_service import record
 from app.services.order_service import UploadedFile, get_position, read_documents
 from app.services.reference_service import (

@@ -4,7 +4,6 @@ from datetime import date
 import pytest
 
 from app.domain.access import AccessDenied
-from app.domain.enums import Role
 from app.services import plan_service
 from app.services import quick_service as quick
 from app.services.actor import ServiceError

@@ -91,7 +91,7 @@ def _circle_extents(text, points, directions):
         if m.group(3) in circles:
             arcs.setdefault(m.group(3), []).append((vertices.get(m.group(1)), vertices.get(m.group(2)), m.group(4) == "T"))
     for cid, (center, x, y, radius) in circles.items():
-        def angle(p):
+        def angle(p, center=center, x=x, y=y):
             d = [a - b for a, b in zip(p, center)]
             return math.atan2(sum(a * b for a, b in zip(d, y)), sum(a * b for a, b in zip(d, x)))
 

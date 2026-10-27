@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 
 from app.domain.access import AccessDenied
-from app.domain.enums import Operation, PositionStatus, Role, StageGroup
+from app.domain.enums import PositionStatus, Role, StageGroup
 from app.domain.operations import OpStatus, OperationError
 from app.services import approval_service as approval
 from app.services import operation_service as ops

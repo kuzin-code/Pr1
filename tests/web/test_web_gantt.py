@@ -28,7 +28,7 @@ def test_table_views_still_available(login):
 
 def test_bar_status_follows_operations(login):
     import re
-    pid = approve(login)
+    approve(login)
     master = login("master")
     for i in range(2):  # резка и наладка выполнены — станок в работе
         op = re.findall(r'action="/operations/(\d+)/start"', master.get("/work").text)[0]

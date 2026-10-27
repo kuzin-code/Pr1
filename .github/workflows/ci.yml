@@ -1,0 +1,111 @@
+# Автоматические проверки при каждом push и pull request: бэкенд, фронтенд, анализ кода.
+# Результат — вкладка Actions: зелёная/красная отметка у коммита, сводка с разбором упавших тестов,
+# ошибки прямо в строках кода (аннотации), скриншоты страниц — в артефактах.
+name: Тесты и анализ
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUTF8: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  backend:
+    name: Бэкенд · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]  # участок работает на Windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Зависимости
+        run: pip install -r requirements.txt pytest-github-actions-annotate-failures==0.4.2
+      - name: Тесты домена, сервисов, чтения файлов
+        run: python -m pytest tests --ignore=tests/web -p no:cacheprovider --junitxml=reports/backend.xml
+      - name: Сводка и разбор ошибок
+        if: always()
+        run: python scripts/ci_summary.py reports/backend.xml "Бэкенд · ${{ matrix.os }}"
+      - name: Отчёт тестов
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-report-${{ matrix.os }}
+          path: reports/
+
+  frontend:
+    name: Фронтенд · страницы и браузер
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Зависимости и браузер Chromium
+        run: |
+          pip install -r requirements.txt pytest-github-actions-annotate-failures==0.4.2 playwright==1.49.1
+          python -m playwright install --with-deps chromium
+      - name: Страницы под каждой ролью (сервер)
+        run: python -m pytest tests/web -p no:cacheprovider --junitxml=reports/web.xml
+      - name: Браузер — ПК и телефон (ошибки JS, 5xx, прокрутка вбок)
+        if: success() || failure()
+        run: python -m pytest e2e -p no:cacheprovider --junitxml=reports/e2e.xml
+      - name: Сводка и разбор ошибок
+        if: always()
+        run: |
+          python scripts/ci_summary.py reports/web.xml "Фронтенд · страницы"
+          python scripts/ci_summary.py reports/e2e.xml "Фронтенд · браузер (ПК и телефон)"
+      - name: Скриншоты страниц
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: e2e/screens/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  analysis:
+    name: Анализ кода
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Инструменты
+        run: pip install ruff==0.17.3 pip-audit==2.10.1
+      - name: Ошибки в коде (ruff) — отметки прямо в строках
+        run: ruff check . --output-format=github
+      - name: Уязвимости зависимостей (pip-audit) — предупреждение, сборку не останавливает
+        if: always()
+        continue-on-error: true
+        run: |
+          {
+            echo "## Уязвимости зависимостей"
+            echo
+            if pip-audit -r requirements.txt --progress-spinner off --format markdown > audit.md; then
+              echo "✅ Известных уязвимостей нет."
+            else
+              echo "⚠️ Есть пакеты с известными уязвимостями — обновить версии в requirements.txt:"
+              echo
+              cat audit.md
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          ! grep -q "|" audit.md

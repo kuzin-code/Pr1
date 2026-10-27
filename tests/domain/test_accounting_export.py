@@ -1,5 +1,4 @@
 """Выгрузка в 1С: колонки из одной константы, CSV UTF-8 с BOM и «;», пустой период — только заголовок."""
-import csv
 from datetime import date
 
 from app.domain import accounting_export as ax
