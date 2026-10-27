@@ -41,11 +41,11 @@ def test_urgent_goes_first_and_shifts_reported(session, make_order):
     assert (h.old, h.new, h.reason) == (0, 1, "заказчик просит раньше")
 
 
-def test_notifications_to_manager_and_affected_roles(session, make_order):
+def test_notifications_to_head_master_and_manager_only(session, make_order):
     _, second = _approved_pair(session, make_order)
     prio.set_priority(session, HEAD, second.id, 1, "срочно")
     roles = {n.role for n in session.query(NotificationRow).filter_by(kind="priority")}
-    assert {Role.MANAGER.value, Role.MASTER.value, Role.OPERATOR.value} <= roles
+    assert roles == {Role.MANAGER.value, Role.MASTER.value, Role.HEAD.value}
     texts = [n.text for n in plans.list_notifications(session, MANAGER)]
     assert any("приоритет" in t and "Кронштейн-2" in t for t in texts)
 

@@ -15,7 +15,6 @@ from app.services.history_service import record
 from app.services.reference_service import set_measurement_reason
 from app.storage.orm import FactRow, OperationRow, PositionRow
 
-PERIODS = (("За 7 дней", 7), ("За 30 дней", 30))
 _FACT_OF_GROUP = {StageGroup.MACHINE: FactKind.MACHINE, StageGroup.BENCH: FactKind.BENCH}
 
 
@@ -60,8 +59,15 @@ def overruns(session: Session, since: datetime, until: datetime) -> OverrunTable
                           for r in rows])
 
 
+def periods(now: datetime) -> list[tuple[str, tuple[datetime, datetime]]]:
+    """Календарные неделя (с понедельника) и месяц (с 1-го числа) — до текущего момента."""
+    today = datetime.combine(now.date(), datetime.min.time())
+    monday = today - timedelta(days=now.weekday())
+    return [("Эта неделя", (monday, now)), ("Этот месяц", (today.replace(day=1), now))]
+
+
 def overrun_report(session: Session, actor: Actor, now: datetime | None = None) -> list[tuple[str, OverrunTable]]:
-    """Сводка для начальника участка и мастера: за последние 7 и 30 дней."""
+    """Сводка для начальника участка и мастера: за календарную неделю и месяц."""
     require(actor.role, Action.VIEW_DOWNTIME)
     now = now or datetime.now()
-    return [(title, overruns(session, now - timedelta(days=days), now)) for title, days in PERIODS]
+    return [(title, overruns(session, since, until)) for title, (since, until) in periods(now)]

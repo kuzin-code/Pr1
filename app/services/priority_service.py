@@ -14,7 +14,7 @@ from app.services.plan_service import current_plan, notify
 from app.storage.orm import PositionRow
 
 # Кому сообщить о смене очереди: менеджеру (сроки заказчикам), мастеру, начальнику участка, оператору станка.
-NOTIFY_ROLES = (Role.MANAGER, Role.MASTER, Role.HEAD, Role.OPERATOR)
+NOTIFY_ROLES = (Role.MANAGER, Role.MASTER, Role.HEAD)  # решение пользователя 27.10.2026
 URGENT, NORMAL = "urgent", "normal"
 
 

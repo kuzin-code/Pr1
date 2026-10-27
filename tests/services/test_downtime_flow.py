@@ -116,8 +116,15 @@ def test_overrun_report_week_and_month(session, make_order):
     with pytest.raises(AccessDenied):
         dts.overrun_report(session, OPERATOR, now)
     report = dts.overrun_report(session, HEAD, now)
-    assert [title for title, _ in report] == ["За 7 дней", "За 30 дней"]
+    assert [title for title, _ in report] == ["Эта неделя", "Этот месяц"]
     week = report[0][1]
     assert week.rows[0][0] == "инструмент" and week.rows[0][1]["VF2"] == pytest.approx(over)
-    later = dts.overrun_report(session, MASTER, now + timedelta(days=10))
-    assert later[0][1].rows == [] and later[1][1].total == pytest.approx(over)
+
+
+def test_overrun_periods_are_calendar_week_and_month():
+    now = datetime(2026, 10, 28, 14, 0)  # среда
+    (_, week), (_, month) = dts.periods(now)
+    assert week == (datetime(2026, 10, 26), now) and month == (datetime(2026, 10, 1), now)
+    monday = datetime(2026, 11, 2, 9, 0)  # неделя 02.11 — уже новый месяц
+    assert dts.periods(monday)[0][1][0] == datetime(2026, 11, 2)
+    assert dts.periods(monday)[1][1][0] == datetime(2026, 11, 1)
