@@ -29,8 +29,8 @@ jobs:
         os: [ubuntu-latest, windows-latest]  # участок работает на Windows
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -43,7 +43,7 @@ jobs:
         run: python scripts/ci_summary.py reports/backend.xml "Бэкенд · ${{ matrix.os }}"
       - name: Отчёт тестов
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: backend-report-${{ matrix.os }}
           path: reports/
@@ -52,8 +52,8 @@ jobs:
     name: Фронтенд · страницы и браузер
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -73,7 +73,7 @@ jobs:
           python scripts/ci_summary.py reports/e2e.xml "Фронтенд · браузер (ПК и телефон)"
       - name: Скриншоты страниц
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: screenshots
           path: e2e/screens/
@@ -84,8 +84,8 @@ jobs:
     name: Анализ кода
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip

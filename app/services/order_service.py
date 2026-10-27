@@ -303,7 +303,9 @@ def _check_deletable(pos: PositionRow) -> None:
                            "только по факту")
 
 
-def _drop_position(session: Session, pos: PositionRow, keep_files: set[str]) -> None:
+def _clean_position(session: Session, pos: PositionRow, keep_files: set[str]) -> None:
+    """Уведомления и файлы позиции. Саму строку удаляет каскад заказа (delete-orphan) — повторный
+    session.delete давал «DELETE … expected N rows, M matched»."""
     from app.storage.orm import NotificationRow
 
     for row in session.scalars(select(NotificationRow).where(NotificationRow.position_id == pos.id)):
@@ -311,7 +313,6 @@ def _drop_position(session: Session, pos: PositionRow, keep_files: set[str]) -> 
     for path in (pos.step_path, pos.pdf_path):
         if path and path not in keep_files:
             Path(path).unlink(missing_ok=True)
-    session.delete(pos)
 
 
 def delete_position(session: Session, actor: Actor, position_id: int, reason: str) -> int | None:
@@ -328,8 +329,8 @@ def delete_position(session: Session, actor: Actor, position_id: int, reason: st
                                                           "quantity": pos.quantity}, None, reason)
     others = [p for p in order.positions if p.id != pos.id]
     keep = {f for p in others for f in (p.step_path, p.pdf_path) if f}
-    order.positions.remove(pos)
-    _drop_position(session, pos, keep)
+    _clean_position(session, pos, keep)
+    order.positions.remove(pos)  # delete-orphan удаляет позицию
     if not others:
         _drop_order(session, actor, order, reason)
         session.commit()
@@ -350,8 +351,8 @@ def _drop_order(session: Session, actor: Actor, order: OrderRow, reason: str) ->
     folder = None
     for pos in list(order.positions):
         folder = folder or (Path(pos.step_path or pos.pdf_path).parent if (pos.step_path or pos.pdf_path) else None)
-        _drop_position(session, pos, set())
-    session.delete(order)
+        _clean_position(session, pos, set())
+    session.delete(order)  # позиции удаляет каскад
     if folder and folder.name == f"order_{order.id}":
         shutil.rmtree(folder, ignore_errors=True)
 
