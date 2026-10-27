@@ -43,7 +43,7 @@ jobs:
         run: python scripts/ci_summary.py reports/backend.xml "Бэкенд · ${{ matrix.os }}"
       - name: Отчёт тестов
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: backend-report-${{ matrix.os }}
           path: reports/
@@ -73,7 +73,7 @@ jobs:
           python scripts/ci_summary.py reports/e2e.xml "Фронтенд · браузер (ПК и телефон)"
       - name: Скриншоты страниц
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: screenshots
           path: e2e/screens/
