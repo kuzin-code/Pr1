@@ -1,15 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Загрузка станков<script>
-  // Смена приоритета: обязательная причина (уходит в историю).
-  document.querySelectorAll('form.js-reason').forEach(function (f) {
-    f.addEventListener('submit', function (e) {
-      var reason = window.prompt(f.dataset.what + '. Укажите причину:', '');
-      if (!reason || !reason.trim()) { e.preventDefault(); return; }
-      f.querySelector('input[name=reason]').value = reason.trim();
-    });
-  });
-</script>
-{% endblock %}
+{% block title %}Загрузка станков{% endblock %}
 {% block content %}
 <h1>Загрузка станков с ЧПУ <span class="badge warn">ориентировочно</span></h1>
 <div class="row">
