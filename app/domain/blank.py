@@ -3,16 +3,20 @@
 Система предлагает заготовку сама (пометка «предложено системой»), технолог исправляет («задано технологом»):
 - сортамент — из чертежа (графа 3, прокат дробью, ФТ-04); если не прочитан — по технологии:
   токарная — круг, фрезерная — лист/плита;
-- размеры — от габаритов детали из STEP плюс припуски; толщина листа и диаметр круга округляются вверх
-  до стандартного ряда. Припуски и ряды — параметр «blank_rules» (data/seed/parameters.json), не код;
+- размеры — от габаритов детали из STEP плюс припуск на сторону (×2): лист — контур и толщина, круг — Ø и длина;
+  толщина листа и диаметр круга округляются вверх до стандартного ряда (ряд диаметров — по группе материала:
+  сталь, алюминиевые сплавы, латунь). Припуски и ряды — параметр «blank_rules» (data/seed/parameters.json), не код;
 - размер проката, указанный в чертеже («Круг 30 ГОСТ 2590»), важнее расчётного;
-- нет габаритов (STEP не прочитан, несколько тел) или правил — «заготовка не определена, задаёт технолог».
+- спорные случаи система не решает — «заготовка не определена, задаёт технолог»: нет габаритов (STEP не прочитан,
+  несколько тел) или правил, пластик (по наличию материала), нет материала или ряда для его группы, размер больше
+  ряда, размер проката из чертежа меньше детали, шестигранник, квадрат, полоса, труба без размера в чертеже.
 Количество — по количеству позиции: одна заготовка на деталь.
 """
 import math
 import re
 from dataclasses import dataclass, field
 
+from app.domain.materials import material_group
 from app.domain.models import Dimensions
 
 SYSTEM, TECHNOLOGIST = "system", "technologist"
@@ -45,6 +49,10 @@ FORM_FIELDS = (("h", "Толщина h", ("sheet", "strip")), ("d", "Диаме�
 DRAWING_KINDS = {"лист": "sheet", "плита": "sheet", "круг": "round", "пруток": "round", "шестигранник": "hex",
                  "квадрат": "square", "полоса": "strip", "труба": "tube"}
 TECHNOLOGY_KINDS = {"turning": "round", "milling": "sheet"}
+# Группы материала с рядом диаметров круга (materials.py); бронза и медь в группе «латунь» ряда не имеют.
+ROUND_GROUPS = {"steel": "сталь", "stainless": "нержавеющая сталь", "aluminium": "алюминиевые сплавы",
+                "brass": "латунь"}
+_BRASS = re.compile(r"латун|(?<![а-яa-z])лс\s?\d|(?<![а-яa-z])л\d{2}", re.I)
 _DRAWING_SIZE = re.compile(r"^\S+\s+(\d+(?:[.,]\d+)?)(?![\d×xх*,.])", re.I)  # «Круг 30-В ГОСТ 2590» → 30
 
 
@@ -54,31 +62,45 @@ class BlankError(ValueError):
 
 @dataclass(frozen=True)
 class BlankRules:
-    """Припуски, мм, и стандартные ряды (параметр «blank_rules»)."""
+    """Припуски на сторону, мм (к размеру прибавляются дважды), и стандартные ряды (параметр «blank_rules»)."""
 
-    sheet_side_allowance: float  # на сторону по контуру листа
-    sheet_thickness_allowance: float  # к меньшему габариту
-    bar_diameter_allowance: float  # к поперечному габариту прутка (круг)
-    bar_length_allowance: float  # торцовка и ширина реза прутка
+    sheet_side_allowance: float  # лист: на сторону по контуру
+    sheet_thickness_allowance: float  # лист: на сторону по толщине
+    bar_diameter_allowance: float  # круг: на сторону по диаметру
+    bar_length_allowance: float  # круг: на торец по длине
     size_step: float  # длина и размеры в плане округляются вверх до кратного, мм
     sheet_thicknesses: tuple[float, ...]
-    round_diameters: tuple[float, ...]
+    round_diameters: dict  # группа материала → ряд диаметров; пустой ряд — задаёт технолог
 
     @classmethod
     def from_dict(cls, data: dict | None) -> "BlankRules | None":
-        if not data:
+        """Параметр прежнего вида (припуски не на сторону, один ряд диаметров) не читается — None."""
+        try:
+            series = data["round_diameters_mm"]
+            if not isinstance(series, dict):
+                return None
+            return cls(float(data["sheet_side_allowance_mm"]), float(data["sheet_thickness_side_allowance_mm"]),
+                       float(data["bar_diameter_side_allowance_mm"]), float(data["bar_length_side_allowance_mm"]),
+                       float(data["size_step_mm"]), tuple(sorted(float(v) for v in data["sheet_thicknesses_mm"])),
+                       {g: tuple(sorted(float(v) for v in series.get(g) or [])) for g in ROUND_GROUPS})
+        except (TypeError, KeyError, ValueError):
             return None
-        return cls(float(data["sheet_side_allowance_mm"]), float(data["sheet_thickness_allowance_mm"]),
-                   float(data["bar_diameter_allowance_mm"]), float(data["bar_length_allowance_mm"]),
-                   float(data["size_step_mm"]), tuple(sorted(float(v) for v in data["sheet_thicknesses_mm"])),
-                   tuple(sorted(float(v) for v in data["round_diameters_mm"])))
 
     def to_dict(self) -> dict:
         return {"sheet_side_allowance_mm": self.sheet_side_allowance,
-                "sheet_thickness_allowance_mm": self.sheet_thickness_allowance,
-                "bar_diameter_allowance_mm": self.bar_diameter_allowance,
-                "bar_length_allowance_mm": self.bar_length_allowance, "size_step_mm": self.size_step,
-                "sheet_thicknesses_mm": list(self.sheet_thicknesses), "round_diameters_mm": list(self.round_diameters)}
+                "sheet_thickness_side_allowance_mm": self.sheet_thickness_allowance,
+                "bar_diameter_side_allowance_mm": self.bar_diameter_allowance,
+                "bar_length_side_allowance_mm": self.bar_length_allowance, "size_step_mm": self.size_step,
+                "sheet_thicknesses_mm": list(self.sheet_thicknesses),
+                "round_diameters_mm": {g: list(v) for g, v in self.round_diameters.items()}}
+
+
+def round_group(material: str) -> str:
+    """Группа материала для ряда диаметров: в группе «латунь» — только латунь (не бронза и не медь)."""
+    group = material_group(material)
+    if group == "brass" and not _BRASS.search(material or ""):
+        return "bronze"
+    return group
 
 
 @dataclass(frozen=True)
@@ -150,70 +172,76 @@ def drawing_size(sortament: str | None) -> float | None:
     return float(match.group(1).replace(",", ".")) if match else None
 
 
-def _bar_axis(dims: Dimensions) -> tuple[float, float]:
-    """(поперечный габарит, длина) прутка: два близких габарита — сечение, третий — ось детали."""
+def _bar_axis(dims: Dimensions) -> tuple[float, float, float]:
+    """(больший и меньший поперечные габариты, длина) прутка: два близких габарита — сечение, третий — ось."""
     a, b, c = dims.sorted()
     if a - b < b - c:
-        return a, c  # диск: сечение a×b, ось — меньший габарит
-    return b, a  # вал: ось — больший габарит
+        return a, b, c  # диск: сечение a×b, ось — меньший габарит
+    return b, c, a  # вал: ось — больший габарит
 
 
 def suggest_blank(dims: Dimensions | None, material: str, technology: str, quantity: int, rules: BlankRules | None,
                   drawing_blank: str | None = None, drawing_sortament: str | None = None) -> Blank:
-    """Заготовка, предложенная системой (см. описание модуля)."""
+    """Заготовка, предложенная системой (см. описание модуля); спорный случай — не определена."""
     remarks: list[str] = []
+
+    def undefined(kind: str | None, why: str) -> Blank:
+        return Blank(material, kind, {}, quantity, SYSTEM, "", tuple(remarks + [why]))
+
     word = (drawing_blank or "").casefold() or None
     if word:
         kind = DRAWING_KINDS.get(word)
         remarks.append(f"сортамент по чертежу: {drawing_sortament or word}")
         if kind is None:
-            remarks.append(f"вид проката «{word}» система не размечает: заготовку задаёт технолог")
-            return Blank(material, None, {}, quantity, SYSTEM, "", tuple(remarks))
+            return undefined(None, f"вид проката «{word}» — задаёт технолог")
     else:
         kind = TECHNOLOGY_KINDS.get(technology or "milling", "sheet")
         remarks.append(f"сортамент по технологии: {'токарная' if kind == 'round' else 'фрезерная'}")
+    if not (material or "").strip():
+        return undefined(kind, "материал не указан — задаёт технолог")
+    group = round_group(material)
+    if group == "plastic":
+        return undefined(kind, "пластик — задаёт технолог по наличию материала")
     if dims is None:
-        remarks.append("нет габаритов детали из STEP: размеры задаёт технолог")
-        return Blank(material, kind, {}, quantity, SYSTEM, "", tuple(remarks))
+        return undefined(kind, "нет габаритов детали из STEP — задаёт технолог")
     if rules is None:
-        remarks.append("не заданы припуски заготовки в справочнике: размеры задаёт технолог")
-        return Blank(material, kind, {}, quantity, SYSTEM, "", tuple(remarks))
+        return undefined(kind, "не заданы припуски заготовки в справочнике — задаёт технолог")
     from_drawing = drawing_size(drawing_sortament) if word else None
-    sizes: dict[str, float] = {}
     if kind == "sheet":
         length, width, thick = dims.sorted()
-        need = thick + rules.sheet_thickness_allowance
-        h = from_drawing or round_up(need, rules.sheet_thicknesses)
         if from_drawing:
             remarks.append(f"толщина по чертежу: {fmt(from_drawing)} мм")
             if from_drawing < thick:
-                remarks.append(f"толщина по чертежу меньше габарита детали {fmt(thick)} мм — проверьте")
-        elif h is None:
-            remarks.append(f"толщина {fmt(need)} мм больше стандартного ряда: задаёт технолог")
-        if h:
-            sizes = {"h": h, "length": _ceil(length + 2 * rules.sheet_side_allowance, rules.size_step),
-                     "width": _ceil(width + 2 * rules.sheet_side_allowance, rules.size_step)}
-    elif kind in ("round", "hex", "square"):
-        cross, axis = _bar_axis(dims)
-        length = _ceil(axis + rules.bar_length_allowance, rules.size_step)
-        key = "d" if kind == "round" else "s"
-        size = from_drawing
-        if from_drawing:
-            remarks.append(f"размер проката по чертежу: {fmt(from_drawing)} мм")
-            if kind == "round" and from_drawing < cross:
-                remarks.append(f"диаметр по чертежу меньше габарита детали {fmt(cross)} мм — проверьте")
-        elif kind == "round":
-            need = cross + rules.bar_diameter_allowance
-            size = round_up(need, rules.round_diameters)
-            if size is None:
-                remarks.append(f"диаметр {fmt(need)} мм больше стандартного ряда: задаёт технолог")
+                return undefined(kind, f"толщина по чертежу меньше детали ({fmt(thick)} мм) — задаёт технолог")
+            h = from_drawing
         else:
-            remarks.append("размер сечения по габаритам не определить: задаёт технолог")
-        if size:
-            sizes = {key: size, "length": length}
-    else:
-        remarks.append("размеры сечения по габаритам не определить: задаёт технолог")
-    return Blank(material, kind, sizes, quantity, SYSTEM, "", tuple(remarks))
+            need = thick + 2 * rules.sheet_thickness_allowance
+            h = round_up(need, rules.sheet_thicknesses)
+            if h is None:
+                return undefined(kind, f"толщина {fmt(need)} мм больше ряда — задаёт технолог")
+        sizes = {"h": h, "length": _ceil(length + 2 * rules.sheet_side_allowance, rules.size_step),
+                 "width": _ceil(width + 2 * rules.sheet_side_allowance, rules.size_step)}
+        return Blank(material, kind, sizes, quantity, SYSTEM, "", tuple(remarks))
+    if kind not in ("round", "hex", "square") or (kind != "round" and not from_drawing):
+        return undefined(kind, f"{KINDS[kind].label} без размера в чертеже — задаёт технолог")
+    cross, flats, axis = _bar_axis(dims)
+    length = _ceil(axis + 2 * rules.bar_length_allowance, rules.size_step)
+    if from_drawing:
+        remarks.append(f"размер проката по чертежу: {fmt(from_drawing)} мм")
+        least = cross if kind == "round" else flats  # шестигранник: в габарите — размер по углам
+        if from_drawing < least:
+            return undefined(kind, f"размер по чертежу меньше детали ({fmt(least)} мм) — задаёт технолог")
+        return Blank(material, kind, {"d" if kind == "round" else "s": from_drawing, "length": length}, quantity,
+                     SYSTEM, "", tuple(remarks))
+    series = rules.round_diameters.get(group) or ()
+    if not series:
+        return undefined(kind, "нет ряда диаметров для этого материала — задаёт технолог")
+    need = cross + 2 * rules.bar_diameter_allowance
+    d = round_up(need, series)
+    if d is None:
+        return undefined(kind, f"диаметр {fmt(need)} мм больше ряда — задаёт технолог")
+    remarks.append(f"ряд диаметров: {ROUND_GROUPS[group]}")
+    return Blank(material, kind, {"d": d, "length": length}, quantity, SYSTEM, "", tuple(remarks))
 
 
 def manual_blank(material: str, kind: str, sizes: dict, quantity, note: str = "") -> Blank:

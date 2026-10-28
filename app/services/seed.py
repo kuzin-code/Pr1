@@ -5,6 +5,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.domain.blank import BlankRules
 from app.domain.enums import CountMode, Stage
 from app.domain.operations import normalize_operations
 from app.domain.models import CalibrationEntry, Dimensions, StageNorm
@@ -33,6 +34,10 @@ def _seed_parameters(session: Session, data: dict) -> None:
     for key in ("rates", "schedule", "complexity_scale", "preferred_machines", "blank_rules"):
         if key in data and session.get(Parameter, key) is None:
             session.add(Parameter(key=key, value=data[key]))
+    # Припуски заготовки прежнего вида (до решения «3 мм на сторону» и рядов по группам материала) — заменяются.
+    blank = session.get(Parameter, "blank_rules")
+    if blank is not None and "blank_rules" in data and BlankRules.from_dict(blank.value) is None:
+        blank.value = data["blank_rules"]
     if session.get(Parameter, "journal_version") is None:
         session.add(Parameter(key="journal_version", value=1))
 

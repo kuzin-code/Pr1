@@ -2,7 +2,7 @@
 from tests.web.test_web_flow import create_order, prepare
 from tests.web.test_web_operations import approve, op_ids, press
 
-SYSTEM_TEXT = "Д16Т, лист h45 мм, 156×62 мм — 10 шт."  # 152×58×40: 40+2 → 45 по ряду, 152+4, 58+4
+SYSTEM_TEXT = "Д16Т, лист h50 мм, 158×64 мм — 10 шт."  # 152×58×40: 40+2×3 → 50 по ряду, 152+2×3, 58+2×3
 
 
 def test_position_card_shows_blank_and_technologist_edits_it(login):
@@ -49,11 +49,12 @@ def test_cutter_new_order_notification_has_blank(login):
 
 def test_reference_blank_rules(login):
     page = login("technolog").get("/reference").text
-    assert 'id="blank-rules"' in page and "1,5" in page and "270" in page
+    assert 'id="blank-rules"' in page and "1,5" in page and "270" in page and "ГОСТ 21488-97" in page
     assert 'name="reason"' not in login("head").get("/reference").text.split('id="blank-rules"')[1].split("</div>\n")[0]
-    form = {"sheet_side_allowance_mm": "5", "sheet_thickness_allowance_mm": "2", "bar_diameter_allowance_mm": "3",
-            "bar_length_allowance_mm": "5", "size_step_mm": "1", "sheet_thicknesses_mm": "10 20 45 50",
-            "round_diameters_mm": "10 20 30", "reason": "по складу"}
+    form = {"sheet_side_allowance_mm": "5", "sheet_thickness_side_allowance_mm": "2",
+            "bar_diameter_side_allowance_mm": "3", "bar_length_side_allowance_mm": "3", "size_step_mm": "1",
+            "sheet_thicknesses_mm": "10 20 45 50", "round_steel": "10 20 30", "round_stainless": "",
+            "round_aluminium": "10 20", "round_brass": "", "reason": "по складу"}
     assert login("head").post("/reference/blank-rules", data=form).status_code == 403
     assert login("technolog").post("/reference/blank-rules", data=form).headers["location"] == "/reference#blank-rules"
     _, pid = create_order(login)

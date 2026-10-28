@@ -19,7 +19,7 @@ def test_system_suggests_sheet_from_step_dims(session, make_order):
     pos = prepared(session, make_order)  # 152×58×40, Д16Т, фрезерная, 10 шт.
     blank = blanks.position_blank(session, pos)
     assert blank.source == SYSTEM
-    assert blank.text == "Д16Т, лист h45 мм, 156×62 мм — 10 шт."  # 40+2 → 45 по ряду; 152+2×2, 58+2×2
+    assert blank.text == "Д16Т, лист h50 мм, 158×64 мм — 10 шт."  # 40+2×3 → 50 по ряду; 152+2×3, 58+2×3
 
 
 def test_technologist_edit_saved_to_history_and_kept_by_recalculation(session, make_order):
@@ -36,7 +36,7 @@ def test_technologist_edit_saved_to_history_and_kept_by_recalculation(session, m
     assert blank.note == "плита со склада"
 
     back = blanks.reset_blank(session, TECH, pos.id, "вернуть расчёт системы")
-    assert back.source == SYSTEM and back.text.startswith("АМг6, лист h45 мм")
+    assert back.source == SYSTEM and back.text == "АМг6, лист h50 мм, 158×64 мм — 10 шт."
 
 
 def test_edit_rights_and_reason(session, make_order):
@@ -59,7 +59,7 @@ def test_old_position_without_blank_and_dims_opens(session, make_order):
 
 def test_rules_edited_by_reference_editor(session, make_order):
     pos = prepared(session, make_order)
-    values = {**blanks.rules(session).to_dict(), "sheet_thickness_allowance_mm": "0",
+    values = {**blanks.rules(session).to_dict(), "sheet_thickness_side_allowance_mm": "0",
               "sheet_thicknesses_mm": "10 20 40 50"}
     with pytest.raises(AccessDenied):
         blanks.set_rules(session, HEAD, values, "причина")
@@ -69,7 +69,7 @@ def test_rules_edited_by_reference_editor(session, make_order):
     assert blanks.rules(session).sheet_thicknesses == (10, 20, 40, 50)
     assert blanks.position_blank(session, pos).sizes["h"] == 40
     with pytest.raises(ServiceError):
-        blanks.set_rules(session, TECH, {**values, "round_diameters_mm": "abc"}, "причина")
+        blanks.set_rules(session, TECH, {**values, "round_diameters_mm": {"steel": "abc"}}, "причина")
     assert any(h.field == "blank_rules" for h in list_history(session, entity="parameters"))
 
 
@@ -80,3 +80,41 @@ def test_blank_editable_after_approval(session, make_order):
     approval.approve(session, HEAD, pos.id)
     blank = blanks.set_blank(session, TECH, pos.id, "sheet", SHEET, 10, "", "на складе плита 50")
     assert blank.text.startswith("Д16Т, лист h50 мм")  # на стоимость не влияет — правка и после утверждения
+
+
+def test_disputed_blanks_go_to_technologist(session, make_order):
+    from app.services import dashboard_service, intake_service, plan_service
+    from tests.services.conftest import MASTER
+    order = make_order()
+    pos = order.positions[0]
+    tech.update_data(session, TECH, pos.id, {"material": "Полиацеталь ПОМ-С"}, "по чертежу")
+    (found, blank), = blanks.missing_blanks(session)
+    assert found.id == pos.id and "пластик" in blank.remarks[-1]
+
+    intake_service.notify_new_order(session, order, MASTER)
+    session.commit()
+    (note,) = [n for n in plan_service.list_notifications(session, TECH) if n.kind == "new_order"]
+    assert "Заготовка не задана: 1 поз." in note.text and pos.designation in note.text
+    board = dashboard_service.build_dashboard(session, TECH)
+    assert any(t.title == "Заготовка не задана: 1 поз." for t in board.tasks)
+    assert any(t.link == f"/positions/{pos.id}#blank" and t.position_id == pos.id for t in board.tasks)
+
+    blanks.set_blank(session, TECH, pos.id, "sheet", SHEET, 1, "ПОМ-С лист 50 со склада", "по наличию")
+    assert blanks.missing_blanks(session) == []  # задано технологом — из задач уходит
+    assert not any("Заготовка" in t.title for t in dashboard_service.build_dashboard(session, TECH).tasks)
+
+
+def test_old_format_rules_replaced_on_start(session):
+    from app.services.seed import seed_reference
+    from app.storage.orm import Parameter
+    from tests.services.conftest import SEED_DIR
+    session.get(Parameter, "blank_rules").value = {"sheet_side_allowance_mm": 2, "round_diameters_mm": [10, 20]}
+    session.commit()
+    seed_reference(session, SEED_DIR)
+    current = blanks.rules(session)
+    assert current.sheet_side_allowance == 3 and current.bar_length_allowance == 3
+    assert 270 in current.round_diameters["steel"] and 400 in current.round_diameters["aluminium"]
+    assert current.round_diameters["stainless"] == ()
+    blanks.set_rules(session, IT, {**current.to_dict(), "size_step_mm": "5"}, "кратно 5")
+    seed_reference(session, SEED_DIR)  # правка из справочника при запуске не затирается
+    assert blanks.rules(session).size_step == 5

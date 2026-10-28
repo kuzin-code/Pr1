@@ -117,6 +117,10 @@ def notify_new_order(session: Session, order: OrderRow, actor: Actor) -> None:
             texts[role] = f"{title}: {labels[role]} — {len(hours)} поз., {_hours(sum(hours))}. {after}"
     if cut_blanks and Role.CUTTER in texts:
         texts[Role.CUTTER] += " Заготовки: " + "; ".join(cut_blanks)
+    unset = blank_service.missing_blanks(session, list(order.positions))  # спорные заготовки — технологу
+    if unset:
+        texts[Role.TECHNOLOGIST] += (f" Заготовка не задана: {len(unset)} поз. ("
+                                     + ", ".join(f"«{p.designation}»" for p, _ in unset) + ") — задайте в карточке позиции.")
 
     first = order.positions[0].id if order.positions else 0
     for role, text in texts.items():

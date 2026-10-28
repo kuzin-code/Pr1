@@ -3,10 +3,19 @@
 Предложение системы считается по текущим данным позиции и параметру «blank_rules» и не хранится.
 Заготовка, заданная технологом, хранится в data["blank"] и пересчётом (ФТ-26) не перезаписывается.
 """
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
-from app.domain.blank import TECHNOLOGIST, Blank, BlankError, BlankRules, manual_blank, suggest_blank
+from app.domain.blank import (
+    ROUND_GROUPS,
+    TECHNOLOGIST,
+    Blank,
+    BlankError,
+    BlankRules,
+    manual_blank,
+    suggest_blank,
+)
 from app.domain.enums import PositionStatus
 from app.domain.history import require_reason
 from app.domain.models import Dimensions
@@ -16,9 +25,11 @@ from app.services.order_service import get_position
 from app.storage.orm import Parameter, PositionRow
 
 PARAM = "blank_rules"
-ALLOWANCE_FIELDS = ("sheet_side_allowance_mm", "sheet_thickness_allowance_mm", "bar_diameter_allowance_mm",
-                    "bar_length_allowance_mm", "size_step_mm")
-SERIES_FIELDS = ("sheet_thicknesses_mm", "round_diameters_mm")
+ALLOWANCE_FIELDS = ("sheet_side_allowance_mm", "sheet_thickness_side_allowance_mm", "bar_diameter_side_allowance_mm",
+                    "bar_length_side_allowance_mm", "size_step_mm")
+# Позиции, по которым заготовитель будет резать: незаданная заготовка — задача технолога.
+TODO_STATUSES = (PositionStatus.TECH_REVIEW.value, PositionStatus.AWAITING_APPROVAL.value,
+                 PositionStatus.APPROVED.value)
 
 
 def rules(session: Session) -> BlankRules | None:
@@ -51,6 +62,21 @@ def blank_text(session: Session, pos: PositionRow) -> str | None:
     """Строка заготовки для уведомления; не определена — None."""
     blank = position_blank(session, pos)
     return blank.text if blank.defined else None
+
+
+def missing_blanks(session: Session, positions: list[PositionRow] | None = None) -> list[tuple[PositionRow, Blank]]:
+    """Позиции, где система заготовку не определила, а технолог ещё не задал (спорные случаи — технологу)."""
+    if positions is None:
+        positions = list(session.scalars(select(PositionRow).where(PositionRow.status.in_(TODO_STATUSES))
+                                         .order_by(PositionRow.id)))
+    current = rules(session)
+    found = []
+    for pos in positions:
+        if pos.status in TODO_STATUSES:
+            blank = position_blank(session, pos, current)
+            if not blank.defined:
+                found.append((pos, blank))
+    return found
 
 
 def _editable(session: Session, actor: Actor, position_id: int) -> PositionRow:
@@ -105,10 +131,10 @@ def _number(name: str, raw) -> float:
     return value
 
 
-def _series(name: str, raw) -> list[float]:
-    items = raw.replace(";", " ").split() if isinstance(raw, str) else list(raw)
+def _series(name: str, raw, required: bool = True) -> list[float]:
+    items = raw.replace(";", " ").split() if isinstance(raw, str) else list(raw or [])
     values = sorted({_number(name, v) for v in items})
-    if not values or values[0] <= 0:
+    if (required and not values) or (values and values[0] <= 0):
         raise ServiceError(f"«{name}»: перечислите размеры больше нуля через пробел")
     return values
 
@@ -118,7 +144,11 @@ def set_rules(session: Session, actor: Actor, values: dict, reason: str) -> Blan
     require(actor.role, Action.EDIT_REFERENCE)
     reason = require_reason(reason)
     new = {k: _number(k, values[k]) for k in ALLOWANCE_FIELDS}
-    new |= {k: _series(k, values[k]) for k in SERIES_FIELDS}
+    new["sheet_thicknesses_mm"] = _series("ряд толщин листа", values["sheet_thicknesses_mm"])
+    diameters = values.get("round_diameters_mm") or {}
+    # Пустой ряд группы — круг из этого материала задаёт технолог.
+    new["round_diameters_mm"] = {g: _series(f"ряд диаметров: {label}", diameters.get(g), required=False)
+                                 for g, label in ROUND_GROUPS.items()}
     row = session.get(Parameter, PARAM)
     old = dict(row.value) if row else None
     if row is None:

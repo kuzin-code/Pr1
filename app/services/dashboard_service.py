@@ -9,7 +9,7 @@ from app.domain.access import Action, can, require
 from app.domain.desired_date import check_desired
 from app.domain.enums import PositionStatus as S, Role
 from app.domain.status import order_done
-from app.services import downtime_service, plan_service
+from app.services import blank_service, downtime_service, plan_service
 from app.services.actor import Actor
 from app.services.file_check import check_entry_files
 from app.services.history_service import list_history
@@ -119,6 +119,13 @@ def _tasks(session: Session, actor: Actor, positions: list[PositionRow], deviati
         if missing:
             tasks.append(Task(None, "Журнал калибровки", f"Деталей без исправных STEP/PDF: {missing}",
                               "Прикрепить файлы", "/journal"))
+        blanks = blank_service.missing_blanks(session, positions)  # спорные заготовки — решает технолог
+        if blanks:
+            tasks.append(Task(None, f"Заготовка не задана: {len(blanks)} поз.", "Система не определила заготовку — "
+                              "задайте сортамент и размеры", "Задать заготовку", f"/positions/{blanks[0][0].id}#blank"))
+            tasks += [Task(p.id, f"{p.designation} · {p.quantity} шт.",
+                           f"Заказ {p.order.number}. Заготовка не задана: {b.remarks[-1] if b.remarks else ''}",
+                           "Задать заготовку", f"/positions/{p.id}#blank") for p, b in blanks]
         return "Расчёты на проверку", tasks
     if actor.role is Role.HEAD:
         return "Позиции к утверждению", [task(p, "Расчёт проверен технологом", "Утвердить или вернуть")

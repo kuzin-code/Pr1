@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
+from app.domain.blank import ROUND_GROUPS
 from app.services import blank_service
 from app.services import reference_service as ref
 from app.services.history_service import list_history
@@ -22,16 +23,14 @@ def reference_page(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/reference/blank-rules")
-def set_blank_rules(request: Request, sheet_side_allowance_mm: str = Form(...), sheet_thickness_allowance_mm: str = Form(...),
-                    bar_diameter_allowance_mm: str = Form(...), bar_length_allowance_mm: str = Form(...),
-                    size_step_mm: str = Form(...), sheet_thicknesses_mm: str = Form(...),
-                    round_diameters_mm: str = Form(...), reason: str = Form(""), db: Session = Depends(get_db)):
-    """Припуски и стандартные ряды заготовки (кто ведёт справочник; с причиной — в историю)."""
+async def set_blank_rules(request: Request, db: Session = Depends(get_db)):
+    """Припуски на сторону и стандартные ряды заготовки (кто ведёт справочник; с причиной — в историю)."""
     actor = current_actor(request)
-    values = dict(sheet_side_allowance_mm=sheet_side_allowance_mm, sheet_thickness_allowance_mm=sheet_thickness_allowance_mm,
-                  bar_diameter_allowance_mm=bar_diameter_allowance_mm, bar_length_allowance_mm=bar_length_allowance_mm,
-                  size_step_mm=size_step_mm, sheet_thicknesses_mm=sheet_thicknesses_mm, round_diameters_mm=round_diameters_mm)
-    return act(request, db, "/reference#blank-rules", lambda: blank_service.set_rules(db, actor, values, reason),
+    form = await request.form()
+    values = {k: str(form.get(k, "")) for k in blank_service.ALLOWANCE_FIELDS + ("sheet_thicknesses_mm",)}
+    values["round_diameters_mm"] = {g: str(form.get(f"round_{g}", "")) for g in ROUND_GROUPS}
+    return act(request, db, "/reference#blank-rules",
+               lambda: blank_service.set_rules(db, actor, values, str(form.get("reason", ""))),
                "Припуски заготовки изменены")
 
 
