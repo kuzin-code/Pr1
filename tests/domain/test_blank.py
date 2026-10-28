@@ -50,8 +50,10 @@ def test_round_series_by_material_group():
     assert shaft.text == "Д16Т, круг Ø50 мм, L 66 мм — 10 шт."  # 36,5+6 → 50 по ряду алюминия; 60+6
     disc = suggest_blank(Dimensions(44, 44, 12), "Сталь 45", "turning", 2, RULES)
     assert disc.sizes == {"d": 50, "length": 18}  # ряд стали; ось диска — меньший габарит
-    assert not suggest_blank(Dimensions(60, 20, 20), "ЛС59-1", "turning", 1, RULES).defined  # ряд латуни пуст
-    assert not suggest_blank(Dimensions(60, 20, 20), "12Х18Н10Т", "turning", 1, RULES).defined  # нет ряда
+    # нет своего ряда (в RULES ряд латуни пуст, у нержавейки ряда нет) — ряд стали и «проверьте»
+    for material in ("ЛС59-1", "12Х18Н10Т"):
+        blank = suggest_blank(Dimensions(60, 20, 20), material, "turning", 1, RULES)
+        assert blank.defined and blank.sizes["d"] == 30 and "ряд диаметров стали" in blank.remarks[-1]
     assert round_group("ЛС 59-1") == "brass" and round_group("БрАЖ9-4") == "bronze"
 
 
@@ -76,19 +78,31 @@ def test_drawing_size():
 @pytest.mark.parametrize("dims, material, rules, word, sortament, why", [
     (None, "Д16Т", RULES, None, None, "нет габаритов"),
     (Dimensions(100, 50, 20), "Д16Т", None, None, None, "не заданы припуски"),
-    (Dimensions(100, 50, 45), "Д16Т", RULES, None, None, "больше ряда"),  # 51 > 50
-    (Dimensions(100, 50, 20), "Полиацеталь ПОМ-С", RULES, None, None, "пластик"),
-    (Dimensions(100, 50, 20), "Поликарбонат", RULES, None, None, "пластик"),
-    (Dimensions(100, 50, 20), "", RULES, None, None, "материал не указан"),
-    (Dimensions(60, 28, 28), "Д16Т", RULES, "круг", "Круг 25 ГОСТ 2590", "меньше детали"),
-    (Dimensions(60, 28, 28), "Д16Т", RULES, "шестигранник", "Шестигранник ГОСТ 2879", "без размера"),
-    (Dimensions(60, 28, 10), "Д16Т", RULES, "полоса", "Полоса 10х30 ГОСТ 103", "без размера"),
+    (Dimensions(60, 28, 10), "Д16Т", RULES, "труба", "Труба 30х2", "труба"),
     (Dimensions(100, 50, 20), "Ст3", RULES, "уголок", "Уголок 50х50", "задаёт технолог"),
 ])
-def test_disputed_cases_left_to_technologist(dims, material, rules, word, sortament, why):
+def test_undefined_only_without_data(dims, material, rules, word, sortament, why):
     blank = suggest_blank(dims, material, "milling", 5, rules, word, sortament)
     assert not blank.defined and blank.text == UNDEFINED_TEXT
     assert why in blank.remarks[-1]
+
+
+@pytest.mark.parametrize("dims, material, word, sortament, sizes, note", [
+    (Dimensions(100, 50, 45), "Д16Т", None, None, {"h": 51, "length": 106, "width": 56}, "вне стандартного ряда"),
+    (Dimensions(100, 50, 20), "Полиацеталь ПОМ-С", None, None, {"h": 30, "length": 106, "width": 56}, "пластик"),
+    (Dimensions(613, 200, 5.4), "Поликарбонат", None, None, {"h": 12, "length": 619, "width": 206}, "пластик"),
+    (Dimensions(100, 50, 20), "", None, None, {"h": 30, "length": 106, "width": 56}, "материал не указан"),
+    (Dimensions(60, 28, 28), "Д16Т", "круг", "Круг 25 ГОСТ 2590", {"d": 40, "length": 66}, "меньше детали"),
+    (Dimensions(60, 28, 28), "Д16Т", "шестигранник", "Шестигранник ГОСТ 2879", {"s": 34, "length": 66},
+     "по габаритам"),
+    (Dimensions(60, 28, 10), "Д16Т", "полоса", "Полоса 10х30 ГОСТ 103", {"h": 16, "width": 34, "length": 66},
+     "по габаритам"),
+])
+def test_disputed_cases_proposed_with_check_remark(dims, material, word, sortament, sizes, note):
+    """Система определяет заготовку сама, спорное — замечание «проверьте» (решение пользователя 28.10.2026)."""
+    blank = suggest_blank(dims, material, "milling", 5, RULES, word, sortament)
+    assert blank.defined and blank.source == SYSTEM and blank.sizes == sizes
+    assert any(note in r for r in blank.remarks) and any("проверьте" in r for r in blank.remarks)
 
 
 def test_old_format_rules_not_read():

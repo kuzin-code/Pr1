@@ -88,8 +88,13 @@ def test_disputed_blanks_go_to_technologist(session, make_order):
     order = make_order()
     pos = order.positions[0]
     tech.update_data(session, TECH, pos.id, {"material": "Полиацеталь ПОМ-С"}, "по чертежу")
+    plastic = blanks.position_blank(session, pos)  # пластик система определяет сама, с замечанием «проверьте»
+    assert plastic.defined and any("пластик" in r for r in plastic.remarks)
+    assert blanks.missing_blanks(session) == []
+    pos.data = {k: v for k, v in pos.data.items() if k != "dims"}  # без габаритов STEP — только технолог
+    session.commit()
     (found, blank), = blanks.missing_blanks(session)
-    assert found.id == pos.id and "пластик" in blank.remarks[-1]
+    assert found.id == pos.id and "нет габаритов" in blank.remarks[-1]
 
     intake_service.notify_new_order(session, order, MASTER)
     session.commit()

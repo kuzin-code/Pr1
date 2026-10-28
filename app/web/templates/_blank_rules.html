@@ -16,7 +16,7 @@
     <label>Ряд толщин листа и плиты, мм (через пробел)</label>
     <textarea class="blank-series" name="sheet_thicknesses_mm" {{ off }}>{% for v in br.sheet_thicknesses %}{{ blank_fmt(v) }}{{ ' ' if not loop.last }}{% endfor %}</textarea>
     {% for group, title in BLANK_ROUND_GROUPS.items() %}
-    <label>Ряд диаметров круга — {{ title }}, мм (пусто — круг задаёт технолог)</label>
+    <label>Ряд диаметров круга — {{ title }}, мм (пусто — берётся ряд стали, с пометкой «проверьте»)</label>
     <textarea class="blank-series" name="round_{{ group }}" {{ off }}>{% for v in br.round_diameters.get(group, []) %}{{ blank_fmt(v) }}{{ ' ' if not loop.last }}{% endfor %}</textarea>
     {% endfor %}
     {% if can('edit_reference') %}<div class="row"><input name="reason" placeholder="причина изменения" class="grow" required><button>Изменить</button></div>{% endif %}
@@ -25,5 +25,5 @@
   <p class="muted">Лист: толщина = меньший габарит детали + 2 × припуск, вверх по ряду; длина и ширина = габарит + 2 × припуск.
     Круг: Ø = поперечный габарит + 2 × припуск, вверх по ряду группы материала; длина = длина детали + 2 × припуск.
     Ряды: сталь — ГОСТ 2590-2006, алюминиевые сплавы — ГОСТ 21488-97, латунь — ГОСТ 2060-2006 (прил. А).
-    Размер проката из чертежа важнее расчёта. Пластик и спорные случаи — задаёт технолог.</p>
+    Размер проката из чертежа важнее расчёта. Спорные места (пластик, нет ряда, размер вне ряда) — предложение с пометкой «проверьте», технолог правит при необходимости.</p>
 </div>
