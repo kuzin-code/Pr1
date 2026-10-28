@@ -4,10 +4,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
-from app.domain.access import Action, require
+from app.domain.access import Action, can, require
 from app.domain.downtime import REASON_LABELS, needs_reason
+from app.domain.enums import Operation
 from app.domain.operations import MACHINE_OPERATIONS, operations_for_role
-from app.services import downtime_service
+from app.services import blank_service, downtime_service
 from app.services import operation_service as ops
 from app.services import reference_service as ref
 from app.storage.orm import OperationRow, PositionRow
@@ -29,12 +30,16 @@ def work_page(request: Request, machine: str | None = None, db: Session = Depend
     rows = ops.queue(db, actor, selected or None)
     positions = {r.position_id: db.get(PositionRow, r.position_id) for r in rows}
     moment = datetime.now()
+    # Заготовка — только на карточке резки заготовки (заготовитель, мастер); другим специалистам не показывается.
+    rules = blank_service.rules(db)
+    blanks = {r.position_id: blank_service.position_blank(db, positions[r.position_id], rules) for r in rows
+              if r.operation == Operation.CUTTING.value and can(actor.role, Action.VIEW_BLANK)}
     # Идёт дольше плана × порог — список причин открыт сразу и помечен «обязательно».
     overdue = {r.id for r in rows if r.started_at and needs_reason(r.planned_hours, ops.elapsed_hours(r, moment))}
     return render(request, "work.html", rows=rows, positions=positions, machines=machines, selected=selected,
                   show_machine_filter=bool(my_ops & MACHINE_OPERATIONS) and len(machines) > 1,
                   now=moment.strftime("%Y-%m-%dT%H:%M"), overdue=overdue, reasons=REASON_LABELS,
-                  shift_machine=_shift_machine(machines, selected))
+                  shift_machine=_shift_machine(machines, selected), blanks=blanks)
 
 
 def _shift_machine(machines, selected: str) -> str:

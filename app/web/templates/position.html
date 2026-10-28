@@ -15,6 +15,7 @@
 {% endif %}
 
 {% include "_position_details.html" %}
+{% if blank %}{% include "_position_blank.html" %}{% endif %}
 {% include "_position_route.html" %}
 {% include "_position_plan.html" %}
 

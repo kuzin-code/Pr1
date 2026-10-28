@@ -34,6 +34,15 @@ main > .flash { font-size:17px; font-weight:600; padding:14px 16px; border-radiu
 .w-pill { display:inline-block; padding:3px 10px; border-radius:12px; font-size:13px; font-weight:700; }
 .w-pill.ready { background:var(--work-ready-soft); color:var(--work-start); }
 .w-pill.run { background:var(--work-run-soft); color:var(--work-run-text); }
+/* Заготовка на резке: первой строкой, крупно — читается с расстояния и на телефоне. */
+.w-blank { border-bottom:1px solid var(--work-line); padding-bottom:10px; }
+.w-blank-text { font-size:22px; font-weight:800; line-height:1.25; overflow-wrap:anywhere; }
+.w-blank-text.none { font-size:17px; color:var(--work-run-text); }
+.w-blank-src { margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.w-pill.sys { background:#eef1f5; color:var(--work-muted); }
+.w-pill.tech { background:var(--work-ready-soft); color:var(--work-start); }
+.w-blank-note { font-size:15px; }
+@media (max-width:480px) { .w-blank-text { font-size:19px; } }
 .w-timer { font-weight:700; font-variant-numeric:tabular-nums; }
 
 .w-docs { display:flex; gap:8px; }

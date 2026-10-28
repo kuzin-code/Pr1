@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, can, require
 from app.domain.enums import PositionStatus, Stage
 from app.domain.status import is_editable
-from app.services import (approval_service, dfm_service, fact_service, journal_service, operation_service,
+from app.services import (approval_service, blank_service, dfm_service, fact_service, journal_service, operation_service,
                           order_service, plan_service, quick_apply, tech_service)
 from app.services.actor import ServiceError
 from app.services.history_service import list_history
@@ -52,6 +52,7 @@ def position_page(request: Request, position_id: int, db: Session = Depends(get_
         last_mark=operation_service.last_mark(db, pos.id),
         cnc_machines=[m for m in domain_machines(db) if m.is_cnc],
         machine_names={m.code: m.model for m in domain_machines(db)},
+        blank=blank_service.position_blank(db, pos) if can(actor.role, Action.VIEW_BLANK) else None,
     )
 
 
@@ -124,6 +125,21 @@ def update_data(request: Request, position_id: int, dim_a: str = Form(""), dim_b
         tech_service.update_data(db, actor, position_id, changes, reason)
 
     return act(request, db, _back(position_id), run, "Данные сохранены")
+
+
+@router.post("/positions/{position_id}/blank")
+def set_blank(request: Request, position_id: int, kind: str = Form(""), h: str = Form(""), length: str = Form(""),
+              width: str = Form(""), d: str = Form(""), s: str = Form(""), wall: str = Form(""),
+              quantity: str = Form(""), note: str = Form(""), reason: str = Form(""), reset: str = Form(""),
+              db: Session = Depends(get_db)):
+    """Технолог задаёт заготовку (сортамент, размеры, количество) или возвращает предложение системы."""
+    actor = current_actor(request)
+    if reset:
+        return act(request, db, _back(position_id) + "#blank",
+                   lambda: blank_service.reset_blank(db, actor, position_id, reason), "Заготовка — предложение системы")
+    sizes = {"h": h, "length": length, "width": width, "d": d, "s": s, "wall": wall}
+    return act(request, db, _back(position_id) + "#blank", lambda: blank_service.set_blank(
+        db, actor, position_id, kind, sizes, quantity, note, reason), "Заготовка сохранена")
 
 
 @router.post("/positions/{position_id}/complexity")

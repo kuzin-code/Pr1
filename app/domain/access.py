@@ -36,6 +36,7 @@ class Action(str, Enum):
     SET_PRIORITY = "set_priority"  # ручной приоритет срочной позиции в очереди станков
     EXPORT_ACCOUNTING = "export_accounting"  # выгрузка заказов в 1С файлом
     DISMISS_DFM = "dismiss_dfm"  # снять предупреждение проверки технологичности (с причиной)
+    VIEW_BLANK = "view_blank"  # заготовка: сортамент, размеры, количество (заготовителю — в «Моих операциях»)
 
 
 PERMISSIONS: dict[Action, frozenset[Role]] = {
@@ -73,6 +74,9 @@ PERMISSIONS: dict[Action, frozenset[Role]] = {
     # Выгрузку в 1С делают начальник участка и менеджер (в файле — сумма КП и себестоимость).
     Action.EXPORT_ACCOUNTING: frozenset({H, MGR}),
     Action.DISMISS_DFM: frozenset({T}),
+    # Заготовку видят технолог, мастер, начальник участка (карточка позиции) и заготовитель (резка);
+    # правит технолог — по праву EDIT_TECH_DATA.
+    Action.VIEW_BLANK: frozenset({T, M, H, Role.CUTTER}),
     Action.VIEW_HISTORY: frozenset({T, M, H}),
     # Чертёж и модель: кто видит заказы — любой позиции; специалисты из «Моих операций» — только позиций
     # со своими операциями (проверка в operation_service.require_position_files).

@@ -33,6 +33,7 @@ PAGES = {
              "/position", "/proposals", "/notifications"],
     "master": ["/dashboard", "/plan", "/work", "/position", "/notifications"],
     "operator": ["/work", "/notifications"],
+    "zagotovitel": ["/work", "/notifications"],  # заготовка первой строкой на карточке резки
     "manager": ["/orders", "/orders/new", "/quick", "/order", "/proposals"],
     "management": ["/dashboard", "/plan"],
     "it": ["/users", "/reference", "/account"],

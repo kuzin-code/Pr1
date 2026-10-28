@@ -320,6 +320,10 @@ tr.row-section td { padding-top:10px; }
 .shift-nav { gap:8px; flex-wrap:wrap; margin-bottom:10px; }
 .shift-meta { font-size:16px; }
 .shift-signs { display:none; }
+/* Заготовка в карточке позиции: строка для заготовителя — крупно. */
+.blank-line { font-size:20px; font-weight:800; margin:4px 0 8px; overflow-wrap:anywhere; }
+.blank-series { width:100%; min-height:60px; }
+
 @media print {
   .shift-sheet h1 { font-size:18pt; margin:0 0 4pt; } .shift-table { font-size:10pt; width:100%; }
   .shift-table td, .shift-table th { border:1px solid #999; padding:3pt 5pt; }

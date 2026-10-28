@@ -27,6 +27,7 @@ from app.domain.operations import (
 from app.domain.timing import StageTime
 from app.domain.work_calendar import BENCH_CALENDAR, MACHINE_CALENDAR
 from app.services.actor import Actor
+from app.services.blank_service import blank_text
 from app.services.fact_service import record_fact
 from app.services.history_service import record
 from app.services.plan_service import fact_ends, notify
@@ -220,8 +221,9 @@ def finish(session: Session, actor: Actor, op_id: int, at: datetime | None = Non
     following = next((r for r in rows if r.seq > row.seq and r.status == OpStatus.READY.value), None)
     if following is not None:
         nxt = Operation(following.operation)
+        blank = blank_text(session, pos) if nxt is Operation.CUTTING else None
         notify(session, _specialist(nxt), f"op:{following.id}:ready", pos.id, following.operation, at,
-               f"{nxt.label}: можно начинать — {_label(pos, following)}")
+               f"{nxt.label}: можно начинать — {_label(pos, following)}" + (f". Заготовка: {blank}" if blank else ""))
     session.commit()
     return row
 

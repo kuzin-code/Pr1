@@ -276,7 +276,7 @@ def attach_position_files(session: Session, actor: Actor, position_id: int, file
     current = dict(pos.data or {})
     _apply_reading(pos, [e.material for e in journal_entries(session)])
     keep = set(current.get("edited") or []) | {"name", "section", "coating", "note", "list_material", "auto",
-                                                "edited", "list_issues"}
+                                                "edited", "list_issues", "blank"}
     pos.data = {**pos.data, **{k: v for k, v in current.items() if k in keep}}
     if current.get("list_material") and not pos.data.get("material"):
         pos.data = {**pos.data, "material": current["list_material"]}

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
 from app.domain.access import Action, require
+from app.services import blank_service
 from app.services import reference_service as ref
 from app.services.history_service import list_history
 from app.web.deps import act, current_actor, get_db
@@ -16,7 +17,22 @@ def reference_page(request: Request, db: Session = Depends(get_db)):
     require(current_actor(request).role, Action.VIEW_REFERENCE)
     machines = ref.list_machines(db)
     return render(request, "reference.html", machines=machines, rates=ref.get_rates(db),
-                  scale=ref.complexity_scale(db), gaps={m.code: ref.machine_gaps(m) for m in machines})
+                  scale=ref.complexity_scale(db), gaps={m.code: ref.machine_gaps(m) for m in machines},
+                  blank_rules=blank_service.rules(db))
+
+
+@router.post("/reference/blank-rules")
+def set_blank_rules(request: Request, sheet_side_allowance_mm: str = Form(...), sheet_thickness_allowance_mm: str = Form(...),
+                    bar_diameter_allowance_mm: str = Form(...), bar_length_allowance_mm: str = Form(...),
+                    size_step_mm: str = Form(...), sheet_thicknesses_mm: str = Form(...),
+                    round_diameters_mm: str = Form(...), reason: str = Form(""), db: Session = Depends(get_db)):
+    """Припуски и стандартные ряды заготовки (кто ведёт справочник; с причиной — в историю)."""
+    actor = current_actor(request)
+    values = dict(sheet_side_allowance_mm=sheet_side_allowance_mm, sheet_thickness_allowance_mm=sheet_thickness_allowance_mm,
+                  bar_diameter_allowance_mm=bar_diameter_allowance_mm, bar_length_allowance_mm=bar_length_allowance_mm,
+                  size_step_mm=size_step_mm, sheet_thicknesses_mm=sheet_thicknesses_mm, round_diameters_mm=round_diameters_mm)
+    return act(request, db, "/reference#blank-rules", lambda: blank_service.set_rules(db, actor, values, reason),
+               "Припуски заготовки изменены")
 
 
 @router.post("/rates")

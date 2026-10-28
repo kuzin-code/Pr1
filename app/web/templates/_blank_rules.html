@@ -1,0 +1,23 @@
+{# Справочник: припуски и стандартные ряды для заготовки, предложенной системой (параметр «blank_rules»). #}
+{% set br = blank_rules %}
+<div class="card" id="blank-rules">
+  <h2>Заготовка: припуски и стандартные ряды</h2>
+  {% if br %}
+  <form method="post" action="/reference/blank-rules">
+    <div class="row">
+      <div><label>Лист: припуск на сторону по контуру, мм</label><input class="small" name="sheet_side_allowance_mm" value="{{ blank_fmt(br.sheet_side_allowance) }}" {{ 'disabled' if not can('edit_reference') }}></div>
+      <div><label>Лист: припуск к толщине, мм</label><input class="small" name="sheet_thickness_allowance_mm" value="{{ blank_fmt(br.sheet_thickness_allowance) }}" {{ 'disabled' if not can('edit_reference') }}></div>
+      <div><label>Круг: припуск к диаметру, мм</label><input class="small" name="bar_diameter_allowance_mm" value="{{ blank_fmt(br.bar_diameter_allowance) }}" {{ 'disabled' if not can('edit_reference') }}></div>
+      <div><label>Пруток: припуск по длине (торцовка и рез), мм</label><input class="small" name="bar_length_allowance_mm" value="{{ blank_fmt(br.bar_length_allowance) }}" {{ 'disabled' if not can('edit_reference') }}></div>
+      <div><label>Округление длины и размеров в плане вверх, мм</label><input class="small" name="size_step_mm" value="{{ blank_fmt(br.size_step) }}" {{ 'disabled' if not can('edit_reference') }}></div>
+    </div>
+    <label>Ряд толщин листа и плиты, мм (через пробел)</label>
+    <textarea class="blank-series" name="sheet_thicknesses_mm" {{ 'disabled' if not can('edit_reference') }}>{% for v in br.sheet_thicknesses %}{{ blank_fmt(v) }}{{ ' ' if not loop.last }}{% endfor %}</textarea>
+    <label>Ряд диаметров круга, мм (через пробел)</label>
+    <textarea class="blank-series" name="round_diameters_mm" {{ 'disabled' if not can('edit_reference') }}>{% for v in br.round_diameters %}{{ blank_fmt(v) }}{{ ' ' if not loop.last }}{% endfor %}</textarea>
+    {% if can('edit_reference') %}<div class="row"><input name="reason" placeholder="причина изменения" class="grow" required><button>Изменить</button></div>{% endif %}
+  </form>
+  {% else %}<p class="err">Параметр не задан: система заготовку не предлагает, её задаёт технолог.</p>{% endif %}
+  <p class="muted">Толщина листа = меньший габарит детали + припуск, вверх по ряду; длина и ширина = габарит + 2 × припуск.
+    Диаметр круга = поперечный габарит + припуск, вверх по ряду; длина = длина детали + припуск. Размер проката из чертежа важнее расчёта.</p>
+</div>

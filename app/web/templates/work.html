@@ -8,6 +8,12 @@
 
 {% macro op_card(r, kind) %}{% set p = positions[r.position_id] %}
 <article class="w-op {{ kind }}">
+  {% set b = blanks.get(r.position_id) if r.operation == 'cutting' else none %}
+  {% if b %}<div class="w-blank">
+    <div class="w-blank-text{{ ' none' if not b.defined }}">{{ b.text }}</div>
+    <div class="w-blank-src"><span class="w-pill {{ 'tech' if b.source == 'technologist' else 'sys' }}">{{ b.source_label }}</span>
+      {% if b.note %}<span class="w-blank-note">{{ b.note }}</span>{% endif %}</div>
+  </div>{% endif %}
   <div class="w-op-top">
     <div><div class="w-part">{{ p.designation }}</div>
       <div class="w-order">Заказ {{ p.order.number }}{% if p.order.customer %} · {{ p.order.customer }}{% endif %}</div></div>

@@ -1,0 +1,44 @@
+{# Заготовка для заготовительной операции: строка для заготовителя; технолог исправляет предложение системы. #}
+{% set btech = can('edit_tech_data') and pos.status != 'done' %}
+<div class="card" id="blank">
+  <h2>Заготовка</h2>
+  <p class="blank-line">{{ blank.text }}</p>
+  <p>{% if blank.source == 'technologist' %}<span class="badge ok">{{ blank.source_label }}</span>{% else %}<span class="badge">{{ blank.source_label }}</span>{% endif %}
+    {% for r in blank.remarks %}<span class="badge">{{ r }}</span>{% endfor %}</p>
+  {% if blank.note %}<p><label>Примечание</label>{{ blank.note }}</p>{% endif %}
+  {% if btech %}
+  <details{{ ' open' if not blank.defined }}>
+    <summary>Исправить заготовку</summary>
+    <form method="post" action="/positions/{{ pos.id }}/blank" class="js-blank">
+      <div class="row">
+        <div><label>Сортамент</label><select name="kind" class="fit">
+          {% for key, title in BLANK_KIND_TITLES.items() %}<option value="{{ key }}" {{ 'selected' if key == blank.kind }}>{{ title }}</option>{% endfor %}</select></div>
+        {% for key, label, kinds in BLANK_FIELDS %}
+        <div data-kinds="{{ kinds|join(' ') }}"><label>{{ label }}, мм</label>
+          <input class="small" name="{{ key }}" inputmode="decimal" value="{{ blank_fmt(blank.sizes[key]) if blank.sizes.get(key) else '' }}"></div>
+        {% endfor %}
+        <div><label>Количество, шт.</label><input class="small" name="quantity" inputmode="numeric" value="{{ blank.quantity }}"></div>
+      </div>
+      <div class="row"><div class="grow"><label>Примечание для заготовителя</label><input name="note" value="{{ blank.note }}" class="grow"></div></div>
+      <div class="row"><input name="reason" placeholder="Причина исправления" class="grow" required><button>Сохранить заготовку</button></div>
+    </form>
+    {% if blank.source == 'technologist' %}
+    <form method="post" action="/positions/{{ pos.id }}/blank" class="inline" style="margin-top:8px">
+      <input type="hidden" name="reset" value="1"><input name="reason" placeholder="Причина" required>
+      <button class="secondary">Вернуть предложение системы</button></form>{% endif %}
+  </details>
+  <script>
+  (function () {
+    // Поля размеров — только выбранного сортамента (без скрипта видны все, лишние сервер не читает).
+    document.querySelectorAll('.js-blank').forEach(function (f) {
+      var kind = f.querySelector('select[name=kind]');
+      function show() { f.querySelectorAll('[data-kinds]').forEach(function (el) {
+        el.hidden = el.dataset.kinds.split(' ').indexOf(kind.value) < 0; }); }
+      kind.addEventListener('change', show); show();
+    });
+  })();
+  </script>
+  {% endif %}
+  <p class="muted">Строка видна заготовителю в «Моих операциях» на резке заготовки. Предложение системы — по габаритам STEP,
+    сортаменту чертежа (или технологии) и припускам из справочника; заданное технологом пересчёт не меняет.</p>
+</div>

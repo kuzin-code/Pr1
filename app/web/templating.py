@@ -6,6 +6,7 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from app.domain.access import Action, can
+from app.domain.blank import FORM_FIELDS, KIND_TITLES, fmt as blank_fmt
 from app.domain.desired_date import check_desired
 from app.domain.downtime import OVERRUN_FACTOR, REASON_LABELS, reason_label
 from app.domain.order_intake import MAX_QUANTITY
@@ -86,6 +87,7 @@ def quick_bar(first: str, last: str, start: str, end: str) -> str:
 
 
 templates.env.globals.update(quick_bar=quick_bar)
+templates.env.globals.update(BLANK_KIND_TITLES=KIND_TITLES, BLANK_FIELDS=FORM_FIELDS, blank_fmt=blank_fmt)
 templates.env.globals.update(reason_label=reason_label, REASON_LABELS=REASON_LABELS, overrun_factor=OVERRUN_FACTOR)
 templates.env.globals.update(
     Stage=Stage, CountMode=CountMode, FactKind=FactKind, PositionStatus=PositionStatus,

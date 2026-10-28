@@ -10,7 +10,7 @@ from app.domain.access import Action, require
 from app.domain.desired_date import check_desired
 from app.domain.enums import Role, Stage, StageGroup
 from app.domain.timing import StageTime, group_planned_hours, stage_planned_hours
-from app.services import order_service, plan_service
+from app.services import blank_service, order_service, plan_service
 from app.services.actor import Actor, ServiceError
 from app.services.history_service import record
 from app.services.order_service import UploadedFile
@@ -74,6 +74,7 @@ def notify_new_order(session: Session, order: OrderRow, actor: Actor) -> None:
     names = {m.code: m.model for m in session.query(MachineRow)}
     machines: dict[str, list[float]] = defaultdict(list)
     work = {Role.CUTTER: [], Role.LOCKSMITH: [], Role.INSPECTOR: []}
+    cut_blanks = []  # заготовителю — что пилить
     for pos in order.positions:
         calc = plan_service.plan_calc(pos)
         if not calc:
@@ -87,6 +88,9 @@ def notify_new_order(session: Session, order: OrderRow, actor: Actor) -> None:
                             (Role.INSPECTOR, stage_planned_hours(times, Stage.INSPECTION))):
             if hours > 0:
                 work[role].append(hours)
+                if role is Role.CUTTER:
+                    cut_blanks.append(f"«{pos.designation}» — "
+                                      f"{blank_service.blank_text(session, pos) or 'заготовка не определена'}")
 
     total, unpaired = len(order.positions), sum(1 for p in order.positions if p.needs_link)
     who = f" ({order.customer})" if order.customer else ""
@@ -111,6 +115,8 @@ def notify_new_order(session: Session, order: OrderRow, actor: Actor) -> None:
     for role, hours in work.items():
         if hours:
             texts[role] = f"{title}: {labels[role]} — {len(hours)} поз., {_hours(sum(hours))}. {after}"
+    if cut_blanks and Role.CUTTER in texts:
+        texts[Role.CUTTER] += " Заготовки: " + "; ".join(cut_blanks)
 
     first = order.positions[0].id if order.positions else 0
     for role, text in texts.items():
