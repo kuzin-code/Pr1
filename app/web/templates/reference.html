@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Справочники{% endblock %}
+{% import "_help.html" as help %}
 {% block content %}
-<h1>Справочники</h1>
+<h1>Справочники {{ help.help_tip('it.reference') }}</h1>
 {% if can('view_cost') %}
 <div class="card">
   <h2>Ставки</h2>

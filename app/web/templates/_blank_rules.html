@@ -1,8 +1,9 @@
 {# Справочник: припуски и стандартные ряды для заготовки, предложенной системой (параметр «blank_rules»). #}
+{% import "_help.html" as help %}
 {% set br = blank_rules %}
 {% set off = '' if can('edit_reference') else 'disabled' %}
 <div class="card" id="blank-rules">
-  <h2>Заготовка: припуски и стандартные ряды</h2>
+  <h2>Заготовка: припуски и стандартные ряды {{ help.help_tip('position.blank') }}</h2>
   {% if br %}
   <form method="post" action="/reference/blank-rules">
     <div class="row">
