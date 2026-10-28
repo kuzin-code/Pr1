@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Памятка — АС «Планирование загрузки и расчёт стоимости»</title>
+<style>
+  /* Памятка для раздачи: лист А4, поля 10 мм. Всё внутри файла: стили и значки SVG, без интернета. */
+  @page { size: A4; margin: 10mm; }
+  :root { --brand:#993556; --brand-dark:#7a2945; --brand-soft:#f8eef2; --brand-light:#e8a3b8;
+          --text:#1d2330; --muted:#556072; --line:#e3e6eb; --head:#1d2330;
+          --ok:#1d7a45; --ok-soft:#e8f5ee; --run:#d97706; --run-soft:#fff4e5; --blue:#1f5fbf; --blue-soft:#e6f0ff;
+          --err:#b42318; --prelim:#d5dce8; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; background:#fff; color:var(--text); -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body { font:10.5pt/1.35 "Segoe UI", system-ui, Roboto, Arial, sans-serif; }
+  .sheet { width:190mm; height:277mm; margin:0 auto; display:flex; flex-direction:column; gap:3.5mm; overflow:hidden; }
+  .sheet + .sheet { break-before:page; }
+  @media screen { body { background:#e9ebef; padding:10mm 0; } .sheet + .sheet { margin-top:30mm; } .sheet { background:#fff; padding:0; box-shadow:0 0 0 10mm #fff, 0 4px 24px 10mm rgba(0,0,0,.08); } }
+  svg.i { width:1.25em; height:1.25em; flex:0 0 auto; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; vertical-align:-.25em; }
+  .sym { display:none; }
+
+  /* Шапка */
+  .top { display:flex; align-items:center; gap:4mm; background:var(--head); color:#fff; border-radius:3mm; padding:3mm 5mm;
+         border-bottom:1.2mm solid var(--brand); }
+  .top .kicker { color:var(--brand-light); font-size:9pt; letter-spacing:.06em; text-transform:uppercase; }
+  .top h1 { margin:.5mm 0 0; font-size:16pt; line-height:1.15; }
+  .top .sub { color:#cfd6e4; font-size:9.5pt; }
+  .top .badge { margin-left:auto; text-align:right; font-size:9pt; color:#cfd6e4; }
+  .top .badge b { display:block; color:#fff; font-size:13pt; }
+
+  /* Плитки */
+  .row { display:grid; gap:3mm; }
+  .tile { border:1px solid var(--line); border-radius:3mm; padding:3.5mm 4mm; background:#fff; }
+  .tile h2 { display:flex; align-items:center; gap:2mm; margin:0 0 2.2mm; font-size:13pt; line-height:1.15; }
+  .tile h2 .ic { display:inline-flex; align-items:center; justify-content:center; width:9mm; height:9mm; border-radius:2mm;
+                 background:var(--brand-soft); color:var(--brand); }
+  .tile h2 .ic svg.i { width:5mm; height:5mm; vertical-align:0; }
+  .tile h2 small { font-weight:400; color:var(--muted); font-size:9pt; }
+  .tile.accent { border-color:var(--brand); border-width:.5mm; }
+
+  /* Вход */
+  .login { grid-template-columns: 1.35fr 1fr; }
+  .addr { font:700 15pt/1.1 Consolas, "Courier New", monospace; color:var(--brand); letter-spacing:-.01em; margin:1mm 0 1.2mm; }
+  .hint { color:var(--muted); font-size:9pt; }
+  .pair { display:flex; gap:3mm; }
+  .pair div { flex:1; display:flex; gap:2mm; align-items:flex-start; }
+
+  /* Роли: шаги */
+  .roles { grid-template-columns: repeat(3, 1fr); }
+  ol.steps { list-style:none; margin:0; padding:0; counter-reset:s; }
+  ol.steps li { counter-increment:s; display:flex; gap:2mm; align-items:flex-start; margin:0 0 1.5mm; }
+  ol.steps li::before { content:counter(s); flex:0 0 auto; width:5mm; height:5mm; border-radius:50%; background:var(--brand);
+                        color:#fff; font-size:9pt; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:.2mm; }
+  ol.steps li:last-child { margin-bottom:0; }
+  .where { font-weight:600; }
+
+  /* Кнопки у станка */
+  .shop { grid-template-columns: 1fr 1fr 1.4fr 1fr; }
+  .btn { display:flex; align-items:center; justify-content:center; gap:1.5mm; height:13mm; border-radius:2.5mm; color:#fff;
+         font-weight:800; font-size:14pt; letter-spacing:.02em; margin-bottom:1.6mm; }
+  .btn.start { background:var(--ok); } .btn.finish { background:var(--brand); }
+  .btn.reason { background:var(--run-soft); color:var(--run); border:.4mm solid var(--run); font-size:11.5pt; }
+  .btn.shift { background:#fff; color:var(--text); border:.4mm solid #c6ccd6; font-size:11.5pt; }
+  .chips { display:flex; flex-wrap:wrap; gap:1mm; margin-top:1mm; }
+  .chip { border:1px solid var(--line); border-radius:2mm; line-height:1.5; padding:.4mm 2mm; font-size:10pt; background:#fafbfc; }
+
+  /* Статусы и Ганта */
+  .legend { grid-template-columns: 1.5fr 1fr; }
+  .flow { display:flex; flex-wrap:wrap; align-items:center; gap:2mm 0; }
+  .st { display:inline-flex; align-items:center; border-radius:3mm; padding:.8mm 2mm; font-size:10pt; font-weight:600; background:#eef2f7; color:#344054; }
+  .st.warn { background:var(--run-soft); color:#a15c00; } .st.ok { background:var(--ok-soft); color:var(--ok); }
+  .st.work { background:var(--blue-soft); color:var(--blue); }
+  .arr { color:var(--muted); margin:0 .8mm; font-size:9pt; }
+  .who { color:var(--muted); font-size:10pt; margin-top:3mm; }
+  .gantt { display:grid; grid-template-columns: 14mm 1fr; gap:1.6mm 3mm; align-items:center; }
+  .bar { height:5mm; border-radius:1.2mm; }
+  .bar.approved { background:var(--blue); } .bar.run { background:var(--run); } .bar.done { background:var(--ok); }
+  .bar.prelim { background:repeating-linear-gradient(45deg, var(--prelim) 0 1.2mm, #fff 1.2mm 2.4mm); border:.3mm dashed #4a5a75; }
+  .bar.today { width:.8mm; height:5mm; background:#d92d20; margin-left:5mm; border-radius:0; }
+  .bar.bad { background:#fff; outline:.5mm solid var(--err); }
+
+  /* Карточка операции (макет) */
+  .opcard { display:grid; grid-template-columns: 92mm 1fr; gap:5mm; align-items:center; }
+  .mock { border:1px solid var(--line); border-left:2mm solid var(--ok); border-radius:3mm; padding:2.5mm 3mm; background:#fff; }
+  .mock .t { display:flex; justify-content:space-between; font-weight:700; font-size:11pt; }
+  .mock .t small { display:block; font-weight:400; color:var(--muted); font-size:9pt; }
+  .mock .n { font-size:9pt; color:#fff; background:var(--brand); border-radius:50%; width:4.6mm; height:4.6mm; display:inline-flex;
+             align-items:center; justify-content:center; font-weight:700; margin-left:1mm; vertical-align:middle; }
+  .mock .line { margin:1.2mm 0; font-size:9.5pt; white-space:nowrap; }
+  .mock .pill { background:var(--ok-soft); color:var(--ok); border-radius:3mm; padding:.2mm 2mm; font-size:9pt; font-weight:600; }
+  .mock .docs { color:var(--blue); font-size:9.5pt; text-decoration:underline; }
+  .mock .go { margin-top:1.5mm; height:8mm; border-radius:2mm; background:var(--ok); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:11pt; }
+  /* Если что-то не так */
+  .help { grid-template-columns: repeat(3, 1fr); }
+  .help .tile { display:flex; gap:2.5mm; align-items:flex-start; padding:3mm 3.5mm; }
+  .q { flex:0 0 auto; width:8mm; height:8mm; border-radius:50%; border:.5mm solid var(--brand); color:var(--brand);
+       display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13pt; }
+  .help b.t { display:block; font-size:11pt; margin-bottom:.6mm; }
+  .foot { margin-top:auto; display:flex; justify-content:space-between; color:var(--muted); font-size:9pt; border-top:1px solid var(--line); padding-top:1.2mm; }
+</style>
+</head>
+<body>
+<svg class="sym" aria-hidden="true">
+  <symbol id="pc" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="phone" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></symbol>
+  <symbol id="key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></symbol>
+  <symbol id="manager" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2M3 12h18"/></symbol>
+  <symbol id="tech" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="head" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 13l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="master" viewBox="0 0 24 24"><path d="M4 16a8 8 0 0 1 16 0M2 16h20v3H2zM12 8V5"/></symbol>
+  <symbol id="shop" viewBox="0 0 24 24"><path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L3 18l3 3 6.2-6.2a4 4 0 0 0 5.3-5.3l-2.5 2.5-2.5-.5-.5-2.5z"/></symbol>
+  <symbol id="play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></symbol>
+  <symbol id="stop" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></symbol>
+  <symbol id="warn" viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5M12 18v.5"/></symbol>
+  <symbol id="list" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+  <symbol id="flow" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h10M14 9l3 3-3 3"/></symbol>
+  <symbol id="chart" viewBox="0 0 24 24"><path d="M3 6h9M3 12h14M3 18h6"/></symbol>
+  <symbol id="sos" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></symbol>
+  <symbol id="book" viewBox="0 0 24 24"><path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-5a2 2 0 0 0-2 2"/><path d="M20 4v14h-6"/></symbol>
+  <symbol id="people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></symbol>
+</svg>
+
+<div class="sheet">
+  <header class="top">
+    <div>
+      <div class="kicker">Производственный отдел · участок механической обработки</div>
+      <h1>АС «Планирование загрузки и расчёт стоимости»</h1>
+      <div class="sub">Памятка сотрудника: как войти и что нажимать</div>
+    </div>
+    <div class="badge">кнопка в системе<b>«?» и «Справка»</b></div>
+  </header>
+
+  <!-- Вход -->
+  <section class="row login">
+    <div class="tile accent">
+      <h2><span class="ic"><svg class="i"><use href="#key"/></svg></span>Вход в систему</h2>
+      <div class="pair">
+        <div><svg class="i"><use href="#pc"/></svg><span>Компьютер — браузер</span></div>
+        <div><svg class="i"><use href="#phone"/></svg><span>Телефон, планшет — браузер</span></div>
+      </div>
+      <div class="addr">http://192.168.100.149:8000</div>
+      <div class="hint">Работает только в сети участка. Сохраните адрес в закладки или на главный экран телефона.</div>
+    </div>
+    <div class="tile">
+      <h2><span class="ic"><svg class="i"><use href="#people"/></svg></span>Имя и пароль</h2>
+      <ol class="steps">
+        <li><span><b>Имя и пароль выдаёт IT.</b></span></li>
+        <li><span>Временный пароль система сразу попросит сменить — не короче 8 символов.</span></li>
+        <li><span>Сменить: своё имя вверху → «Мой пароль». Пароль никому не передавайте.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Роли -->
+  <section class="row roles">
+    <div class="tile">
+      <h2><span class="ic"><svg class="i"><use href="#manager"/></svg></span>Менеджер производства</h2>
+      <ol class="steps">
+        <li><span><span class="where">«Расчёт и КП» → «Новый заказ»:</span> заказчик и желаемая дата.</span></li>
+        <li><span>Перетащите все файлы разом: список Excel, STEP и PDF. Проверьте пары → «Принять заказ».</span></li>
+        <li><span>Цена без заказа — <span class="where">«Быстрый расчёт»</span>: цена, срок ±10 %.</span></li>
+        <li><span><span class="where">«Сформировать КП»</span> — лист А4 и файл Word.</span></li>
+      </ol>
+    </div>
+    <div class="tile">
+      <h2><span class="ic"><svg class="i"><use href="#tech"/></svg></span>Технолог</h2>
+      <ol class="steps">
+        <li><span>Рабочий экран → <span class="where">расчёты на проверку.</span></span></li>
+        <li><span>В карточке позиции проверьте данные чертежа, балл, аналог, маршрут, станок, заготовку.</span></li>
+        <li><span>Любая правка — <b>с причиной</b> (попадает в историю).</span></li>
+        <li><span><span class="where">«Передать на утверждение».</span> Журнал калибровки ведёте вы.</span></li>
+      </ol>
+    </div>
+    <div class="tile">
+      <h2><span class="ic"><svg class="i"><use href="#head"/></svg></span>Начальник участка</h2>
+      <ol class="steps">
+        <li><span>Рабочий экран → <span class="where">позиции к утверждению.</span></span></li>
+        <li><span>Проверьте расчёт и срок: <span class="where">«Утвердить»</span> или «Вернуть на пересчёт» с причиной.</span></li>
+        <li><span><span class="where">«Загрузка станков»:</span> диаграмма Ганта, сроки, отклонения.</span></li>
+        <li><span>Срочная позиция — <span class="where">«срочно ↑»</span> в очереди, с причиной.</span></li>
+      </ol>
+    </div>
+    <div class="tile">
+      <h2><span class="ic"><svg class="i"><use href="#master"/></svg></span>Мастер</h2>
+      <ol class="steps">
+        <li><span><span class="where">«Уведомления»</span> и задачи: позиции без файлов, превышение плана.</span></li>
+        <li><span>«Загрузка станков»: «Станок занят до», <span class="where">«срочно ↑»</span>, сменное задание.</span></li>
+        <li><span>Отмечает операции за специалистов в <span class="where">«Мои операции».</span></span></li>
+        <li><span>Ошибочную отметку отменяет в карточке позиции.</span></li>
+      </ol>
+    </div>
+    <div class="tile" style="grid-column: span 2">
+      <h2><span class="ic"><svg class="i"><use href="#shop"/></svg></span><span>Специалист у станка<br><small>оператор ЧПУ, заготовитель, слесарь, контролёр</small></span></h2>
+      <ol class="steps" style="columns:2; column-gap:5mm">
+        <li><span>Войдите под учётной записью своей специальности — откроется <span class="where">«Мои операции».</span></span></li>
+        <li><span>Оператор: вверху выберите <b>свой станок</b>.</span></li>
+        <li><span>Работайте по карточкам: <b>«Можно начинать»</b> → <b>«В работе»</b>.</span></li>
+        <li><span>Чертёж PDF и 3D-модель — кнопки прямо на карточке. Заготовителю — строка заготовки на карточке резки.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <div class="foot"><span>Лицо: вход и роли. На обороте — кнопки у станка, статусы, цвета и куда обращаться.</span><span>Памятка · версия 1 · октябрь 2026</span></div>
+</div>
+
+<div class="sheet">
+  <header class="top">
+    <div>
+      <div class="kicker">Производственный отдел · участок механической обработки</div>
+      <h1>У станка, статусы и цвета</h1>
+      <div class="sub">Оборот памятки: окно «Мои операции», диаграмма Ганта, если что-то пошло не так</div>
+    </div>
+    <div class="badge">не нашли ответ?<b>мастер или IT</b></div>
+  </header>
+
+  <!-- Кнопки у станка -->
+  <section class="tile">
+    <h2><span class="ic"><svg class="i"><use href="#play"/></svg></span>Кнопки у станка <small>· окно «Мои операции» само обновляется раз в минуту</small></h2>
+    <div class="row shop">
+      <div><div class="btn start"><svg class="i"><use href="#play"/></svg>НАЧАЛ</div>
+        Нажмите, когда <b>приступили</b>. Время ставится само; начали раньше — «Указать другое время».</div>
+      <div><div class="btn finish"><svg class="i"><use href="#stop"/></svg>ЗАКОНЧИЛ</div>
+        Нажмите, когда <b>сделали</b>. Следующая операция откроется следующему специалисту.</div>
+      <div><div class="btn reason"><svg class="i"><use href="#warn"/></svg>Причина отклонения</div>
+        Работа шла <b>дольше плана в 1,2 раза</b> — без причины «Закончил» не сработает:
+        <div class="chips"><span class="chip">наладка · инструмент · ждал заготовку · брак · программа · ремонт · другое (с комментарием)</span></div></div>
+      <div><div class="btn shift"><svg class="i"><use href="#list"/></svg>Сменное задание</div>
+        Работы станка на смену по плану. У оператора ЧПУ — кнопка вверху «Мои операции»; печать А4 с подписями «Выдал / Принял».</div>
+    </div>
+  </section>
+
+  <!-- Статусы и Ганта -->
+  <section class="row legend">
+    <div class="tile">
+      <h2><span class="ic"><svg class="i"><use href="#flow"/></svg></span>Статусы позиции</h2>
+      <div class="flow">
+        <span class="st">Расчёт</span><span class="arr">→</span>
+        <span class="st warn">Проверка технолога</span><span class="arr">→</span>
+        <span class="st warn">Ожидает утверждения</span><span class="arr">→</span>
+        <span class="st">Утверждена</span><span class="arr">→</span>
+        <span class="st work">Изготовление на станке</span><span class="arr">→</span>
+        <span class="st work">Слесарно-финишная обработка</span><span class="arr">→</span>
+        <span class="st work">Внутренний контроль</span><span class="arr">→</span>
+        <span class="st ok">Завершена</span>
+      </div>
+      <div class="who">До утверждения статус меняют технолог и начальник участка. После — система сама, по кнопкам «Начал» и «Закончил». Заказ завершён, когда завершены все позиции.</div>
+    </div>
+    <div class="tile">
+      <h2><span class="ic"><svg class="i"><use href="#chart"/></svg></span>Цвета полос Ганта</h2>
+      <div class="gantt">
+        <span class="bar approved"></span><span>утверждена, ждёт станка</span>
+        <span class="bar run"></span><span>в работе на станке</span>
+        <span class="bar done"></span><span>станочная обработка выполнена</span>
+        <span class="bar prelim"></span><span>предварительно, ждёт утверждения</span>
+        <span class="bar today"></span><span>сегодня</span>
+        <span class="bar bad"></span><span>ошибка плана — сообщите технологу</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Карточка операции -->
+  <section class="tile">
+    <h2><span class="ic"><svg class="i"><use href="#list"/></svg></span>Карточка операции в «Мои операции»</h2>
+    <div class="opcard">
+      <div class="mock">
+        <div class="t"><span>ДТ-001 Корпус<span class="n">1</span><small>Заказ З-0012 · ООО «Пример»</small></span><span>10 шт.</span></div>
+        <div class="line">Обработка на станке · Haas VF-2 · план 3,5 ч<span class="n">2</span></div>
+        <div class="line"><span class="pill">можно начинать</span><span class="n">3</span> &nbsp;<span class="docs">Чертёж PDF</span> <span class="docs">3D-модель</span><span class="n">4</span></div>
+        <div class="go">НАЧАЛ</div>
+      </div>
+      <ol class="steps">
+        <li><span><b>Деталь, заказ</b> и количество.</span></li>
+        <li><span><b>Операция, станок</b>, время по плану.</span></li>
+        <li><span><b>Зелёное</b> — можно начинать, <b>оранжевое</b> — в работе.</span></li>
+        <li><span><b>Чертёж и 3D-модель</b> у станка.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Если что-то пошло не так -->
+  <section class="row help">
+    <div class="tile"><span class="q">?</span><div><b class="t">Непонятно на экране</b>Круглая «?» у блока — подсказка на месте.</div></div>
+    <div class="tile"><span class="ic q" style="border-radius:2mm"><svg class="i"><use href="#book"/></svg></span><div><b class="t">Нужны шаги</b>«Справка» в меню: поиск по слову.</div></div>
+    <div class="tile"><span class="ic q" style="border-radius:2mm"><svg class="i"><use href="#sos"/></svg></span><div><b class="t">К кому идти</b>Отметка, деталь, станок — <b>к мастеру</b>. Вход и пароль — <b>в IT</b>.</div></div>
+  </section>
+
+  <div class="foot"><span>Срок и загрузка в системе — ориентировочные, по плановому времени.</span><span>Памятка · версия 1 · октябрь 2026</span></div>
+</div>
+</body>
+</html>

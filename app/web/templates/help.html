@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% import "_help.html" as help %}
+{% block title %}Справка{% endblock %}
+{% block content %}
+{# Значки разделов — один раз, дальше <use href="#ico-…">. Только встроенный SVG (НФТ-01). #}
+<svg class="help-sprite" aria-hidden="true">
+  <symbol id="ico-manager" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2M3 12h18"/></symbol>
+  <symbol id="ico-technologist" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="ico-head" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 13l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="ico-master" viewBox="0 0 24 24"><path d="M4 16a8 8 0 0 1 16 0M2 16h20v3H2zM12 8V5"/></symbol>
+  <symbol id="ico-shop" viewBox="0 0 24 24"><path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L3 18l3 3 6.2-6.2a4 4 0 0 0 5.3-5.3l-2.5 2.5-2.5-.5-.5-2.5z"/></symbol>
+  <symbol id="ico-management" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="ico-it" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="ico-common" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
+</svg>
+
+<div class="help-page">
+<h1>Справка</h1>
+<div class="card help-intro">
+  <p>Здесь собраны короткие ответы: что делать на каждом экране. Сначала — раздел для вашей роли
+    {%- if role %} (<b>{{ role.label }}</b>){% endif %}, дальше — для остальных.</p>
+  <div class="help-how">В работе нажимайте круглую кнопку {{ help.help_tip('start.help', steps=false) }} рядом с блоком —
+    подсказка откроется на месте. Ссылка «Как это сделать?» ведёт сюда, к нужному пункту.</div>
+  <label for="help-search" class="help-search-label">Поиск по справке</label>
+  <input id="help-search" type="search" class="help-search" placeholder="Например: причина, заготовка, КП, пароль"
+         autocomplete="off">
+  <p id="help-none" class="muted" hidden>Ничего не найдено. Попробуйте другое слово или спросите мастера.</p>
+</div>
+
+<nav class="help-toc" aria-label="Разделы справки">
+  {% for s in sections %}<a class="help-chip{{ ' on' if loop.first and role in s.roles }}" href="#sec-{{ s.code }}">
+    <svg class="help-chip-ico"><use href="#ico-{{ s.icon }}"/></svg>{{ s.title }}</a>{% endfor %}
+</nav>
+
+{# Пункт может быть в нескольких разделах; якорь (id = ключ) — у первого появления, то есть в разделе своей роли. #}
+{% set seen = namespace(keys=[]) %}
+{% for s in sections %}
+<section class="help-sec{{ ' mine' if role in s.roles }}" id="sec-{{ s.code }}">
+  <header class="help-sec-head">
+    <svg class="help-sec-ico"><use href="#ico-{{ s.icon }}"/></svg>
+    <div><h2>{{ s.title }}{% if role in s.roles %} <span class="badge ok">ваша роль</span>{% endif %}</h2>
+      <p class="muted">{{ s.lead }}</p></div>
+  </header>
+  <div class="help-items">
+  {% for key in s.topics %}{% set t = topics[key] %}
+    <article class="help-item"{% if key not in seen.keys %} id="{{ key }}"{% set seen.keys = seen.keys + [key] %}{% endif %}>
+      <span class="help-screen">{{ screens[t.screen] }}</span>
+      <h3>{{ t.title }}</h3>
+      <p>{{ t.text }}</p>
+      {% if t.steps %}<ol class="help-steps">{% for st in t.steps %}<li>{{ st }}</li>{% endfor %}</ol>{% endif %}
+    </article>
+  {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<div class="card help-contacts">
+  <h2>Если что-то пошло не так</h2>
+  <ul>
+    <li><b>Не понятно, что делать на экране</b> — нажмите «?» рядом с блоком или найдите слово в поиске выше.</li>
+    <li><b>Ошиблись с отметкой, деталь или станок не те</b> — к мастеру.</li>
+    <li><b>Не входит, забыли пароль, страница не открывается</b> — в IT.</li>
+  </ul>
+</div>
+</div>
+
+<script>
+(function () {
+  // Поиск по странице: показываем пункты, где есть все введённые слова; пустые разделы прячем.
+  var input = document.getElementById('help-search'), none = document.getElementById('help-none');
+  var items = Array.prototype.slice.call(document.querySelectorAll('.help-item'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.help-sec'));
+  items.forEach(function (el) { el.dataset.text = el.textContent.toLowerCase().replace(/ё/g, 'е'); });
+  input.addEventListener('input', function () {
+    var words = input.value.toLowerCase().replace(/ё/g, 'е').split(/\s+/).filter(Boolean), found = 0;
+    items.forEach(function (el) {
+      var ok = words.every(function (w) { return el.dataset.text.indexOf(w) >= 0; });
+      el.hidden = !ok; if (ok) found++;
+    });
+    sections.forEach(function (s) { s.hidden = !s.querySelector('.help-item:not([hidden])'); });
+    none.hidden = found > 0;
+  });
+  // Переход по ссылке «Как это сделать?»: подсвечиваем нужный пункт.
+  function mark() {
+    var id = decodeURIComponent(location.hash.slice(1)), el = id && document.getElementById(id);
+    document.querySelectorAll('.help-item.hit').forEach(function (x) { x.classList.remove('hit'); });
+    if (el && el.classList.contains('help-item')) el.classList.add('hit');
+  }
+  window.addEventListener('hashchange', mark); mark();
+})();
+</script>
+{% endblock %}

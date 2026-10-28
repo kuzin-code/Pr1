@@ -18,6 +18,7 @@ from app.storage.db import init_db, make_engine
 from app.web.deps import MustChangePassword, NotLoggedIn, redirect
 from app.web.routes import (auth, dashboard, export, users, journal, machines, orders, plan, positions, proposals,
                             quick, reference, work)
+from app.web.routes import help as help_routes  # справка и кнопки помощи «?»
 from app.web.templating import render
 
 
@@ -72,6 +73,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     start_daily_backup(settings)
     for module in (auth, dashboard, users, export, orders, positions, plan, quick, proposals, reference, journal, machines,
-                   work):
+                   work, help_routes):
         app.include_router(module.router)
     return app

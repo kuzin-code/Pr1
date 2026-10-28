@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Планирование загрузки{% endblock %} — АС</title>
   <link rel="stylesheet" href="/static/style.css?v={{ static_version }}">
+  <link rel="stylesheet" href="/static/help.css?v={{ static_version }}">
 </head>
 <body>
 {# Текущий раздел — для подсветки пункта меню; карточки позиций и станков относятся к своим спискам. #}
@@ -35,6 +36,7 @@
     {% if can('view_history') %}{{ nav_item('/history', 'История') }}{% endif %}
     {% if nav_more %}</div></div>{% endif %}
     {% if can('manage_users') %}{{ nav_item('/users', 'Пользователи') }}{% endif %}
+    {{ nav_item('/help', 'Справка') }}
     <div class="nav-me">{{ nav_item('/account', 'Мой пароль') }}
       <form method="post" action="/logout"><button class="secondary">Выйти</button></form></div>
   </nav>

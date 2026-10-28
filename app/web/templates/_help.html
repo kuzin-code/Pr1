@@ -1,0 +1,23 @@
+{# Кнопки помощи для обучения персонала (тексты — app/web/help). Подключение в шаблоне:
+     {% import "_help.html" as help %} … {{ help.help_tip('work.reason') }} · {{ help.help_link('intake.files') }}
+   help_tip   — круглая «?» рядом с заголовком или полем: подсказка раскрывается на месте, без перехода
+                (align='end' — подсказка открывается влево, для кнопок у правого края);
+   help_link  — ссылка «Как это сделать?» на шаги в справке (/help#ключ);
+   help_empty — пустое состояние: что делать дальше. Неизвестный ключ — ничего не выводится. #}
+
+{% macro help_tip(key, steps=true, align='start') %}{% set t = help_topic(key) %}{% if t %}<details class="help-tip{{ ' end' if align == 'end' }}"><summary class="help-q" title="Подсказка: {{ t.title }}" aria-label="Подсказка: {{ t.title }}">?</summary><div class="help-pop" role="note">
+  <b class="help-pop-title">{{ t.title }}</b>
+  <span class="help-pop-text">{{ t.text }}</span>
+  {% if steps and t.steps %}<ol class="help-steps">{% for s in t.steps %}<li>{{ s }}</li>{% endfor %}</ol>{% endif %}
+  <a class="help-more" href="/help#{{ key }}">Подробнее в справке</a>
+</div></details>{% endif %}{% endmacro %}
+
+{% macro help_link(key, label="Как это сделать?") %}{% set t = help_topic(key) %}{% if t %}<a class="help-link" href="/help#{{ key }}" title="{{ t.title }}"><svg class="help-ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 6.2a2 2 0 1 1 2.8 1.8c-.6.3-.8.6-.8 1.2v.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.8" r=".9" fill="currentColor"/></svg>{{ label }}</a>{% endif %}{% endmacro %}
+
+{% macro help_empty(key, title) %}{% set t = help_topic(key) %}{% if t %}<div class="help-empty" role="status">
+  <svg class="help-empty-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v6M12 16.5v.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+  <div><b class="help-empty-title">{{ title }}</b>
+    <span class="help-pop-text">{{ t.text }}</span>
+    {% if t.steps %}<ol class="help-steps">{% for s in t.steps %}<li>{{ s }}</li>{% endfor %}</ol>{% endif %}
+    <a class="help-more" href="/help#{{ key }}">Подробнее в справке</a></div>
+</div>{% endif %}{% endmacro %}
