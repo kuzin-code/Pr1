@@ -9,7 +9,7 @@
   <b class="help-pop-title">{{ t.title }}</b>
   <span class="help-pop-text">{{ t.text }}</span>
   {% if steps and t.steps %}<ol class="help-steps">{% for s in t.steps %}<li>{{ s }}</li>{% endfor %}</ol>{% endif %}
-  <a class="help-more" href="/help#{{ key }}">Подробнее в справке</a>
+  <span class="help-acts"><a class="help-more" href="/help#{{ key }}">Подробнее в справке</a><button type="button" class="help-close">Закрыть</button></span>
 </div></details>{% endif %}{% endmacro %}
 
 {% macro help_link(key, label="Как это сделать?") %}{% set t = help_topic(key) %}{% if t %}<a class="help-link" href="/help#{{ key }}" title="{{ t.title }}"><svg class="help-ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 6.2a2 2 0 1 1 2.8 1.8c-.6.3-.8.6-.8 1.2v.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.8" r=".9" fill="currentColor"/></svg>{{ label }}</a>{% endif %}{% endmacro %}

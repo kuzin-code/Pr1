@@ -1,13 +1,14 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Журнал калибровки{% endblock %}
 {% block content %}
-<h1>Журнал калибровки <span class="badge">версия {{ version }}</span></h1>
+<h1>Журнал калибровки <span class="badge">версия {{ version }}</span> {{ help.help_tip('journal.what') }}</h1>
 {% if unconfirmed %}<div class="flash error">Время операций не подтверждено технологом у {{ unconfirmed }} дет. — оно предложено системой; проверьте его в карточках деталей.</div>{% endif %}
 {% if missing %}<div class="flash error">В журнале без исправных файлов: {{ missing }} дет. — откройте деталь и прикрепите её STEP и PDF.</div>{% endif %}
 <div class="grid">
 {% if can('edit_journal') %}
 <div class="card">
-  <h2>Добавить деталь</h2>
+  <h2>Добавить деталь {{ help.help_tip('journal.add') }}</h2>
   <form method="post" action="/journal/new" enctype="multipart/form-data" class="inline">
     <input type="file" name="files" multiple required accept=".step,.stp,.pdf">
     <button>Добавить по STEP + PDF</button>
@@ -20,7 +21,7 @@
 </div>
 {% endif %}
 <div class="card">
-  <h2>Excel</h2>
+  <h2>Excel {{ help.help_tip('journal.excel') }}</h2>
   <div class="row">
     <a class="btn secondary" href="/journal/template">Пустой шаблон</a>
     <a class="btn secondary" href="/journal/export">Выгрузить журнал</a>

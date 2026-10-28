@@ -1,6 +1,7 @@
 {# Карточка позиции: технологический маршрут и станки (основной и второй). #}
+{% import "_help.html" as help %}
 <div class="card scroll">
-  <h2>Технологический маршрут</h2>
+  <h2>Технологический маршрут {{ help.help_tip('position.route') }}</h2>
   <table class="cards">
     <tr><th>Этап</th><th class="num">Время, ч</th><th>Счёт</th>{% if tech %}<th>Правка (с причиной)</th>{% endif %}</tr>
     {% for s in pos.route %}
@@ -27,7 +28,7 @@
 </div>
 
 <div class="card">
-  <h2>Станок</h2>
+  <h2>Станок {{ help.help_tip('position.machine') }}</h2>
   <p>Назначен: <b>{{ pos.machine_code or "—" }}</b>
     {% if pos.machine_code %}{% if auto.get('machine', True) %}<span class="badge">назначен системой</span>{% else %}<span class="badge ok">назначен технологом</span>{% endif %}{% endif %}</p>
   {% if tech %}
@@ -41,7 +42,7 @@
   {% endif %}
   {% set extras = (pos.data or {}).get('extra_machines') or [] %}
   {% if extras or (tech and cnc_machines) %}
-  <h3>Второй станок в техпроцессе</h3>
+  <h3>Второй станок в техпроцессе {{ help.help_tip('position.extra_machine') }}</h3>
   {% for e in extras %}
   <div class="row" style="gap:8px;align-items:center;margin-bottom:6px">
     <b>{{ machine_names.get(e.machine, e.machine) }}</b>

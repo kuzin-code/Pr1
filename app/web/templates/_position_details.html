@@ -1,4 +1,5 @@
 {# Карточка позиции: файлы, данные списка и чертежа, замечания системы, данные детали и аналог. #}
+{% import "_help.html" as help %}
 <div class="card facts">
   <div><label>Количество (партия)</label>{{ pos.quantity }} шт.</div>
   <div><label>Чертёж PDF — главный документ</label>
@@ -47,7 +48,7 @@
 {% set dfm_checks = d.get('dfm') or [] %}
 {% if dfm_checks %}{% set dismissed = d.get('dfm_dismissed') or {} %}
 <div class="card" id="dfm">
-  <h2>Технологичность по STEP</h2>
+  <h2>Технологичность по STEP {{ help.help_tip('position.dfm') }}</h2>
   <table class="cards">
     <tr><th>Проверка</th><th>Итог</th><th>Подробно</th>{% if can('dismiss_dfm') %}<th></th>{% endif %}</tr>
     {% for c in dfm_checks %}{% set off = c.status == 'warn' and (dismissed.get(c.code) or {}).get('detail') == c.detail %}
@@ -65,7 +66,7 @@
 
 <div class="grid">
 <div class="card">
-  <h2>Данные детали</h2>
+  <h2>Данные детали {{ help.help_tip('position.data') }}</h2>
   {% for src in ('step', 'pdf') %}{% for e in (pos.read_data.get(src) or {}).get('errors', []) %}<div class="flash error">{{ e }}</div>{% endfor %}{% endfor %}
   {% set r = pos.read_data %}
   <p class="muted">Считано: габариты {{ (r.get('step') or {}).get('dims') or '—' }}, материал {{ (r.get('pdf') or {}).get('material') or '—' }},
@@ -92,7 +93,7 @@
   <hr class="sep">
   <div class="row">
     <form method="post" action="/positions/{{ pos.id }}/complexity" class="inline">
-      <label>Балл сложности {% if auto.get('complexity', True) %}<span class="badge">оценка системы</span>{% else %}<span class="badge ok">задан технологом</span>{% endif %}</label>
+      <label>Балл сложности {{ help.help_tip('position.complexity') }} {% if auto.get('complexity', True) %}<span class="badge">оценка системы</span>{% else %}<span class="badge ok">задан технологом</span>{% endif %}</label>
       <select name="complexity" class="fit" {{ 'disabled' if not tech }}>
         <option value="">—</option>
         {% for s in scale %}<option value="{{ s.score }}" {{ 'selected' if pos.complexity == s.score }}>{{ s.score }} — {{ s.description }}</option>{% endfor %}
@@ -106,7 +107,7 @@
 </div>
 
 <div class="card">
-  <h2>Аналог из журнала калибровки</h2>
+  <h2>Аналог из журнала калибровки {{ help.help_tip('position.analog', align='end') }}</h2>
   <p>Аналог: <b>{{ pos.analog_code or ("нет — время вводится вручную" if pos.no_analog else "не выбран") }}</b>
     {% if pos.analog_code %}{% if auto.get('analog', True) %}<span class="badge">выбран системой</span>{% else %}<span class="badge ok">выбран технологом</span>{% endif %}
     {% if d.get('analog_approximate') %}<span class="badge warn">аналог подобран по технологии, время пересчитано</span>{% endif %}{% endif %}</p>

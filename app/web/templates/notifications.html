@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Уведомления{% endblock %}
 {% block content %}
-<h1>Уведомления</h1>
+<h1>Уведомления {{ help.help_tip('notifications.list') }}</h1>
 <div class="card">
 <table class="cards">
   <tr><th>Время</th><th>Событие</th><th></th></tr>

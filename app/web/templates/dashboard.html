@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Главная{% endblock %}
 {% block content %}
 <section class="dash-hero" data-auto-refresh="300">
@@ -26,7 +27,7 @@
 
 <div class="dash-grid">
   <section class="card dash-tasks">
-    <h2>{{ board.tasks_title }} <span class="badge">{{ board.tasks|length }}</span></h2>
+    <h2>{{ board.tasks_title }} <span class="badge">{{ board.tasks|length }}</span> {{ help.help_tip('dashboard.tasks') }}</h2>
     {% for t in board.tasks %}
     <div class="dash-task">
       <div>
@@ -84,7 +85,7 @@
 </div>
 {% if board.overruns %}
 <section class="card dash-overruns">
-  <h2>Часы сверх плана по причинам и станкам</h2>
+  <h2>Часы сверх плана по причинам и станкам {{ help.help_tip('dashboard.overrun') }}</h2>
   <div class="grid">
   {% for title, t in board.overruns %}
   <div class="scroll">

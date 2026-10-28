@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Новый заказ{% endblock %}
 {% block content %}
-<h1>Новый заказ</h1>
+<h1>Новый заказ {{ help.help_tip('intake.files') }}</h1>
 {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
 <form method="post" action="/orders" enctype="multipart/form-data" class="card intake" id="intake">
   <input type="hidden" name="opened_at" id="opened_at">
@@ -10,13 +11,13 @@
       <input id="customer" name="customer" list="customers" value="{{ form.customer or '' }}" autofocus
              placeholder="Название или ФИО">
       <datalist id="customers">{% for c in customers %}<option value="{{ c }}">{% endfor %}</datalist></div>
-    <div><label for="desired_date">Желаемая дата изготовления</label>
+    <div><label for="desired_date">Желаемая дата изготовления {{ help.help_tip('intake.dates') }}</label>
       <input id="desired_date" type="date" name="desired_date" value="{{ form.desired_date or '' }}" min="{{ today }}"></div>
   </div>
 
   {% include "_files_drop.html" %}
   <div class="intake-fields" id="qty_row">
-    <div><label for="quantity">Количество, шт. (если без списка — для всех деталей)</label>
+    <div><label for="quantity">Количество, шт. (если без списка — для всех деталей) {{ help.help_tip('intake.quantity') }}</label>
       <input id="quantity" type="number" name="quantity" min="1" max="{{ max_quantity }}" value="{{ form.quantity or 1 }}"></div>
   </div>
 
@@ -29,7 +30,8 @@
   </details>
 
   <p><button class="big" id="submit" data-busy="Принимаем и считаем…">Принять заказ</button>
-    <a href="/orders/template" class="muted">Шаблон списка деталей (Excel)</a></p>
+    <a href="/orders/template" class="muted">Шаблон списка деталей (Excel)</a>
+    {{ help.help_link('intake.pairs', 'Как назвать файлы?') }}</p>
   <p class="muted">После приёма система сама читает чертежи, подбирает аналог и станок, считает стоимость и
     <b>расчётную дату</b> и сравнивает её с желаемой. Технолог, начальник участка, мастер и специалисты,
     задействованные в заказе, получают уведомление.</p>

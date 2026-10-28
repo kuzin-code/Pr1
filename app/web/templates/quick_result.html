@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Быстрый расчёт — результат{% endblock %}
 {% block content %}
-<h1>Быстрый расчёт{% if s.customer %} · {{ s.customer }}{% endif %}</h1>
+<h1>Быстрый расчёт{% if s.customer %} · {{ s.customer }}{% endif %} {{ help.help_tip('quick.result') }}</h1>
 <p class="muted">Посчитано {{ s.created_at|dt }} по загрузке на этот момент. Заказ не создан, план не изменён.</p>
 
 <div class="quick-kpi">
@@ -27,6 +28,7 @@
   <form method="post" action="/quick/{{ token }}/notify" class="inline"><button class="secondary">Сообщить начальнику участка</button></form>
   <form method="post" action="/quick/{{ token }}/discard" class="inline"><button class="secondary">Удалить расчёт</button></form>
   <a href="/quick" class="muted">Новый расчёт</a>
+  {{ help.help_tip('quick.launch', align='end') }}
 </div>
 <p class="muted quick-note">Неиспользованный расчёт удаляется автоматически через сутки.</p>
 

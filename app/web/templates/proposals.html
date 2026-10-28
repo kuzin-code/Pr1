@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Коммерческие предложения{% endblock %}
 {% block content %}
-<h1>Коммерческие предложения</h1>
+<h1>Коммерческие предложения {{ help.help_tip('kp.history') }}</h1>
 <form method="get" action="/proposals" class="card row" style="gap:10px;align-items:center">
   <input name="q" value="{{ q }}" placeholder="Заказчик, номер КП или заказа, обозначение детали" style="flex:1;min-width:240px">
   <button>Найти</button>{% if q %}<a href="/proposals" class="muted">Сбросить</a>{% endif %}

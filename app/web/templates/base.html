@@ -74,5 +74,20 @@
     });
   });
 </script>
+<script>
+  // Подсказки «?»: открыта одна за раз; закрываются повторным нажатием, кнопкой «Закрыть», щелчком мимо и Esc.
+  (function () {
+    var tips = document.querySelectorAll('details.help-tip');
+    if (!tips.length) return;
+    function closeAll(except) { tips.forEach(function (d) { if (d !== except) d.open = false; }); }
+    tips.forEach(function (d) { d.addEventListener('toggle', function () { if (d.open) closeAll(d); }); });
+    document.addEventListener('click', function (e) {
+      var tip = e.target.closest('.help-tip');
+      if (e.target.closest('.help-close')) tip.open = false;
+      else if (!tip) closeAll(null);
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAll(null); });
+  })();
+</script>
 </body>
 </html>

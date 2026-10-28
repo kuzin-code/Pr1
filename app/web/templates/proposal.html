@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}{{ p.number }} — коммерческое предложение{% endblock %}
 {% block content %}
 <div class="kp-bar no-print">
@@ -6,6 +7,7 @@
   <a href="/proposals" class="btn secondary">Все КП</a>
   <a href="/proposals/{{ row.id }}/file" class="btn" id="kp-download">Скачать Word</a>
   <button onclick="window.print()" class="secondary">Печать / PDF</button>
+  {{ help.help_tip('kp.make') }}
   <span class="muted">{{ "Сформировано и сохранено в истории КП; файл Word скачивается в «Загрузки»." if new else
     "Сохранено " ~ (row.created_at|dt) ~ ", " ~ row.created_by ~ " — данные на момент выставления." }}</span>
 </div>

@@ -1,4 +1,5 @@
 {# Карточка позиции: расчёт по этапам, план, операции и отмена ошибочной отметки. #}
+{% import "_help.html" as help %}
 {% if calc %}
 <div class="card scroll">
   <h2>Расчёт {% if pos.approved_calc %}(зафиксирован при утверждении){% endif %}
@@ -37,7 +38,7 @@
   </table>
   {% if facts %}<p>Факт: {% for k, v in facts.items() %}<span class="badge ok">{{ k.label }}: {{ v|dt }}</span>{% endfor %}</p>{% endif %}
   {% if operations %}
-  <h2 style="margin-top:12px" id="operations">Операции</h2>
+  <h2 style="margin-top:12px" id="operations">Операции {{ help.help_tip('position.operations') }}</h2>
   <table class="cards">
     <tr><th>№</th><th>Операция</th><th>Оборудование</th><th class="num">План, ч</th><th>Статус</th>
       <th>Начал</th><th>Закончил</th><th class="num">Факт, ч</th><th>Причина отклонения</th></tr>

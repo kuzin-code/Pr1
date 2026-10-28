@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Заказ {{ order.number }}{% endblock %}
 {% block content %}
 <h1>Заказ {{ order.number }}</h1>
 {% if can('upload_order') %}<div class="row order-kp">
   <form method="post" action="/orders/{{ order.id }}/proposal" class="inline"><button>Сформировать КП</button>
     <input name="quantities" size="14" class="kp-steps" placeholder="1, 10, 50" title="Ступени количества (до 4, через запятую): цена и срок для каждого количества"></form>
-  <span class="muted">сохраняется в истории КП; просмотр и файл Word в «Загрузки»</span>
+  <span class="muted">сохраняется в истории КП; просмотр и файл Word в «Загрузки»</span> {{ help.help_link('kp.make') }}
   {% for kp in proposals %}<a href="/proposals/{{ kp.id }}" class="badge">{{ kp.number }} от {{ kp.created_at|dt }}</a>{% endfor %}
   {% if order.positions and order.positions|rejectattr('status', 'in', ['calculation', 'tech_review', 'awaiting_approval'])|list|length == 0 %}
   <form method="post" action="/orders/{{ order.id }}/delete" class="inline js-delete push-right" data-what="заказ {{ order.number }} целиком"><input type="hidden" name="reason">
@@ -14,7 +15,7 @@
 {% if done %}<div class="flash ok">Заказ завершён: все позиции прошли внутренний контроль.</div>{% endif %}
 <div class="card facts">
   <div><label>Дата начала</label>{{ order.start_date|dt }}</div>
-  <div><label>Расчётная дата изготовления</label>{{ deadline|dt }}
+  <div><label>Расчётная дата изготовления {{ help.help_tip('intake.dates') }}</label>{{ deadline|dt }}
     <span class="badge warn">ориентировочно</span></div>
   {% if order.desired_date %}{% set chk = check_desired(deadline, order.desired_date) %}
   <div><label>Желаемая дата заказчика</label>{{ order.desired_date|dt }}
@@ -47,10 +48,11 @@
         onsubmit="return confirm('Утвердить все {{ waiting|length }} позиций заказа {{ order.number }}?')">
     <button>Утвердить все ожидающие ({{ waiting|length }})</button></form>
   <span class="muted">Отдельные позиции можно вернуть на пересчёт в их карточках.</span>{% endif %}
+  {{ help.help_tip('order.bulk') }}
 </div>
 {% endif %}
 <div class="card scroll">
-<h2>Позиции</h2>
+<h2>Позиции {{ help.help_tip('order.positions') }}</h2>
 <table class="cards">
   <tr><th>Позиция</th><th>Файлы</th><th class="num">Кол-во</th><th>Статус</th>
     {% if can('view_machine_assignment') %}<th>Станок</th>{% endif %}<th>Аналог</th><th>Срок позиции</th><th>Отклонение</th>

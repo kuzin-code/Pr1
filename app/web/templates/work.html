@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Мои операции{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="/static/work.css?v={{ static_version }}">
@@ -12,7 +13,7 @@
   {% if b %}<div class="w-blank">
     <div class="w-blank-text{{ ' none' if not b.defined }}">{{ b.text }}</div>
     <div class="w-blank-src"><span class="w-pill {{ 'tech' if b.source == 'technologist' else 'sys' }}">{{ b.source_label }}</span>
-      {% if b.note %}<span class="w-blank-note">{{ b.note }}</span>{% endif %}</div>
+      {% if b.note %}<span class="w-blank-note">{{ b.note }}</span>{% endif %}{{ help.help_tip('work.blank') }}</div>
   </div>{% endif %}
   <div class="w-op-top">
     <div><div class="w-part">{{ p.designation }}</div>
@@ -30,10 +31,11 @@
   <form method="post" action="/operations/{{ r.id }}/{{ 'finish' if kind == 'run' else 'start' }}" class="w-form">
     <details class="w-when"><summary>Указать другое время</summary>
       <input type="datetime-local" name="at" aria-label="Время отметки">
-      <span class="w-hint">Пусто — отметится текущее время.</span></details>
+      <span class="w-hint">Пусто — отметится текущее время. {{ help.help_link('work.start') }}</span></details>
     {% if kind == 'run' %}{% set need = r.id in overdue %}
     <details class="w-reason{{ ' need' if need }}"{{ ' open' if need }}>
       <summary>Причина отклонения{% if need %} — <b>обязательно</b>{% else %}, если дольше {{ (r.planned_hours * overrun_factor)|hours }}{% endif %}</summary>
+      <div class="w-hint">{{ help.help_tip('work.reason') }} Какую причину выбрать</div>
       <div class="w-reasons" role="radiogroup" aria-label="Причина отклонения">
         {% for value, label in reasons.items() %}<label class="w-rbtn"><input type="radio" name="reason" value="{{ value.value }}"><span>{{ label }}</span></label>{% endfor %}
       </div>
@@ -48,7 +50,7 @@
 {% endmacro %}
 
 <div class="w-page">
-<h1 data-auto-refresh="60">Мои операции <span class="badge">{{ role.label }}</span></h1>
+<h1 data-auto-refresh="60">Мои операции <span class="badge">{{ role.label }}</span> {{ help.help_tip('work.queue') }}</h1>
 
 {% if show_machine_filter %}
 <nav class="w-machines" aria-label="Мой станок">
@@ -83,12 +85,12 @@
 
 {% if not rows %}
 <div class="w-empty"><b>Операций в очереди нет</b>
-  Новые появятся сами — страница обновляется каждую минуту.
+  Новые появятся сами — страница обновляется каждую минуту. {{ help.help_link('work.queue', 'Как работать с очередью?') }}
   {% if show_machine_filter and selected %}<br><a href="/work?machine=">Показать все станки</a>{% endif %}</div>
 {% endif %}
 
 <p class="w-foot">Операции идут по маршруту: следующая открывается, когда закончена предыдущая.
-  {% if not can('undo_operations') %}Ошибочную отметку отменяет мастер.{% endif %}</p>
+  {% if not can('undo_operations') %}Ошибочную отметку отменяет мастер. {{ help.help_link('work.undo', 'Ошиблись с отметкой?') }}{% endif %}</p>
 </div>
 
 <script>

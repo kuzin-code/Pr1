@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Загрузка станков{% endblock %}
 {% block content %}
-<h1>Загрузка станков с ЧПУ <span class="badge warn">ориентировочно</span></h1>
+<h1>Загрузка станков с ЧПУ <span class="badge warn">ориентировочно</span> {{ help.help_tip('plan.views') }}</h1>
 <div class="row">
   <a class="btn {{ '' if view == 'gantt' else 'secondary' }}" href="/plan?view=gantt">Диаграмма Ганта</a>
   <a class="btn {{ '' if view == 'day' else 'secondary' }}" href="/plan?view=day">По дням</a>
@@ -14,6 +15,7 @@
 {% if gantt %}
 <div class="card">
   <div class="row gantt-legend">
+    {{ help.help_tip('plan.gantt') }}
     {% for kind, label in kind_labels.items() %}<span><i class="gantt-swatch {{ kind }}"></i>{{ 'предварительно, ждёт утверждения' if kind == 'preliminary' else label }}</span>{% endfor %}
     <span><i class="gantt-swatch today"></i>сегодня</span>
     {% if bad.ids %}<span class="gantt-bad-note"><i class="gantt-swatch bad"></i>ошибка плана: окончание раньше начала ({{ bad.ids|length }})</span>{% endif %}
@@ -82,7 +84,7 @@
 
 <div class="grid">
 <div class="card">
-  <h2>Дата окончания текущих работ на станках</h2>
+  <h2>Дата окончания текущих работ на станках {{ help.help_tip('plan.busy') }}</h2>
   <table class="cards">
     <tr><th>Станок</th><th>Занят до</th>{% if can('set_machine_busy') %}<th></th>{% endif %}</tr>
     {% for m in machines %}
@@ -94,7 +96,7 @@
   </table>
 </div>
 <div class="card">
-  <h2>Отклонения плана от факта</h2>
+  <h2>Отклонения плана от факта {{ help.help_tip('plan.deviations', align='end') }}</h2>
   <table class="cards">
     <tr><th>Позиция</th><th>Было</th><th>Стало</th><th class="num">Сдвиг</th></tr>
     {% for d in deviations %}{% set p = positions[d.position_id] %}
@@ -107,7 +109,7 @@
 </div>
 
 <div class="card scroll">
-  <h2 id="queue">Очередь по станкам и сроки позиций</h2>
+  <h2 id="queue">Очередь по станкам и сроки позиций {{ help.help_tip('plan.priority') }}</h2>
   <table class="cards">
     <tr><th>Позиция</th><th>Станок</th><th>Заказ</th><th>Станок: начало — окончание</th><th>Срок позиции</th><th>Приоритет</th></tr>
     {% for s in plan.slots|sort(attribute='machine_code,start') %}{% set p = positions[s.position_id] %}{% set pp = plan.positions[s.position_id] %}

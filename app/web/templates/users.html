@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% import "_help.html" as help %}
 {% block title %}Пользователи{% endblock %}
 {% block content %}
-<h1>Пользователи</h1>
+<h1>Пользователи {{ help.help_tip('it.users') }}</h1>
 <div class="card">
   <h2>Новая учётная запись</h2>
   <form method="post" action="/users" class="inline">
