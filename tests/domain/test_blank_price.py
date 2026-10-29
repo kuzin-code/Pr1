@@ -91,8 +91,12 @@ def test_cheapest_fitting_sheet_and_formula():
 
 def test_round_and_hex_and_stock_warning():
     rnd = blank_cost(blank("AISI 304", "round", {"d": 56, "length": 66}, 5), PRICE, RULES)
-    # 12Х18Н10Т и AISI 321 (12Х18Н10Т) — одна марка для круга; берётся дешёвый, остаток — предупреждение
-    assert rnd.piece.code == "8" and rnd.total == 1900 * 8 and rnd.warning == "на складе 2 шт., нужно 8"
+    # 12Х18Н10Т и AISI 321 (12Х18Н10Т) — одна марка для круга; дешёвого (код 8) на складе 2 шт. из 8 нужных —
+    # берётся тот, что есть на складе (решение 29.10.2026)
+    assert rnd.piece.code == "7" and rnd.total == 2100 * 8 and rnd.warning == ""
+    only_short = PriceList("2026-10-26", 22.0, (PRICE.items[7],))  # на складе нет нужного — кусок с предупреждением
+    short = blank_cost(blank("AISI 304", "round", {"d": 56, "length": 66}, 5), only_short, RULES)
+    assert short.piece.code == "8" and short.warning == "на складе 2 шт., нужно 8"
     hexa = blank_cost(blank("AISI 304", "hex", {"s": 22, "length": 90}, 1), PRICE, RULES)
     assert hexa.piece.code == "9" and hexa.pieces == 4
     al = blank_cost(blank("Д16Т", "round", {"d": 60, "length": 100}, 1), PRICE, RULES)

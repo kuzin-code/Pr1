@@ -173,7 +173,7 @@ def test_user_example_zaglushka_on_position(session, make_order):
     """МБЦР.107.070.020-01 Заглушка 35,7×23,2×5, AW 6061, 40 шт.: лист h8 39×27 — из плиты 8×100×300 22 шт."""
     from app.services import blank_service, order_service
     prices.load_price(session, IT, price_xlsx(rows=[
-        (1, "Заготовка плита алюминиевая Д16Т 8 х 100 х 300 мм", 1000, 1),
+        (1, "Заготовка плита алюминиевая Д16Т 8 х 100 х 300 мм", 1000, 5),
         (2, "Заготовка лист алюминиевый Д16Т 8 х 500 х 1000 мм", 20000, 5)]), "price.xlsx", "пример")
     order = make_order(part_files("Заглушка", dims=(35.7, 23.2, 5), pdf_lines=("Material: AW 6061",)))
     pos = order.positions[0]
@@ -181,4 +181,4 @@ def test_user_example_zaglushka_on_position(session, make_order):
     assert blank_service.position_blank(session, pos).text == "AW 6061, лист h8 мм, 39×27 мм — 40 шт."
     cost = prices.position_cost(session, pos)
     assert (cost.piece.code, cost.per_piece, cost.pieces, cost.total) == ("1", 22, 2, 2000)
-    assert cost.cut_text == "из куска 22 заготовки, нужно 2 куска на 40 + 3 шт." and cost.warning == "на складе 1 шт., нужно 2"
+    assert cost.cut_text == "из куска 22 заготовки, нужно 2 куска на 40 + 3 шт." and cost.warning == ""

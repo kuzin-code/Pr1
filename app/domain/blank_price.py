@@ -294,7 +294,10 @@ def blank_cost(blank: Blank, price: PriceList | None, rules: PriceRules, manual:
     if not ok:
         return none(f"{grade}, {label}: нет куска такого размера в прайсе")
     need = blank.quantity + rules.scrap
-    piece, per = min(ok, key=lambda x: (x[0].price * pieces_for(need, x[1]), x[0].price, x[0].dims[0], x[0].code))
+    # Сначала куски, которые есть на складе сайта в нужном количестве; нет таких — любой, с предупреждением
+    in_stock = [(i, n) for i, n in ok if i.stock is None or i.stock >= pieces_for(need, n)]
+    piece, per = min(in_stock or ok,
+                     key=lambda x: (x[0].price * pieces_for(need, x[1]), x[0].price, x[0].dims[0], x[0].code))
     pieces = pieces_for(need, per)
     short = piece.stock is not None and piece.stock < pieces
     warning = f"на складе {piece.stock:g} шт., нужно {pieces}" if short else ""
