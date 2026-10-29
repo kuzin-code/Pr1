@@ -61,6 +61,23 @@
 </div>
 </div>
 
+{% set extra = entry.extra_machines[0] if entry.extra_machines else none %}
+<div class="card">
+  <h2>Второй станок техпроцесса</h2>
+  <p class="muted">Только если эта деталь после основного станка идёт на второй. Позиция с этой же деталью получает
+    его в техпроцесс при расчёте; похожим деталям (аналогам) он не передаётся.</p>
+  <form method="post" action="/journal/{{ row.id }}/extra-machine">
+    <div class="row">
+      <div><label>Станок</label><select name="code" {{ 'disabled' if not edit }}>
+        <option value="">— нет второго станка —</option>
+        {% for m in machines if m.is_cnc and m.code != entry.machine_code %}<option value="{{ m.code }}" {{ 'selected' if extra and extra.machine == m.code }}>{{ m.model }}</option>{% endfor %}</select></div>
+      <div><label>Наладка, ч (партия)</label><input class="small" name="setup" value="{{ extra.setup if extra else '' }}" {{ 'disabled' if not edit }}></div>
+      <div><label>Обработка, ч (штука)</label><input class="small" name="machining" value="{{ extra.machining if extra else '' }}" {{ 'disabled' if not edit }}></div>
+    </div>
+    {% if edit %}<div class="row"><input name="reason" placeholder="Причина: по техпроцессу, хронометраж" style="flex:1"><button>Сохранить второй станок</button></div>{% endif %}
+  </form>
+</div>
+
 <div class="card scroll">
   <h2>Время операций</h2>
   <form method="post" action="/journal/{{ row.id }}/stages">

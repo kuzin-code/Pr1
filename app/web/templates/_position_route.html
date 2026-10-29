@@ -47,7 +47,8 @@
   <div class="row" style="gap:8px;align-items:center;margin-bottom:6px">
     <b>{{ machine_names.get(e.machine, e.machine) }}</b>
     <span class="muted">{{ 'токарная' if e.technology == 'turning' else 'фрезерная' }}</span>
-    {% if e.get('auto', True) %}<span class="badge">время по журналу{% if e.analog %}: {{ e.analog }}{% endif %}</span>
+    {% if e.source == 'journal' %}<span class="badge">техпроцесс этой детали из журнала</span>
+    {% elif e.get('auto', True) %}<span class="badge">время по журналу{% if e.analog %}: {{ e.analog }}{% endif %}</span>
     {% else %}<span class="badge ok">время технолога</span>{% endif %}
     {% if tech %}
     <form method="post" action="/positions/{{ pos.id }}/extra-machine/{{ e.machine }}/time" class="inline">

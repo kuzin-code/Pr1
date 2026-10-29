@@ -181,6 +181,23 @@ async def entry_stages(request: Request, entry_id: int, db: Session = Depends(ge
     return act(request, db, f"/journal/{entry_id}", run, "Время операций сохранено")
 
 
+@router.post("/journal/{entry_id:int}/extra-machine")
+def entry_extra_machine(request: Request, entry_id: int, code: str = Form(""), setup: str = Form(""),
+                        machining: str = Form(""), reason: str = Form(""), db: Session = Depends(get_db)):
+    """Второй станок техпроцесса детали; пустой станок — убрать."""
+    actor = current_actor(request)
+    require(actor.role, Action.EDIT_JOURNAL)
+
+    def run():
+        try:
+            hours = [float(v.replace(",", ".").strip() or 0) for v in (setup, machining)]
+        except ValueError:
+            raise ServiceError("Время второго станка должно быть числом") from None
+        js.set_extra_machine(db, actor, entry_id, code.strip() or None, *hours, reason)
+
+    return act(request, db, f"/journal/{entry_id}", run, "Второй станок техпроцесса сохранён")
+
+
 @router.post("/journal/{entry_id:int}/measurement")
 def entry_measurement(request: Request, entry_id: int, group: str = Form(...), calc_hours: str = Form(...),
                       actual_hours: str = Form(...), reason: str = Form(""), db: Session = Depends(get_db)):

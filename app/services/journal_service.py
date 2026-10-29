@@ -1,5 +1,6 @@
 """Ведение журнала калибровки технологом: добавление детали (из позиции или по STEP+PDF),
 правка характеристик и времени операций, ручные замеры, файлы, удаление (ФТ-25)."""
+import math
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,6 +13,7 @@ from app.domain.analog import pick_analog
 from app.domain.calibration import add_measurement
 from app.domain.complexity import estimate_complexity
 from app.domain.enums import CountMode, Stage, StageGroup
+from app.domain.history import require_reason
 from app.domain.models import CalibrationEntry, Dimensions, PartFeatures, StageNorm
 from app.domain.order_intake import file_kind, pair_files
 from app.domain.route import route_from_list
@@ -23,6 +25,7 @@ from app.services.history_service import record
 from app.services.order_service import UploadedFile, get_position, read_documents
 from app.services.reference_service import (
     bump_journal_version,
+    domain_machines,
     get_machine,
     journal_entries,
     preferred_machines,
@@ -79,6 +82,9 @@ def add_to_journal(session: Session, actor: Actor, position_id: int) -> Calibrat
         dims=Dimensions(*features.dims.as_list()), tolerance_grade=features.tolerance_grade,
         complexity=features.complexity, stages=route_from_list(pos.route), technology=features.technology,
     )
+    # второй станок позиции — часть техпроцесса этой детали
+    entry.extra_machines = [{k: e[k] for k in ("machine", "technology", "setup", "machining") if k in e}
+                            for e in data.get("extra_machines") or []]
     row = entry_to_row(entry)
     row.step_name, row.step_path, row.pdf_name, row.pdf_path = pos.step_name, pos.step_path, pos.pdf_name, pos.pdf_path
     row.confirmed = False
@@ -183,6 +189,8 @@ def update_entry(session: Session, actor: Actor, entry_id: int, fields: dict, re
             changes[key] = value
     if "machine_code" in changes:
         get_machine(session, changes["machine_code"])
+        if changes["machine_code"] in {e["machine"] for e in row.extra_machines or []}:
+            raise ServiceError(f"Станок {changes['machine_code']} уже второй в техпроцессе: сначала уберите его")
     if "technology" in changes and changes["technology"] not in TECHNOLOGIES:
         raise ServiceError("Технология: milling или turning")
     if "tolerance_grade" in changes and not 1 <= changes["tolerance_grade"] <= 18:
@@ -218,6 +226,36 @@ def set_stage_times(session: Session, actor: Actor, entry_id: int,
     row.stages = [s.to_dict() for s in route_from_list([s.to_dict() for s in current.values()])]
     row.confirmed = True  # время сохранено технологом
     _save(session, actor, row, "stages", old, row.stages, reason)
+    return row
+
+
+def set_extra_machine(session: Session, actor: Actor, entry_id: int, code: str | None, setup: float,
+                      machining: float, reason: str = "") -> JournalRow:
+    """Второй станок техпроцесса детали (после основного): наладка ч на партию, обработка ч на штуку.
+    Пустой код — второго станка нет. Позиции с этой же деталью получают его при расчёте."""
+    require(actor.role, Action.EDIT_JOURNAL)
+    reason = require_reason(reason)
+    row = entry_row(session, entry_id)
+    extras = []
+    if code:
+        machine = next((m for m in domain_machines(session) if m.code == code), None)
+        if machine is None or not machine.is_cnc:
+            raise ServiceError(f"«{code}» — не станок с ЧПУ: вторым в техпроцессе может быть только станок")
+        if code == row.machine_code:
+            raise ServiceError(f"Станок {code} — основной станок детали")
+        try:
+            setup, machining = float(setup), float(machining)
+        except (TypeError, ValueError):
+            raise ServiceError("Время второго станка должно быть числом") from None
+        if not (math.isfinite(setup) and math.isfinite(machining)) or setup < 0 or machining < 0:
+            raise ServiceError("Время второго станка — неотрицательное число")
+        technology = row.technology if row.technology in machine.technologies             else next(iter(sorted(machine.technologies)), row.technology)
+        extras = [{"machine": code, "technology": technology, "setup": setup, "machining": machining}]
+    old = row.extra_machines or []
+    if old == extras:
+        return row
+    row.extra_machines = extras
+    _save(session, actor, row, "extra_machine", old, extras, reason)
     return row
 
 

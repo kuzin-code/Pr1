@@ -2,6 +2,8 @@
 
 Лист «Журнал»: одна строка — одна деталь, по каждому этапу два столбца: «<этап>, ч» и «<этап>, счёт».
 Пустое время — этапа нет в маршруте. Лист «Замеры»: факт по партии и группе этапов.
+Второй станок техпроцесса детали — через черту: «Станок» «VOLZH1/SMM», «Наладка, ч» «0,6/0,7»,
+«Обработка на станке, ч» «0,3/0,2»: до черты — основной станок, после — второй (время не складывается).
 """
 from pathlib import Path
 
@@ -34,6 +36,21 @@ def _label(mapping: dict, value) -> str:
     return next(k for k, v in mapping.items() if v is value)
 
 
+SPLIT_STAGES = (Stage.SETUP, Stage.MACHINING)  # время второго станка — только наладка и обработка
+
+
+def _hours_text(value) -> str:
+    return "" if value is None else f"{float(value):g}".replace(".", ",")
+
+
+def _split(value) -> tuple:
+    """«0,6/0,7» → ("0,6", "0,7"); без черты — (значение, None)."""
+    if isinstance(value, str) and "/" in value:
+        first, second = value.split("/", 1)
+        return first.strip(), second.strip()
+    return value, None
+
+
 def export_journal(journal: list[CalibrationEntry], path: Path | str) -> None:
     wb = Workbook()
     ws = wb.active
@@ -42,12 +59,17 @@ def export_journal(journal: list[CalibrationEntry], path: Path | str) -> None:
     ms = wb.create_sheet(MEASUREMENTS_SHEET)
     ms.append(MEASUREMENT_COLUMNS)
     for e in journal:
-        row = [e.part_code, e.name, e.machine_code, e.material, *e.dims.as_list(), e.tolerance_grade,
+        extra = e.extra_machines[0] if e.extra_machines else None
+        machine = f"{e.machine_code}/{extra['machine']}" if extra else e.machine_code
+        row = [e.part_code, e.name, machine, e.material, *e.dims.as_list(), e.tolerance_grade,
                e.complexity, e.technology]
         stages = {s.stage: s for s in e.stages}
         for stage in Stage:
             norm = stages.get(stage)
-            row += [norm.hours, _label(COUNT_LABELS, norm.count_mode)] if norm else [None, None]
+            hours = norm.hours if norm else None
+            if extra and stage in SPLIT_STAGES:
+                hours = f"{_hours_text(hours)}/{_hours_text(extra.get(stage.value) or 0)}"
+            row += [hours, _label(COUNT_LABELS, norm.count_mode) if norm else None]
         ws.append(row)
         for m in e.measurements:
             ms.append([e.part_code, _label(GROUP_LABELS, m.group), m.calc_hours, m.actual_hours])
@@ -62,9 +84,18 @@ def _num(value, row: int, column: str, cast=float):
 
 
 def _read_entry(values: dict, row: int) -> CalibrationEntry:
+    machine, second = _split(str(values.get("Станок") or "").strip())
+    extra = {}
     stages = []
     for stage in Stage:
-        hours = values.get(f"{stage.label}, ч")
+        hours, other = _split(values.get(f"{stage.label}, ч"))
+        if second and stage in SPLIT_STAGES:
+            if other is None:
+                raise JournalFormatError(f"{JOURNAL_SHEET}, строка {row}: станок «{machine}/{second}» — укажите "
+                                         f"«{stage.label}, ч» основного и второго станка через черту, например 0,6/0,7")
+            extra[stage.value] = _num(other.replace(",", ".") or 0, row, stage.label)
+        if isinstance(hours, str):
+            hours = hours.replace(",", ".")
         if hours in (None, ""):
             continue
         mode_label = str(values.get(f"{stage.label}, счёт") or "штука").strip().lower()
@@ -78,13 +109,14 @@ def _read_entry(values: dict, row: int) -> CalibrationEntry:
     return CalibrationEntry(
         part_code=str(values["Обозначение"]).strip(),
         name=str(values.get("Наименование") or "").strip(),
-        machine_code=str(values.get("Станок") or "").strip(),
+        machine_code=machine,
         material=str(values.get("Материал") or "").strip(),
         dims=dims,
         tolerance_grade=_num(values["Квалитет"], row, "Квалитет", int),
         complexity=_num(values["Балл сложности"], row, "Балл сложности", int),
         stages=stages,
         technology=str(values.get("Технология") or "milling").strip(),
+        extra_machines=[{"machine": second, **extra}] if second else [],
     )
 
 
@@ -128,6 +160,8 @@ JOURNAL_HINTS = [
     "2. Станок — код из справочника: VF2, SMM, MV6, VOLZH1, ST20Y. Технология — milling (фрезерная) или turning (токарная).",
     "3. По каждой операции — время в часах и способ счёта: «штука», «партия» или «разово». "
     "Пустое время — операции нет в маршруте. Наладка всегда считается на партию.",
+    "   Второй станок техпроцесса этой детали — через черту: Станок «VOLZH1/SMM», Наладка «0,6/0,7», "
+    "Обработка «0,3/0,2» (до черты — основной станок, после — второй).",
     "4. Лист «Замеры» (необязательно): фактическое время прошлых партий по группе «станочная» или "
     "«слесарно-финишная» — расчётное и фактическое на партию, ч. Из них система считает коэффициент k.",
     "5. Чертежи PDF и модели STEP загружаются вместе с Excel: имя файла должно начинаться с обозначения "

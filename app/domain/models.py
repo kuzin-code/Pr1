@@ -119,6 +119,9 @@ class CalibrationEntry:
     stages: list[StageNorm]
     measurements: list[Measurement] = field(default_factory=list)
     technology: str = "milling"
+    # Второй станок техпроцесса этой детали (после основного): [{"machine", "technology", "setup", "machining"}],
+    # наладка — ч на партию, обработка — ч на штуку. Только для этой же детали, аналогам не передаётся.
+    extra_machines: list[dict] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

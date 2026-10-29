@@ -121,3 +121,22 @@ def test_import_folder_button_and_confirmation(app, login, tmp_path):
     tech.post(f"{entry}/confirm")
     assert "время не подтверждено" not in tech.get("/journal").text
     assert login("head").post("/journal/import-folder").status_code == 403
+
+
+def test_second_machine_in_entry_card(login):
+    """Технолог добавляет, меняет и убирает второй станок техпроцесса детали — с причиной."""
+    url = new_entry(login)
+    tech = login("technolog")
+    assert "Второй станок техпроцесса" in tech.get(url).text
+    resp = tech.post(f"{url}/extra-machine", data={"code": "SMM", "setup": "0,7", "machining": "0,2", "reason": ""})
+    assert resp.status_code == 303 and not re.search(r'name="setup" value="0\.7"', tech.get(url).text)  # без причины
+    resp = tech.post(f"{url}/extra-machine", data={"code": "SMM", "setup": "0,7", "machining": "0,2",
+                                                   "reason": "по техпроцессу"})
+    assert resp.status_code == 303
+    page = tech.get(url).text
+    assert re.search(r'name="setup" value="0\.7"', page) and re.search(r'name="machining" value="0\.2"', page)
+    tech.post(f"{url}/extra-machine", data={"code": "", "setup": "", "machining": "", "reason": "не нужен"})
+    assert not re.search(r'name="setup" value="0\.7"', tech.get(url).text)
+    resp = login("head").post(f"{url}/extra-machine", data={"code": "SMM", "setup": "1", "machining": "1",
+                                                            "reason": "x"})
+    assert resp.status_code == 403

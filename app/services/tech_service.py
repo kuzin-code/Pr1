@@ -204,6 +204,7 @@ def add_machine(session: Session, actor: Actor, position_id: int, code: str) -> 
     if technology is None or machine not in allowed_machines(replace(features, technology=technology), [machine]):
         raise ServiceError(f"Станок {code} не вмещает деталь по рабочей зоне")
     pos.data = {**pos.data, "extra_machines": _extras(pos) + [{"machine": code, "technology": technology, "auto": True}]}
+    mark_manual(pos, "extra_machines")  # станки техпроцесса задал технолог — пересчёт их не меняет
     record(session, actor, "position", pos.id, "extra_machine", None, code, "добавлен станок в техпроцесс")
     auto_prepare(session, pos)
     session.commit()
@@ -225,7 +226,9 @@ def set_extra_machine_time(session: Session, actor: Actor, position_id: int, cod
            {"setup": extra.get("setup"), "machining": extra.get("machining")},
            {"setup": setup, "machining": machining}, reason)
     extra.update(setup=setup, machining=machining, auto=False)
+    extra.pop("source", None)  # время уже технолога, а не журнала
     pos.data = {**pos.data, "extra_machines": extras}
+    mark_manual(pos, "extra_machines")
     auto_prepare(session, pos)
     session.commit()
     return pos
@@ -236,6 +239,7 @@ def remove_machine(session: Session, actor: Actor, position_id: int, code: str) 
     extras = [e for e in _extras(pos) if e["machine"] != code]
     record(session, actor, "position", pos.id, "extra_machine", code, None, "станок убран из техпроцесса")
     pos.data = {**pos.data, "extra_machines": extras}
+    mark_manual(pos, "extra_machines")
     auto_prepare(session, pos)
     session.commit()
     return pos

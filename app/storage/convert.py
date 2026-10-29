@@ -18,6 +18,7 @@ def entry_from_row(row: JournalRow) -> CalibrationEntry:
         dims=Dimensions.from_list(row.dims), tolerance_grade=row.tolerance_grade,
         complexity=row.complexity, stages=[StageNorm.from_dict(s) for s in row.stages],
         measurements=[Measurement.from_dict(m) for m in row.measurements], technology=row.technology,
+        extra_machines=[dict(e) for e in row.extra_machines or []],
     )
 
 
@@ -33,4 +34,5 @@ def entry_to_row(entry: CalibrationEntry, row: JournalRow | None = None) -> Jour
     row.technology = entry.technology
     row.stages = [s.to_dict() for s in entry.stages]
     row.measurements = [m.to_dict() for m in entry.measurements]
+    row.extra_machines = [dict(e) for e in entry.extra_machines]
     return row

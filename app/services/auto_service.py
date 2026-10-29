@@ -27,7 +27,7 @@ from app.services.reference_service import (
 from app.storage.orm import PositionRow
 
 SYSTEM = Actor("система", Role.TECHNOLOGIST)
-AUTO_KEYS = ("complexity", "analog", "machine", "route")
+AUTO_KEYS = ("complexity", "analog", "machine", "route", "extra_machines")
 TECHNOLOGY_LABELS = {"milling": "фрезерная", "turning": "токарная"}
 
 # Маршрут для ручного ввода, если аналога той же технологии нет (ФТ-08).
@@ -91,6 +91,24 @@ def extra_machine_norms(journal, features: PartFeatures, machine: str, technolog
     hours = {s.stage: s.hours for s in choice.route}
     return {"setup": round(hours.get(Stage.SETUP, 0.0), 2), "machining": round(hours.get(Stage.MACHINING, 0.0), 2),
             "analog": choice.entry.part_code}
+
+
+def journal_techprocess(current: list[dict], same, main_machine: str | None, machines) -> list[dict]:
+    """Второй станок из техпроцесса этой же детали журнала (не аналога): прежние станки из журнала
+    заменяются текущими, станки, добавленные иначе, остаются."""
+    kept = [e for e in current if e.get("source") != "journal"]
+    taken = {main_machine} | {e["machine"] for e in kept}
+    techs = {m.code: m.technologies for m in machines}
+    for e in (same.entry.extra_machines if same else []):
+        if e.get("machine") in taken or e.get("machine") not in techs:
+            continue
+        technology = e.get("technology") or (same.entry.technology if same.entry.technology in techs[e["machine"]]
+                                             else next(iter(sorted(techs[e["machine"]])), same.entry.technology))
+        kept.append({"machine": e["machine"], "technology": technology, "setup": float(e.get("setup") or 0),
+                     "machining": float(e.get("machining") or 0), "auto": False, "source": "journal",
+                     "analog": same.entry.part_code})
+        taken.add(e["machine"])
+    return kept
 
 
 def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> list[str]:
@@ -175,6 +193,13 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
         if machine is None:
             issues.append("Ни один станок не вмещает деталь: ситуацию разбирает технолог (О-8)")
 
+    if auto["extra_machines"]:
+        # техпроцесс этой же детали из журнала; у аналога по похожим второй станок не берётся
+        part = same if same and pos.analog_code == same.entry.part_code else None
+        data["extra_machines"] = journal_techprocess(list(data.get("extra_machines") or []), part, pos.machine_code,
+                                                     domain_machines(session))
+    issues.extend(f"техпроцесс из журнала: второй станок {e['machine']}"
+                  for e in data.get("extra_machines") or [] if e.get("source") == "journal")
     extras = []
     for extra in data.get("extra_machines") or []:
         if extra.get("auto", True):
@@ -183,7 +208,7 @@ def auto_prepare(session: Session, pos: PositionRow, actor: Actor = SYSTEM) -> l
             if not extra["setup"] and not extra["machining"]:
                 issues.append(f"Для станка {extra['machine']} нет деталей журнала: введите время вручную")
         extras.append(extra)
-    if extras:
+    if extras or data.get("extra_machines") is not None:
         data["extra_machines"] = extras
 
     finish()

@@ -25,7 +25,8 @@ def test_uploaded_position_is_calculated_automatically(session, make_order):
     assert pos.analog_code is not None
     assert pos.machine_code == "VF2"
     assert pos.current_calc is not None
-    assert pos.data["auto"] == {"complexity": True, "analog": True, "machine": True, "route": True}
+    assert pos.data["auto"] == {"complexity": True, "analog": True, "machine": True, "route": True,
+                                "extra_machines": True}
 
 
 def test_new_material_gets_nearest_milling_analog_and_vf2(session, make_order):
@@ -55,7 +56,8 @@ def test_manual_corrections_are_kept_on_recalculation(session, make_order):
     assert pos.complexity == 4
     assert pos.machine_code == "SMM"
     assert next(s for s in pos.route if s["stage"] == "machining")["hours"] == 1.5
-    assert pos.data["auto"] == {"complexity": False, "analog": True, "machine": False, "route": False}
+    assert pos.data["auto"] == {"complexity": False, "analog": True, "machine": False, "route": False,
+                                "extra_machines": True}
     assert pos.current_calc["machine_code"] == "SMM"
 
 
