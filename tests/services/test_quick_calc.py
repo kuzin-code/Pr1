@@ -33,7 +33,7 @@ def test_calculation_does_not_touch_database(session, tmp_path):
 def test_result_has_price_dates_and_machines(result):
     s = result.summary
     assert [i["quantity"] for i in s["items"]] == [5, 5]
-    assert s["total"] > 0 and s["grand_total"] == pytest.approx(s["total"] * 1.2)
+    assert s["total"] > 0 and s["grand_total"] == pytest.approx(s["total"] * 1.22)
     assert s["items"][0]["machine_hours"] > 0 and s["items"][0]["machine_rate"] == 2000
     assert s["range"]["earliest"] <= s["calc_date"][:10] <= s["range"]["latest"]
     assert s["check"]["status"] in ("ok", "range", "late") and s["check"]["label"]

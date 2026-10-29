@@ -17,7 +17,7 @@ from app.services.history_service import record
 
 ORG = "Производственный отдел · Участок механической обработки"
 REQUISITES = "Реквизиты предприятия: адрес, ИНН/КПП, телефон, e-mail"
-VAT_PERCENT = 20
+VAT_PERCENT = 22  # с 01.01.2026; выданные КП хранят свою ставку
 VALID_DAYS = 14
 PAYMENT = "50 % предоплата, 50 % по готовности"
 DELIVERY = "самовывоз"

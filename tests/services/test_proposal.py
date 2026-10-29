@@ -26,7 +26,7 @@ def test_proposal_from_order(session, order):
     assert first.price == pytest.approx(first.batch_price / 4)
     assert first.batch_price == pytest.approx(first.machine_hours * 2000 + first.bench_hours * 1000)
     assert p.total == pytest.approx(sum(i.batch_price for i in p.items))
-    assert p.vat == pytest.approx(p.total * 0.2) and p.grand_total == pytest.approx(p.total * 1.2)
+    assert p.vat == pytest.approx(p.total * 0.22) and p.grand_total == pytest.approx(p.total * 1.22)
     assert p.range.earliest <= p.calc_date.date() <= p.range.latest
     assert p.desired == date(2026, 12, 1) and p.desired_check.label
 

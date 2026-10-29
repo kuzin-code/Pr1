@@ -106,7 +106,7 @@ def test_proposal_blanks_net_of_vat_no_double_vat(session, order, loaded):
     assert item.total_price == pytest.approx(item.batch_price + net * 7)
     assert item.price == pytest.approx(item.total_price / 4)
     # НДС КП начисляется один раз — на итог без НДС, куда заготовки вошли без НДС прайса
-    assert p.total == pytest.approx(item.total_price) and p.grand_total == pytest.approx(p.total * 1.2)
+    assert p.total == pytest.approx(item.total_price) and p.grand_total == pytest.approx(p.total * 1.22)
     assert p.blank_label == "Заготовки (материал по прайсу prutki.ru от 26.10.2026)"
     assert "26.10.2026" in p.price_note and "Доставка заготовок" in p.price_note
     one, four = item.breaks
