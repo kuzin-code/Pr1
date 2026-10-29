@@ -107,8 +107,12 @@ def _summary(copy: Session, actor: Actor, order, quantities: list[int] | None = 
         "items": [{"designation": i.designation, "name": i.name, "material": i.material, "quantity": i.quantity,
                    "price": i.price, "batch_price": i.batch_price, "machine_hours": i.machine_hours,
                    "bench_hours": i.bench_hours, "machine_rate": i.machine_rate, "bench_rate": i.bench_rate,
-                   "machine_price": i.machine_price, "bench_price": i.bench_price, "breaks": i.breaks}
+                   "machine_price": i.machine_price, "bench_price": i.bench_price, "breaks": i.breaks,
+                   "blank_cost": i.blank_cost, "blank_pieces": i.blank_pieces, "blank_unit": i.blank_unit,
+                   "blank_text": i.blank_text, "total_price": i.total_price}
                   for i in proposal.items],
+        "blank_price_date": proposal.blank_price_date, "blank_label": proposal.blank_label,
+        "has_blanks": proposal.has_blanks, "price_note": proposal.price_note,
         "quantities": list(quantities or []),
         "total": proposal.total, "vat_percent": proposal.vat_percent, "vat": proposal.vat,
         "grand_total": proposal.grand_total,

@@ -19,7 +19,7 @@ def test_system_suggests_sheet_from_step_dims(session, make_order):
     pos = prepared(session, make_order)  # 152×58×40, Д16Т, фрезерная, 10 шт.
     blank = blanks.position_blank(session, pos)
     assert blank.source == SYSTEM
-    assert blank.text == "Д16Т, лист h50 мм, 158×64 мм — 10 шт."  # 40+2×3 → 50 по ряду; 152+2×3, 58+2×3
+    assert blank.text == "Д16Т, лист h45 мм, 155×61 мм — 10 шт."  # 40+2×1,5 → 45 по ряду; 152+2×1,5, 58+2×1,5
 
 
 def test_technologist_edit_saved_to_history_and_kept_by_recalculation(session, make_order):
@@ -36,7 +36,7 @@ def test_technologist_edit_saved_to_history_and_kept_by_recalculation(session, m
     assert blank.note == "плита со склада"
 
     back = blanks.reset_blank(session, TECH, pos.id, "вернуть расчёт системы")
-    assert back.source == SYSTEM and back.text == "АМг6, лист h50 мм, 158×64 мм — 10 шт."
+    assert back.source == SYSTEM and back.text == "АМг6, лист h45 мм, 155×61 мм — 10 шт."
 
 
 def test_edit_rights_and_reason(session, make_order):
@@ -117,9 +117,29 @@ def test_old_format_rules_replaced_on_start(session):
     session.commit()
     seed_reference(session, SEED_DIR)
     current = blanks.rules(session)
-    assert current.sheet_side_allowance == 3 and current.bar_length_allowance == 3
+    assert current.sheet_side_allowance == 1.5 and current.bar_length_allowance == 1.5
     assert 270 in current.round_diameters["steel"] and 400 in current.round_diameters["aluminium"]
     assert current.round_diameters["stainless"] == ()
     blanks.set_rules(session, IT, {**current.to_dict(), "size_step_mm": "5"}, "кратно 5")
     seed_reference(session, SEED_DIR)  # правка из справочника при запуске не затирается
     assert blanks.rules(session).size_step == 5
+
+
+def test_old_three_mm_allowances_replaced_unless_edited(session):
+    """Прежние «3 мм на сторону» по умолчанию при запуске заменяются на 1,5 мм; изменённые в справочнике — нет."""
+    from app.services.seed import seed_reference
+    from app.storage.orm import Parameter
+    from tests.services.conftest import SEED_DIR
+    row = session.get(Parameter, "blank_rules")
+    assert row.value["sheet_side_allowance_mm"] == 1.5
+    old = {**row.value, **{k: 3 for k in ("sheet_side_allowance_mm", "sheet_thickness_side_allowance_mm",
+                                          "bar_diameter_side_allowance_mm", "bar_length_side_allowance_mm")}}
+    row.value = old
+    session.commit()
+    seed_reference(session, SEED_DIR)
+    assert session.get(Parameter, "blank_rules").value["bar_length_side_allowance_mm"] == 1.5
+    values = {**{k: "3" for k in blanks.ALLOWANCE_FIELDS}, "size_step_mm": "1", "sheet_thicknesses_mm": "10 50",
+              "round_diameters_mm": {"steel": "10 20"}}
+    blanks.set_rules(session, TECH, values, "по складу — 3 мм")
+    seed_reference(session, SEED_DIR)
+    assert session.get(Parameter, "blank_rules").value["sheet_side_allowance_mm"] == 3  # изменено технологом

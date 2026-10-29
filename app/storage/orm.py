@@ -201,3 +201,17 @@ class ProposalRow(Base):
     data: Mapped[dict] = mapped_column(JSON, default=dict)
     file_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
+
+
+class BlankPriceRow(Base):
+    """Позиция прайса заготовок поставщика (prutki.ru): цена за кусок с НДС; дата и ставка — параметр
+    «blank_price_list». Новый прайс заменяет старый целиком."""
+    __tablename__ = "blank_prices"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(256))
+    form: Mapped[str] = mapped_column(String(32), index=True)
+    grade: Mapped[str] = mapped_column(String(64), default="")
+    dims: Mapped[list] = mapped_column(JSON, default=list)
+    price: Mapped[float] = mapped_column(Float)
+    stock: Mapped[float | None] = mapped_column(Float, nullable=True)

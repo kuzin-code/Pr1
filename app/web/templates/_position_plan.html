@@ -21,6 +21,9 @@
     <span class="badge warn">ориентировочно</span><br>
     <span class="muted">машинное {{ calc.cost.machine_hours|hours }} × {{ calc.rates.machine|money }}/ч + слесарное {{ calc.cost.bench_hours|hours }} × {{ calc.rates.bench|money }}/ч;
     материалы, резка, программирование, контроль, накладные и кооперация не входят</span></p>
+  {% if blank_cost and blank_cost.total is not none %}
+  <p>Заготовки (отдельная статья, в обработку не входят): <b>{{ blank_cost.total|money }}</b> с НДС за {{ blank_cost.pieces }} шт.
+    <a href="#blank" class="muted">подробнее в блоке «Заготовка»</a></p>{% endif %}
   {% if actual and actual.actual %}<p>Факт: {{ actual.actual|money }} (машинное {{ actual.machine_hours|hours }}, слесарное {{ actual.bench_hours|hours }}), отклонение {{ '%.1f'|format(actual.deviation * 100) }}%</p>{% endif %}
   {% endif %}
 </div>

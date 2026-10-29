@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.config import Settings  # noqa: E402
 from app.web.app import create_app  # noqa: E402
+from tests.fixtures.price_list import price_xlsx  # noqa: E402
 from tests.web.test_web_operations import approve  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,6 +63,8 @@ def server(tmp_path_factory):
             clients[username] = client
         return clients[username]
 
+    # прайс заготовок — чтобы в карточке позиции, справочнике и КП была цена заготовок
+    login("it").post("/reference/blank-prices", data={"reason": "e2e"}, files={"file": ("price.xlsx", price_xlsx())})
     pid = approve(login)  # заказ с утверждённой позицией — чтобы на страницах были данные
     oid = int(re.search(r'href="/orders/(\d+)"', login("head").get(f"/positions/{pid}").text).group(1))
     port = _free_port()

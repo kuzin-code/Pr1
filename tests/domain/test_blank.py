@@ -16,7 +16,7 @@ from app.domain.blank import (
 )
 from app.domain.models import Dimensions
 
-# Припуск 3 мм на сторону (решение пользователя); ряды — укороченные для наглядности.
+# Тестовые правила: припуск 3 мм на сторону (в справочнике по умолчанию — 1,5 мм); ряды — укороченные для наглядности.
 RULES = BlankRules.from_dict({
     "sheet_side_allowance_mm": 3, "sheet_thickness_side_allowance_mm": 3, "bar_diameter_side_allowance_mm": 3,
     "bar_length_side_allowance_mm": 3, "size_step_mm": 1, "sheet_thicknesses_mm": [10, 12, 16, 20, 25, 30, 40, 50],

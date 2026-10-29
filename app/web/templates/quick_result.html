@@ -51,7 +51,7 @@
 {% endif %}
 
 <div class="card scroll">
-  <h2>Позиции и цена операций</h2>
+  <h2>Позиции и цена операций{% if s.get('has_blanks') %} и заготовок{% endif %}</h2>
   <table class="cards">
     <tr><th>Обозначение</th><th>Наименование</th><th>Материал</th><th class="num">Кол-во</th>
       <th class="num">Станочная, ч × ₽/ч</th><th class="num">Слесарно-финишная, ч × ₽/ч</th>
@@ -61,11 +61,14 @@
       {% if i.batch_price is none %}<td colspan="4" class="muted">цена не рассчитана</td>
       {% else %}<td class="num" data-label="Станочная, ч × ₽/ч">{{ kp_hours(i.machine_hours) }} × {{ kp_money(i.machine_rate) }} = {{ kp_money(i.machine_price) }}</td>
       <td class="num" data-label="Слесарно-финишная, ч × ₽/ч">{{ kp_hours(i.bench_hours) }} × {{ kp_money(i.bench_rate) }} = {{ kp_money(i.bench_price) }}</td>
-      <td class="num" data-label="Цена за шт., ₽">{{ kp_money(i.price) }}</td><td class="num" data-label="Сумма, ₽"><b>{{ kp_money(i.batch_price) }}</b></td>{% endif %}</tr>
+      <td class="num" data-label="Цена за шт., ₽">{{ kp_money(i.price) }}</td><td class="num" data-label="Сумма, ₽"><b>{{ kp_money(i.get('total_price', i.batch_price)) }}</b></td>{% endif %}</tr>
+    {% if i.get('blank_cost') is not none and i.batch_price is not none %}
+    <tr class="quick-blank"><td class="cell-title muted">{{ s.blank_label }}</td><td colspan="5" data-label="Кусок">{{ i.blank_text }}</td>
+      <td class="num" data-label="Шт. × цена без НДС">{{ i.blank_pieces }} × {{ kp_money(i.blank_unit) }}</td><td class="num" data-label="Заготовки, ₽">{{ kp_money(i.blank_cost) }}</td></tr>
+    {% endif %}
     {% endfor %}
   </table>
-  <p class="muted">Цена — по операциям механической обработки (время × ставка участка); материал, резка, программирование,
-    покрытие не включены.</p>
+  <p class="muted">{{ s.get('price_note') or 'Цена — по операциям механической обработки (время × ставка участка); материал, резка, программирование, покрытие не включены.' }}</p>
 </div>
 
 {% include "_quick_breaks.html" %}

@@ -11,7 +11,7 @@ from app.domain.operations import normalize_operations
 from app.domain.models import CalibrationEntry, Dimensions, StageNorm
 from app.services.security import hash_password
 from app.storage.convert import entry_to_row
-from app.storage.orm import JournalRow, MachineRow, Parameter, User
+from app.storage.orm import HistoryRow, JournalRow, MachineRow, Parameter, User
 
 
 def _load(path: Path) -> dict:
@@ -30,13 +30,27 @@ def _seed_machines(session: Session, data: dict) -> None:
             row.operations = normalized
 
 
+OLD_ALLOWANCES = {"sheet_side_allowance_mm": 3, "sheet_thickness_side_allowance_mm": 3,
+                  "bar_diameter_side_allowance_mm": 3, "bar_length_side_allowance_mm": 3}
+
+
+def _old_allowances(session: Session, value: dict) -> bool:
+    """Припуски — прежние по умолчанию (3 мм на сторону) и в справочнике их никто не менял."""
+    if any(float(value.get(k, -1)) != v for k, v in OLD_ALLOWANCES.items()):
+        return False
+    return session.scalar(select(HistoryRow.id).where(HistoryRow.entity == "parameters",
+                                                      HistoryRow.entity_id == "blank_rules").limit(1)) is None
+
+
 def _seed_parameters(session: Session, data: dict) -> None:
     for key in ("rates", "schedule", "complexity_scale", "preferred_machines", "blank_rules"):
         if key in data and session.get(Parameter, key) is None:
             session.add(Parameter(key=key, value=data[key]))
-    # Припуски заготовки прежнего вида (до решения «3 мм на сторону» и рядов по группам материала) — заменяются.
+    # Припуски заготовки прежнего вида заменяются: до рядов по группам материала (не читаются) и прежние
+    # «3 мм на сторону» (решение 29.10.2026 — 1,5 мм на сторону), если их не меняли в справочнике (нет истории).
     blank = session.get(Parameter, "blank_rules")
-    if blank is not None and "blank_rules" in data and BlankRules.from_dict(blank.value) is None:
+    if blank is not None and "blank_rules" in data and (BlankRules.from_dict(blank.value) is None
+                                                       or _old_allowances(session, blank.value)):
         blank.value = data["blank_rules"]
     if session.get(Parameter, "journal_version") is None:
         session.add(Parameter(key="journal_version", value=1))

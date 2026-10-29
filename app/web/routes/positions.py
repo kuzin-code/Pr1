@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.domain.access import Action, can, require
 from app.domain.enums import PositionStatus, Stage
 from app.domain.status import is_editable
-from app.services import (approval_service, blank_service, dfm_service, fact_service, journal_service, operation_service,
+from app.services import (approval_service, blank_price_service, blank_service, dfm_service, fact_service, journal_service, operation_service,
                           order_service, plan_service, quick_apply, tech_service)
 from app.services.actor import ServiceError
 from app.services.history_service import list_history
@@ -53,6 +53,8 @@ def position_page(request: Request, position_id: int, db: Session = Depends(get_
         cnc_machines=[m for m in domain_machines(db) if m.is_cnc],
         machine_names={m.code: m.model for m in domain_machines(db)},
         blank=blank_service.position_blank(db, pos) if can(actor.role, Action.VIEW_BLANK) else None,
+        # цена заготовок — тем, кто видит себестоимость (заготовитель цену не видит)
+        blank_cost=blank_price_service.position_cost(db, pos) if can(actor.role, Action.VIEW_COST) else None,
     )
 
 
@@ -140,6 +142,18 @@ def set_blank(request: Request, position_id: int, kind: str = Form(""), h: str =
     sizes = {"h": h, "length": length, "width": width, "d": d, "s": s, "wall": wall}
     return act(request, db, _back(position_id) + "#blank", lambda: blank_service.set_blank(
         db, actor, position_id, kind, sizes, quantity, note, reason), "Заготовка сохранена")
+
+
+@router.post("/positions/{position_id}/blank-price")
+def set_blank_price(request: Request, position_id: int, price: str = Form(""), note: str = Form(""),
+                    reason: str = Form(""), reset: str = Form(""), db: Session = Depends(get_db)):
+    """Технолог задаёт цену куска заготовки (с НДС, за шт.) или возвращает цену по прайсу — с причиной."""
+    actor = current_actor(request)
+    if reset:
+        return act(request, db, _back(position_id) + "#blank", lambda: blank_price_service.reset_manual_price(
+            db, actor, position_id, reason), "Цена заготовки — по прайсу")
+    return act(request, db, _back(position_id) + "#blank", lambda: blank_price_service.set_manual_price(
+        db, actor, position_id, price, note, reason), "Цена заготовки сохранена")
 
 
 @router.post("/positions/{position_id}/complexity")

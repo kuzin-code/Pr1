@@ -29,7 +29,7 @@
       <th class="num">Цена за шт., ₽</th><th class="num">Сумма, ₽</th></tr>
     {% for it in p.items %}
     <tr><td class="hide-phone">{{ loop.index }}</td><td class="cell-title">{{ it.designation }}</td><td data-label="Наименование">{{ it.name }}</td><td data-label="Материал">{{ it.material }}</td>
-      <td class="num" data-label="Кол-во, шт.">{{ it.quantity }}</td><td class="num" data-label="Цена за шт., ₽">{{ kp_money(it.price) }}</td><td class="num" data-label="Сумма, ₽">{{ kp_money(it.batch_price) }}</td></tr>
+      <td class="num" data-label="Кол-во, шт.">{{ it.quantity }}</td><td class="num" data-label="Цена за шт., ₽">{{ kp_money(it.price) }}</td><td class="num" data-label="Сумма, ₽">{{ kp_money(it.total_price) }}</td></tr>
     {% endfor %}
     <tr class="kp-total"><td colspan="6" class="num">Итого без НДС</td><td class="num" data-label="Итого без НДС">{{ kp_money(p.total) }}</td></tr>
     <tr class="kp-total"><td colspan="6" class="num">НДС {{ p.vat_percent }} %</td><td class="num" data-label="НДС {{ p.vat_percent }} %">{{ kp_money(p.vat) }}</td></tr>
@@ -38,7 +38,7 @@
 
   {% if p.has_breaks %}{% include "_proposal_breaks.html" %}{% endif %}
 
-  <h3 class="kp-sub">Цена операций (на партию)</h3>
+  <h3 class="kp-sub">{{ "Цена операций и заготовок (на партию)" if p.has_blanks else "Цена операций (на партию)" }}</h3>
   <table class="kp-table cards">
     <tr><th>№</th><th>Обозначение</th><th>Операция</th><th class="num">Время × ставка, ₽/ч</th><th class="num">Сумма, ₽</th></tr>
     {% for it in p.items %}
@@ -49,6 +49,10 @@
       <td class="num" data-label="Время × ставка">{{ kp_hours(it.machine_hours) }} ч × {{ kp_money(it.machine_rate) }}</td><td class="num" data-label="Сумма, ₽">{{ kp_money(it.machine_price) }}</td></tr>
     <tr><td></td><td></td><td data-label="Операция">Слесарно-финишная обработка</td>
       <td class="num" data-label="Время × ставка">{{ kp_hours(it.bench_hours) }} ч × {{ kp_money(it.bench_rate) }}</td><td class="num" data-label="Сумма, ₽">{{ kp_money(it.bench_price) }}</td></tr>
+    {% if it.blank_cost is not none %}
+    <tr><td></td><td></td><td data-label="Операция">{{ p.blank_label }}: {{ it.blank_text }}</td>
+      <td class="num" data-label="Шт. × цена без НДС">{{ it.blank_pieces }} шт. × {{ kp_money(it.blank_unit) }}</td><td class="num" data-label="Сумма, ₽">{{ kp_money(it.blank_cost) }}</td></tr>
+    {% endif %}
     {% endif %}
     {% endfor %}
   </table>

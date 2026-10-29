@@ -1,0 +1,38 @@
+{# Справочник: прайс заготовок prutki.ru (загружается вручную, приложение в интернет не ходит) и соответствие марок. #}
+{% import "_help.html" as help %}
+{% set off = '' if can('edit_reference') else 'disabled' %}
+<div class="card" id="blank-prices">
+  <h2>Цены заготовок (prutki.ru) {{ help.help_tip('it.blank_prices') }}</h2>
+  {% if price_meta %}
+  <p>Прайс от <b>{{ price_meta.date|dt if price_meta.date else 'дата не указана' }}</b> · позиций: <b>{{ price_meta.count }}</b>
+    · цены за кусок {% if price_meta.vat_percent is not none %}с НДС {{ blank_fmt(price_meta.vat_percent) }} %{% else %}с НДС {{ blank_fmt(price_rules.default_vat) }} % (в шапке ставки нет){% endif %}<br>
+    <span class="muted">Файл {{ price_meta.file }}, загрузил {{ price_meta.by }} {{ price_meta.loaded_at|dt }}; пропущено строк: {{ price_meta.skipped }} (аноды, разделы, без цены).</span></p>
+  {% else %}<p class="err">Прайс не загружен: цену заготовки задаёт технолог в карточке позиции.</p>{% endif %}
+  {% if can('edit_reference') %}
+  <form method="post" action="/reference/blank-prices" enctype="multipart/form-data" class="row">
+    <div class="grow"><label>Файл прайса price.xls (скачайте с сайта prutki.ru в браузере)</label>
+      <input type="file" name="file" accept=".xls,.xlsx" required></div>
+    <input name="reason" value="обновление прайса" placeholder="причина" class="grow" required>
+    <button>Загрузить прайс</button>
+  </form>
+  <p class="muted">Новый прайс заменяет прежний целиком, запись — в историю. Доставка заготовок не считается.</p>
+  {% endif %}
+  <details>
+    <summary>Соответствие марок, запас на брак</summary>
+    <form method="post" action="/reference/blank-price-rules">
+      <label>Марки детали через запятую = марка прайса; своя марка для сортамента — «; круг: 12Х18Н10Т». Марки нет в таблице — цену задаёт технолог.</label>
+      <textarea class="blank-series" name="grades" rows="8" {{ off }}>{{ price_grades }}</textarea>
+      <div class="row">
+        <div><label>Запас на брак, шт. на позицию</label><input class="small" name="scrap" inputmode="numeric" value="{{ price_rules.scrap }}" {{ off }}></div>
+        <div><label>Ширина реза между заготовками, мм</label><input class="small" name="kerf" inputmode="decimal" value="{{ blank_fmt(price_rules.kerf) }}" {{ off }}></div>
+        <div><label>НДС в ценах прайса, если нет в шапке, %</label><input class="small" name="vat" inputmode="decimal" value="{{ blank_fmt(price_rules.default_vat) }}" {{ off }}></div>
+      </div>
+      {% if can('edit_reference') %}<div class="row"><input name="reason" placeholder="причина изменения" class="grow" required><button>Изменить</button></div>{% endif %}
+    </form>
+  </details>
+  <p class="muted">Кусок подбирается по заготовке позиции: лист — лист и плита (толщина не меньше, размеры в плане — с поворотом),
+    круг — пруток, круг, стержень (Ø и длина не меньше), шестигранник, квадрат, полоса. Раскрой: лист — простая сетка
+    заготовок в плане куска, пруток — по длине, с резом между заготовками. Нужно кусков = (заготовок + запас на брак) / заготовок
+    из куска, вверх; стоимость = цена куска × кусков; из подходящих кусков (крупные тоже) — самый выгодный.
+    Остаток меньше нужного — предупреждение, не запрет.</p>
+</div>

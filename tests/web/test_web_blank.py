@@ -2,7 +2,7 @@
 from tests.web.test_web_flow import create_order, prepare
 from tests.web.test_web_operations import approve, op_ids, press
 
-SYSTEM_TEXT = "Д16Т, лист h50 мм, 158×64 мм — 10 шт."  # 152×58×40: 40+2×3 → 50 по ряду, 152+2×3, 58+2×3
+SYSTEM_TEXT = "Д16Т, лист h45 мм, 155×61 мм — 10 шт."  # 152×58×40: 40+2×1,5 → 45 по ряду, 152+2×1,5, 58+2×1,5
 
 
 def test_position_card_shows_blank_and_technologist_edits_it(login):

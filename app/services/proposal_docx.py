@@ -139,7 +139,7 @@ def write_docx(p: Proposal, path: Path) -> Path:
     doc.add_paragraph("Благодарим за запрос. Предлагаем изготовить детали по вашей конструкторской документации "
                       "на следующих условиях:")
 
-    rows = [[str(i), it.designation, it.name, it.material, str(it.quantity), money(it.price), money(it.batch_price)]
+    rows = [[str(i), it.designation, it.name, it.material, str(it.quantity), money(it.price), money(it.total_price)]
             for i, it in enumerate(p.items, start=1)]
     t = _table(doc, ["№", "Обозначение", "Наименование", "Материал", "Кол-во, шт.", "Цена за шт., ₽", "Сумма, ₽"],
                rows, [8, 42, 34, 26, 17, 23, 25], right_from=4)
@@ -155,7 +155,7 @@ def write_docx(p: Proposal, path: Path) -> Path:
 
     sub = doc.add_paragraph()
     sub.paragraph_format.space_before = Pt(8)
-    _run(sub, "Цена операций (на партию)", bold=True)
+    _run(sub, "Цена операций и заготовок (на партию)" if p.has_blanks else "Цена операций (на партию)", bold=True)
     ops = []
     for i, it in enumerate(p.items, start=1):
         if it.batch_price is None:
@@ -165,6 +165,9 @@ def write_docx(p: Proposal, path: Path) -> Path:
                     f"{hours(it.machine_hours)} ч × {money(it.machine_rate)}", money(it.machine_price)])
         ops.append(["", "", "Слесарно-финишная обработка", f"{hours(it.bench_hours)} ч × {money(it.bench_rate)}",
                     money(it.bench_price)])
+        if it.blank_cost is not None:  # без НДС: НДС КП начисляется на итог
+            ops.append(["", "", f"{p.blank_label}: {it.blank_text}", f"{it.blank_pieces} шт. × {money(it.blank_unit)}",
+                        money(it.blank_cost)])
     _widths(_table(doc, ["№", "Обозначение", "Операция", "Время × ставка, ₽/ч", "Сумма, ₽"], ops,
                    [8, 42, 60, 40, 25], right_from=3), [8, 42, 60, 40, 25])
     _run(doc.add_paragraph(), p.price_note, size=8.5, color=MUTED)

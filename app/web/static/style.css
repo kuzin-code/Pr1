@@ -323,6 +323,9 @@ tr.row-section td { padding-top:10px; }
 /* Заготовка в карточке позиции: строка для заготовителя — крупно. */
 .blank-line { font-size:20px; font-weight:800; margin:4px 0 8px; overflow-wrap:anywhere; }
 .blank-series { width:100%; min-height:60px; }
+/* Цена заготовок по прайсу prutki.ru: в блоке «Заготовка» и строкой под позицией быстрого расчёта */
+.blank-price { border-top:1px solid var(--line); margin-top:10px; padding-top:8px; overflow-wrap:anywhere; }
+.blank-price h3 { font-size:15px; margin:0 0 4px; } .quick-blank td { font-size:13px; color:var(--muted); }
 
 @media print {
   .shift-sheet h1 { font-size:18pt; margin:0 0 4pt; } .shift-table { font-size:10pt; width:100%; }

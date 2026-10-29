@@ -1,0 +1,29 @@
+{# Карточка позиции, блок «Заготовка»: цена заготовок по прайсу prutki.ru или заданная технологом (видят те, кто видит себестоимость). #}
+{% import "_help.html" as help %}
+{% set bc = blank_cost %}
+<div class="blank-price">
+  <h3>Цена заготовок {{ help.help_tip('position.blank_price') }}</h3>
+  {% if bc.unit_price is not none %}
+  <p>{% if bc.status == 'manual' %}Цена куска <span class="badge ok">задано технологом</span>{% if bc.note %} <span class="muted">{{ bc.note }}</span>{% endif %}:
+    <b>{{ bc.unit_price|money }}/шт</b> × ({{ bc.count }} + {{ bc.scrap }} на брак) = <b>{{ bc.total|money }}</b> (с НДС {{ blank_fmt(bc.vat_percent) }} %)
+    {% else %}Кусок по прайсу prutki.ru{% if bc.price_date %} от {{ bc.price_date|dt }}{% endif %}: {{ bc.piece.title }} (код {{ bc.piece.code }}),
+    {{ bc.cut_text }} — {{ bc.pieces }} × {{ bc.unit_price|money }} = <b>{{ bc.total|money }}</b> (с НДС {{ blank_fmt(bc.vat_percent) }} %){% endif %}
+    {% if bc.warning %}<span class="badge warn">{{ bc.warning }}</span>{% endif %}</p>
+  {% else %}<p><span class="badge err">не определена</span> {{ bc.reason }}</p>{% endif %}
+  {% if btech %}
+  <details>
+    <summary>Задать цену куска вручную</summary>
+    <form method="post" action="/positions/{{ pos.id }}/blank-price" class="row">
+      <div><label>Цена куска, ₽ с НДС</label><input class="small" name="price" inputmode="decimal" value="{{ blank_fmt(bc.unit_price) if bc.status == 'manual' else '' }}" required></div>
+      <div class="grow"><label>Откуда цена</label><input name="note" class="grow" value="{{ bc.note }}" placeholder="например, счёт поставщика"></div>
+      <input name="reason" placeholder="Причина" class="grow" required><button>Сохранить цену</button>
+    </form>
+    {% if bc.status == 'manual' %}
+    <form method="post" action="/positions/{{ pos.id }}/blank-price" class="inline" style="margin-top:8px">
+      <input type="hidden" name="reset" value="1"><input name="reason" placeholder="Причина" required>
+      <button class="secondary">Вернуть цену по прайсу</button></form>{% endif %}
+  </details>
+  {% endif %}
+  <p class="muted">Раскрой — простая сетка заготовок в куске (лист) или по длине (пруток), плюс запас на брак; доставка не считается.
+    Цена, заданная технологом, — за кусок на одну заготовку. В КП заготовки идут строкой без НДС.</p>
+</div>

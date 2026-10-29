@@ -98,13 +98,16 @@ def create_from_quick(session: Session, actor: Actor, work_dir: Path | str, toke
     desired = date.fromisoformat(s["desired"]) if s.get("desired") else None
     items = [ProposalItem(i["designation"], i["name"], i["material"], i["quantity"], i["machine_hours"],
                           i["bench_hours"], i["machine_rate"], i["bench_rate"], i["batch_price"],
-                          list(i.get("breaks") or [])) for i in s["items"]]
+                          list(i.get("breaks") or []), i.get("blank_cost"), i.get("blank_pieces") or 0,
+                          i.get("blank_unit"), i.get("blank_text") or "") for i in s["items"]]
     p = Proposal(number="КП-Б", date=today, valid_until=today + timedelta(days=VALID_DAYS), order_number="",
                  customer=s.get("customer") or "", contacts={}, items=items,
                  start=date.fromisoformat(s["start"]),
                  calc_date=datetime.fromisoformat(s["calc_date"]) if s.get("calc_date") else None,
                  range=span, desired=desired, desired_check=span.against(desired) if span else RangeCheck("none"),
-                 notes=list(s.get("notes") or []))
+                 notes=list(s.get("notes") or []), blank_price_date=s.get("blank_price_date"))
+    if s.get("price_note"):
+        p.price_note = s["price_note"]
     return _save(session, actor, p, storage_dir, "quick", None)
 
 
